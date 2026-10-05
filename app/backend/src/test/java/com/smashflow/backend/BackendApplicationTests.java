@@ -1,4 +1,4 @@
-package com.smashflow.Backend;
+package com.smashflow.backend;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

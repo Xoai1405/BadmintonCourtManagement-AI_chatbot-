@@ -31,10 +31,3 @@ build/
 
 ### VS Code ###
 .vscode/
-# File cấu hình bảo mật 
-application-local.properties
-.env
-
-# File hệ thống Windows / Mac
-.DS_Store
-Thumbs.db
