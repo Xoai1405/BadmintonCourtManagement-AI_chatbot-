@@ -1,4 +1,4 @@
-package com.smashflow.backend.dto.response.conflict;
+package com.smashflow.backend.dto.response;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
