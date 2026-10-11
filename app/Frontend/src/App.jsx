@@ -1,11 +1,39 @@
-import { useState } from "react";
-import heroImg from "./assets/hero.png";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "./assets/vite.svg";
-import "./App.css";
 
+import "./App.css";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage.jsx";
+import { Navigate, Route, Routes } from "react-router-dom";
+import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
+import DashboardPage from "./pages/DashboardPage.jsx";
 function App() {
-  return <h1>Hello World!</h1>;
+    return (
+
+    <Routes>
+      <Route
+        path="/"
+        element={<Navigate to="/login" replace />}
+      />
+
+      <Route
+        path="/login"
+        element={<LoginPage />}
+      />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+      </Route>
+
+      <Route
+        path="/register"
+        element={<RegisterPage />}
+      />
+     
+      <Route
+        path="*"
+        element={<Navigate to="/login" replace />}
+      />
+    </Routes>
+
+    );
 }
 
 export default App;
