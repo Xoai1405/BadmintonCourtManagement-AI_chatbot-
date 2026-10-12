@@ -5,6 +5,7 @@ import RegisterPage from "./pages/RegisterPage.jsx";
 import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
+import CourtManagementPage from "./pages/CourtManagementPage.jsx";
 function App() {
     return (
 
@@ -21,6 +22,8 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<DashboardPage />} />
       </Route>
+
+      <Route path="/courts" element={<CourtManagementPage />} />
 
       <Route
         path="/register"

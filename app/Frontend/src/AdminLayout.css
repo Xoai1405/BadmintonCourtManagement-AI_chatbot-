@@ -1,0 +1,300 @@
+/* Màu dùng chung cho các màn quản lý: chỉnh tại đây. */
+.admin-layout {
+  --admin-page-bg: #f8fff0;
+  --admin-sidebar-bg: #2d9677;
+  --admin-nav-active-bg: #00540c;
+  --admin-nav-text: #cfddbd;
+  --admin-primary: #1b7d60;
+  --admin-primary-hover: #14634c;
+  --admin-text: #000000;
+  --admin-muted: #727272;
+  --admin-surface: #ffffff;
+  --admin-border: #999999;
+
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--admin-page-bg);
+  color: var(--admin-text);
+}
+
+/* Sidebar và bố cục chung của các màn quản lý. */
+.admin-sidebar {
+  display: flex;
+  width: 188px;
+  flex-shrink: 0;
+  flex-direction: column;
+  border-right: 1px solid rgb(0 0 0 / 50%);
+  background-color: var(--admin-sidebar-bg);
+  color: var(--admin-surface);
+}
+
+.admin-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 8px;
+  padding: 20px 0;
+  border-bottom: 1px solid rgb(255 255 255 / 15%);
+}
+
+.admin-logo-placeholder {
+  display: flex;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  background-color: #929292;
+  color: var(--admin-text);
+  font-size: 8px;
+}
+
+.admin-sidebar-title {
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.admin-nav {
+  margin-top: 8px;
+  padding: 0 4px;
+}
+
+.admin-nav-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: transparent;
+  color: var(--admin-nav-text);
+  font-size: 15px;
+  text-align: left;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.admin-nav-item:hover {
+  background-color: rgb(255 255 255 / 10%);
+}
+
+.admin-nav-item--active,
+.admin-nav-item--active:hover {
+  background-color: var(--admin-nav-active-bg);
+  color: var(--admin-surface);
+  font-weight: 700;
+}
+
+.admin-nav-icon {
+  font-size: 20px;
+  line-height: 28px;
+}
+
+.admin-nav-label {
+  white-space: nowrap;
+}
+
+.admin-sidebar-footer {
+  margin-top: auto;
+  padding: 40px 8px 16px;
+}
+
+.admin-brand {
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgb(255 255 255 / 15%);
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.admin-brand-smash {
+  color: #152b35;
+}
+
+.admin-brand-flow {
+  color: #89edca;
+}
+
+.admin-user {
+  margin: 12px 0 0;
+  color: var(--admin-nav-text);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.admin-main {
+  min-width: 0;
+  flex: 1;
+  padding: 32px 16px;
+}
+
+.admin-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.admin-page-title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.admin-page-description {
+  margin: 4px 0 0;
+  color: var(--admin-muted);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.admin-primary-button {
+  padding: 16px 20px;
+  border: none;
+  border-radius: 12px;
+  background-color: var(--admin-primary);
+  color: var(--admin-surface);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 28px;
+  transition: background-color 150ms ease;
+}
+
+.admin-primary-button:hover {
+  background-color: var(--admin-primary-hover);
+}
+
+.admin-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* Phần riêng của trang quản lý sân. */
+.court-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background-color: var(--admin-surface);
+}
+
+.court-table {
+  width: 100%;
+  min-width: 1050px;
+  border-collapse: collapse;
+  font-size: 18px;
+  line-height: 28px;
+  text-align: left;
+}
+
+.court-table thead {
+  border-bottom: 1px solid #c5c5c5;
+}
+
+.court-table th,
+.court-table td {
+  padding: 12px 16px;
+  white-space: nowrap;
+}
+
+.court-table th {
+  font-weight: 400;
+}
+
+.court-table th:first-child,
+.court-table td:first-child {
+  padding-right: 24px;
+  padding-left: 24px;
+}
+
+.court-status {
+  display: inline-flex;
+  min-width: 56px;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.court-status--active {
+  background-color: #e6f8f3;
+  color: #00a882;
+}
+
+.court-status--maintenance {
+  background-color: #f1f3f7;
+  color: #65718a;
+}
+
+.court-status--closed {
+  background-color: #d9d9d9;
+  color: #666666;
+}
+
+.court-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.court-action-button {
+  padding: 4px 8px;
+  border: 1px solid #cccccc;
+  border-radius: 6px;
+  background-color: var(--admin-surface);
+  color: var(--admin-text);
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.court-action-button:hover {
+  background-color: #f3f4f6;
+}
+
+.court-action-button--delete {
+  border-color: #ff5252;
+  background-color: #ffd7d7;
+  color: #d11b1b;
+}
+
+.court-action-button--delete:hover {
+  background-color: #ffc4c4;
+}
+
+.court-action-button--activate {
+  border-color: transparent;
+  background-color: var(--admin-primary);
+  color: var(--admin-surface);
+  font-weight: 700;
+}
+
+.court-action-button--activate:hover {
+  background-color: var(--admin-primary-hover);
+}
+
+@media (min-width: 768px) {
+  .admin-main {
+    padding: 48px 32px;
+  }
+
+  .admin-page-title {
+    font-size: 40px;
+  }
+
+  .admin-page-description {
+    font-size: 16px;
+  }
+}
