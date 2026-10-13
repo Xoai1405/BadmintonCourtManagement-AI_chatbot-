@@ -78,7 +78,10 @@ export default function CourtManagementPage() {
   const { courts, setCourts, allocateCourtId } = useOutletContext();
   // null: đang thêm sân; có courtId: đang sửa sân tương ứng.
   const [editingCourtId, setEditingCourtId] = useState(null);
-  const [form, setForm] = useState({ name: "", courtType: "STANDARD_OUTDOOR" });
+  // Khi thêm sân, mặc định Hoạt động; khi sửa sẽ lấy trạng thái hiện tại của sân.
+  const [form, setForm] = useState({
+    name: "", courtType: "STANDARD_OUTDOOR", status: "ACTIVE",
+  });
   const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
   // Sân đang chờ xác nhận xóa; mở popup chưa làm thay đổi danh sách.
@@ -96,16 +99,17 @@ export default function CourtManagementPage() {
     setForm({
       name: court?.name ?? "",
       courtType: court?.courtType ?? "STANDARD_OUTDOOR",
+      status: court?.status ?? "ACTIVE",
     });
     setFormError("");
     dialogRef.current.showModal();
     nameInputRef.current.focus();
   };
 
-  // onClose gọi hàm này khi lưu, bấm Hủy hoặc đóng dialog bằng phím Escape.
+  // onClose gọi hàm này khi lưu, bấm Đóng hoặc đóng dialog bằng phím Escape.
   const resetForm = () => {
     setEditingCourtId(null);
-    setForm({ name: "", courtType: "STANDARD_OUTDOOR" });
+    setForm({ name: "", courtType: "STANDARD_OUTDOOR", status: "ACTIVE" });
     setFormError("");
   };
 
@@ -123,26 +127,31 @@ export default function CourtManagementPage() {
       setFormError("Vui lòng chọn loại sân hợp lệ.");
       return;
     }
+    if (!Object.hasOwn(statusStyles, form.status)) {
+      setFormError("Vui lòng chọn trạng thái hợp lệ.");
+      return;
+    }
 
     // Request thêm/sửa sân chỉ gồm name và courtType.
+    // Trạng thái thuộc API đổi trạng thái riêng; bản mock lưu cùng khi bấm Thêm/Lưu.
     const requestBody = { name, courtType: form.courtType };
     // Tạm dùng giá thường thấp nhất làm referencePrice cho bản ghi mock.
     const referencePrice = getPrices(requestBody.courtType, false)[0] ?? 0;
 
     if (editingCourtId !== null) {
-      // Chỉ cập nhật sân đúng ID, giữ lại trạng thái, ảnh và mô tả hiện có.
+      // Cập nhật thông tin và trạng thái của đúng sân, giữ nguyên ID, ảnh và mô tả.
       setCourts((prev) => prev.map((court) =>
         court.courtId === editingCourtId
-          ? { ...court, ...requestBody, referencePrice }
+          ? { ...court, ...requestBody, status: form.status, referencePrice }
           : court
       ));
       setNotice(`Đã cập nhật ${name}.`);
     } else {
-      // Mô phỏng response tạo sân: tự cấp ID và đặt trạng thái ban đầu là ACTIVE.
+      // Mô phỏng tạo sân: tự cấp ID và lưu trạng thái người dùng đã chọn trong form.
       const newCourt = {
         courtId: allocateCourtId(),
         ...requestBody,
-        status: "ACTIVE",
+        status: form.status,
         referencePrice,
         imageUrl: "",
         description: "",
@@ -319,11 +328,17 @@ export default function CourtManagementPage() {
 
         {/* Form dùng chung cho thêm/sửa; đóng dialog sẽ reset dữ liệu form. */}
         <dialog ref={dialogRef} aria-labelledby="court-form-title"
+          aria-describedby="court-form-description"
           className="court-form-dialog" onClose={resetForm}>
           <form onSubmit={handleSubmit} noValidate className="court-form">
-            <h2 id="court-form-title" className="court-form-title">
-              {editingCourtId === null ? "Thêm sân mới" : "Sửa thông tin sân"}
-            </h2>
+            <header className="court-form-header">
+              <h2 id="court-form-title" className="court-form-title">
+                {editingCourtId === null ? "Thêm sân mới" : "Sửa thông tin sân"}
+              </h2>
+              <p id="court-form-description" className="court-form-description">
+                Nhập tên, chọn loại sân và trạng thái để {editingCourtId === null ? "thêm sân mới" : "cập nhật thông tin"}.
+              </p>
+            </header>
 
             <label htmlFor="court-name" className="court-form-field">
               Tên sân
@@ -351,23 +366,48 @@ export default function CourtManagementPage() {
               </select>
             </label>
 
-            <div className="court-form-price-note">
-              Giá theo loại sân đã chọn:<br />
-              Giá cơ bản: {getPriceLabel(form.courtType, false)}<br />
-              Giá giờ cao điểm: {getPriceLabel(form.courtType, true)}
-            </div>
+            {/* Thêm và sửa dùng chung lựa chọn trạng thái; chỉ lưu khi gửi form. */}
+            <label htmlFor="court-status" className="court-form-field">
+              Trạng thái
+              <select id="court-status" name="status" value={form.status}
+                className="court-form-input" required
+                onChange={(event) => {
+                  setForm((prev) => ({ ...prev, status: event.target.value }));
+                  setFormError("");
+                }}>
+                {Object.entries(statusStyles).map(([value, { label }]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
+
+            {/* Giá chỉ hiển thị theo loại sân, không phải trường nhập của request thêm/sửa. */}
+            <section className="court-form-price-note" aria-labelledby="court-form-price-title">
+              <h3 id="court-form-price-title" className="court-form-price-title">Giá theo loại sân</h3>
+              <dl className="court-form-prices">
+                <div>
+                  <dt>Giá cơ bản</dt>
+                  <dd>{getPriceLabel(form.courtType, false)}</dd>
+                </div>
+                <div>
+                  <dt>Giá giờ cao điểm</dt>
+                  <dd>{getPriceLabel(form.courtType, true)}</dd>
+                </div>
+              </dl>
+            </section>
 
             {formError && <p id="court-form-error" role="alert" className="court-form-error">{formError}</p>}
 
-            <div className="court-form-actions">
-              <button type="button" className="court-action-button"
+            {/* Nút riêng của popup có cùng kích thước, không dùng kích thước nút nhỏ trong bảng. */}
+            <footer className="court-form-actions">
+              <button type="button" className="court-form-button court-form-button--secondary"
                 onClick={() => dialogRef.current.close()}>
-                Hủy
+                Đóng
               </button>
-              <button type="submit" className="court-action-button court-action-button--activate">
-                {editingCourtId === null ? "Thêm sân" : "Lưu thay đổi"}
+              <button type="submit" className="court-form-button court-form-button--primary">
+                {editingCourtId === null ? "+ Thêm sân" : "Lưu thay đổi"}
               </button>
-            </div>
+            </footer>
           </form>
         </dialog>
     </>

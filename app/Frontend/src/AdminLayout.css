@@ -317,16 +317,17 @@
   background-color: var(--admin-primary-hover);
 }
 
-/* Popup thêm/sửa: giữ nguyên kích thước và màu của form trước khi tách khỏi JSX.
+/* Popup thêm/sửa: chiều cao theo nội dung để tránh khoảng trống lớn dưới form.
    Không đặt display cho dialog để popup vẫn ẩn khi chưa gọi showModal(). */
 .court-form-dialog {
   position: fixed;
   inset: 0;
-  width: min(480px, calc(100vw - 32px));
-  max-height: calc(100vh - 32px);
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
   overflow-y: auto;
+  overscroll-behavior: contain;
   margin: auto;
-  padding: 24px;
+  padding: 28px;
   border: 1px solid var(--admin-form-border);
   border-radius: 16px;
   background-color: var(--admin-surface);
@@ -334,53 +335,185 @@
   box-shadow: 0 16px 48px rgb(0 0 0 / 20%);
 }
 
+/* Làm tối nền phía sau để người dùng tập trung vào form đang mở. */
+.court-form-dialog::backdrop {
+  background-color: rgb(0 0 0 / 52%);
+}
+
 /* Form chia các trường theo hàng, mỗi trường gồm nhãn và ô nhập/chọn. */
 .court-form {
   display: grid;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+
+.court-form-header {
+  padding-bottom: 4px;
 }
 
 .court-form-title {
   margin: 0;
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 700;
+  line-height: 1.3;
+}
+
+.court-form-description {
+  margin: 8px 0 0;
+  color: var(--admin-form-muted);
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .court-form-field {
   display: grid;
+  min-width: 0;
   gap: 8px;
   font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
 }
 
-/* Dùng chung cho input và select; font: inherit giúp hai loại ô có cùng kiểu chữ. */
+/* Input và select cùng chiều rộng/cao để các trường thẳng hàng. */
 .court-form-input {
   width: 100%;
-  padding: 10px 12px;
+  min-width: 0;
+  height: 46px;
+  padding: 10px 14px;
   border: 1px solid var(--admin-form-border);
   border-radius: 8px;
   background-color: var(--admin-surface);
   color: var(--admin-form-text);
   font: inherit;
+  font-weight: 400;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
-/* Giá theo loại sân là thông tin tham khảo; lỗi form dùng chữ đỏ để dễ nhận biết. */
+.court-form-input::placeholder {
+  color: var(--admin-form-muted);
+}
+
+/* Viền xanh khi focus; lỗi tên sân có viền đỏ để nhận biết đúng trường cần sửa. */
+.court-form-input:focus {
+  border-color: var(--admin-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(27 125 96 / 12%);
+}
+
+.court-form-input[aria-invalid="true"] {
+  border-color: var(--admin-form-error);
+}
+
+/* Giá tham khảo chia hai cột đều nhau, tự cập nhật khi đổi loại sân trong JSX. */
 .court-form-price-note {
+  padding: 16px;
+  border: 1px solid var(--admin-form-border);
+  border-radius: 12px;
+  background-color: #f5faf8;
+}
+
+.court-form-price-title {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.court-form-prices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.court-form-prices dt {
   color: var(--admin-form-muted);
   font-size: 13px;
-  line-height: 1.7;
+  line-height: 1.5;
 }
 
+.court-form-prices dd {
+  margin: 4px 0 0;
+  color: var(--admin-form-text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* Lỗi form dùng chữ đỏ để dễ nhận biết. */
 .court-form-error {
   margin: 0;
   color: var(--admin-form-error);
   font-size: 13px;
 }
 
-/* Nút Hủy và Lưu/Thêm nằm ở cuối form, căn về phía phải. */
+/* Nút Đóng và Lưu/Thêm có cùng kích thước, cùng hàng và căn phải. */
 .court-form-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--admin-form-border);
+}
+
+.court-form-button {
+  display: inline-flex;
+  width: 148px;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.court-form-button--secondary {
+  border-color: var(--admin-form-border);
+  background-color: var(--admin-surface);
+  color: var(--admin-form-text);
+}
+
+.court-form-button--secondary:hover {
+  border-color: #94a3b8;
+  background-color: #f3f4f6;
+}
+
+.court-form-button--primary {
+  background-color: var(--admin-primary);
+  color: var(--admin-surface);
+}
+
+.court-form-button--primary:hover {
+  background-color: var(--admin-primary-hover);
+}
+
+.court-form-button:focus-visible {
+  outline: 3px solid var(--admin-primary);
+  outline-offset: 3px;
+}
+
+/* Màn hình nhỏ: giá xếp một cột, hai nút chia đều chiều rộng còn lại. */
+@media (max-width: 560px) {
+  .court-form-dialog {
+    padding: 24px 20px;
+  }
+
+  .court-form-prices {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .court-form-button {
+    min-width: 0;
+    flex: 1;
+    padding: 0 8px;
+  }
 }
 
 /* Popup xác nhận xóa: native dialog giữ focus trong popup và hỗ trợ Escape. */
