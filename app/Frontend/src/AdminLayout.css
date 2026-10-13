@@ -1,4 +1,4 @@
-/* Màu dùng chung cho các màn quản lý: chỉnh tại đây. */
+/* Màu nền, chữ và nút chung của màn quản lý. Biến chỉ áp dụng trong .admin-layout. */
 .admin-layout {
   --admin-page-bg: #f8fff0;
   --admin-sidebar-bg: #2d9677;
@@ -10,6 +10,12 @@
   --admin-muted: #727272;
   --admin-surface: #ffffff;
   --admin-border: #999999;
+
+  /* Màu riêng của form thêm/sửa, chuyển từ JSX sang đây để dễ chỉnh giao diện. */
+  --admin-form-text: #102a36;
+  --admin-form-border: #dce6e5;
+  --admin-form-muted: #718096;
+  --admin-form-error: #dc2626;
 
   display: flex;
   min-height: 100vh;
@@ -28,6 +34,7 @@
   color: var(--admin-surface);
 }
 
+/* Logo và tiêu đề ở đầu sidebar; menu nằm ngay bên dưới. */
 .admin-sidebar-header {
   display: flex;
   align-items: center;
@@ -37,16 +44,12 @@
   border-bottom: 1px solid rgb(255 255 255 / 15%);
 }
 
-.admin-logo-placeholder {
-  display: flex;
+.admin-logo {
+  display: block;
   width: 44px;
-  height: 24px;
+  height: 32px;
   flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  background-color: #929292;
-  color: var(--admin-text);
-  font-size: 8px;
+  object-fit: contain;
 }
 
 .admin-sidebar-title {
@@ -55,6 +58,8 @@
   white-space: nowrap;
 }
 
+/* Menu dùng NavLink để chuyển trang: mục khớp URL có nền xanh đậm.
+   Bỏ gạch chân mặc định của liên kết để giữ giao diện giống menu trước đây. */
 .admin-nav {
   margin-top: 8px;
   padding: 0 4px;
@@ -72,6 +77,7 @@
   color: var(--admin-nav-text);
   font-size: 15px;
   text-align: left;
+  text-decoration: none;
   transition: background-color 150ms ease, color 150ms ease;
 }
 
@@ -95,6 +101,7 @@
   white-space: nowrap;
 }
 
+/* margin-top: auto đẩy thương hiệu và thông tin đăng nhập xuống cuối sidebar. */
 .admin-sidebar-footer {
   margin-top: auto;
   padding: 40px 8px 16px;
@@ -123,6 +130,7 @@
   font-weight: 700;
 }
 
+/* Nội dung chính co giãn theo chiều rộng còn lại bên cạnh sidebar. */
 .admin-main {
   min-width: 0;
   flex: 1;
@@ -153,6 +161,7 @@
   line-height: 1.5;
 }
 
+/* Nút hành động chính ở đầu trang, dùng cho thao tác Thêm sân. */
 .admin-primary-button {
   padding: 16px 20px;
   border: none;
@@ -169,6 +178,14 @@
   background-color: var(--admin-primary-hover);
 }
 
+/* Thông báo kết quả thêm/sửa/xóa/đổi trạng thái; JSX chỉ cung cấp nội dung. */
+.admin-notice {
+  margin: 0 0 12px;
+  color: var(--admin-primary-hover);
+  font-size: 14px;
+}
+
+/* Ẩn chữ khỏi giao diện nhưng vẫn để trình đọc màn hình đọc được tiêu đề cột. */
 .admin-visually-hidden {
   position: absolute;
   width: 1px;
@@ -180,7 +197,7 @@
   white-space: nowrap;
 }
 
-/* Phần riêng của trang quản lý sân. */
+/* Bảng quản lý sân: giữ đủ chiều rộng các cột, cuộn ngang khi vùng hiển thị hẹp. */
 .court-table-wrapper {
   overflow-x: auto;
   border: 1px solid var(--admin-border);
@@ -217,32 +234,47 @@
   padding-left: 24px;
 }
 
+/* Cột thứ 5 là trạng thái: căn giữa cả tiêu đề và nhãn trong từng dòng. */
+.court-table th:nth-child(5),
+.court-table td:nth-child(5) {
+  width: 144px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+/* Nhãn cùng kích thước giúp các trạng thái thẳng hàng dù độ dài chữ khác nhau. */
 .court-status {
   display: inline-flex;
-  min-width: 56px;
+  width: 104px;
+  min-height: 28px;
   align-items: center;
   justify-content: center;
   padding: 4px 12px;
   border-radius: 9999px;
-  font-size: 9px;
-  line-height: 1.5;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
+/* Màu theo trạng thái: xanh hoạt động, vàng bảo trì, xám đóng. */
 .court-status--active {
   background-color: #e6f8f3;
-  color: #00a882;
+  color: #0b755e;
 }
 
 .court-status--maintenance {
-  background-color: #f1f3f7;
-  color: #65718a;
+  background-color: #fff4df;
+  color: #9a5b13;
 }
 
 .court-status--closed {
-  background-color: #d9d9d9;
-  color: #666666;
+  background-color: #edf0f3;
+  color: #4b5563;
 }
 
+/* Nhóm nút thao tác của mỗi sân; màu đỏ cho xóa, xanh cho kích hoạt. */
 .court-actions {
   display: flex;
   align-items: center;
@@ -285,6 +317,276 @@
   background-color: var(--admin-primary-hover);
 }
 
+/* Popup thêm/sửa: giữ nguyên kích thước và màu của form trước khi tách khỏi JSX.
+   Không đặt display cho dialog để popup vẫn ẩn khi chưa gọi showModal(). */
+.court-form-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  margin: auto;
+  padding: 24px;
+  border: 1px solid var(--admin-form-border);
+  border-radius: 16px;
+  background-color: var(--admin-surface);
+  color: var(--admin-form-text);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 20%);
+}
+
+/* Form chia các trường theo hàng, mỗi trường gồm nhãn và ô nhập/chọn. */
+.court-form {
+  display: grid;
+  gap: 16px;
+}
+
+.court-form-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.court-form-field {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+}
+
+/* Dùng chung cho input và select; font: inherit giúp hai loại ô có cùng kiểu chữ. */
+.court-form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--admin-form-border);
+  border-radius: 8px;
+  background-color: var(--admin-surface);
+  color: var(--admin-form-text);
+  font: inherit;
+}
+
+/* Giá theo loại sân là thông tin tham khảo; lỗi form dùng chữ đỏ để dễ nhận biết. */
+.court-form-price-note {
+  color: var(--admin-form-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.court-form-error {
+  margin: 0;
+  color: var(--admin-form-error);
+  font-size: 13px;
+}
+
+/* Nút Hủy và Lưu/Thêm nằm ở cuối form, căn về phía phải. */
+.court-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* Popup xác nhận xóa: native dialog giữ focus trong popup và hỗ trợ Escape. */
+.court-delete-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: auto;
+  padding: 40px 40px 24px;
+  border: none;
+  border-radius: 12px;
+  background-color: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 20px 60px rgb(15 23 42 / 18%);
+}
+
+/* Backdrop phủ cả trang khi gọi showModal(), không tác động dialog thêm/sửa. */
+.court-delete-dialog::backdrop {
+  background-color: rgb(0 0 0 / 52%);
+}
+
+/* Phần đầu popup: biểu tượng cảnh báo đỏ, tiêu đề và câu hỏi xác nhận. */
+.court-delete-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.court-delete-icon {
+  flex-shrink: 0;
+  color: #ed2424;
+}
+
+.court-delete-header h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.court-delete-header p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Khối thông tin giúp người dùng kiểm tra đúng sân trước khi xác nhận xóa. */
+.court-delete-info {
+  margin-top: 56px;
+}
+
+.court-delete-info h3 {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin: 0 0 20px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.court-delete-info h3 svg {
+  flex-shrink: 0;
+  color: #10b981;
+}
+
+.court-delete-card {
+  padding: 18px;
+  border: 1px solid #e5eaf2;
+  border-radius: 12px;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.court-delete-card h4 {
+  margin: 0;
+  color: #172554;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.court-delete-type {
+  margin: 2px 0 0;
+}
+
+/* Hai mức giá đặt cạnh nhau trên desktop; chuyển thành một cột trên mobile. */
+.court-delete-prices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin: 8px 0 0;
+}
+
+.court-delete-prices dd {
+  margin: 0;
+}
+
+.court-delete-status {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 28px;
+}
+
+/* Nút Xóa và Đóng dùng chung kích thước, chỉ khác màu để phân biệt hành động. */
+.court-delete-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.court-delete-confirm,
+.court-delete-close {
+  display: inline-flex;
+  min-width: 112px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.court-delete-confirm {
+  background-color: #c74f4f;
+  color: #ffffff;
+}
+
+.court-delete-confirm:hover {
+  background-color: #b44141;
+}
+
+.court-delete-confirm:disabled {
+  opacity: 0.5;
+}
+
+.court-delete-close {
+  border-color: #cbd5e1;
+  background-color: #ffffff;
+  color: #334155;
+}
+
+.court-delete-close:hover {
+  border-color: #94a3b8;
+  background-color: #f3f4f6;
+}
+
+/* Viền focus giúp nhận biết nút đang chọn khi thao tác bằng bàn phím. */
+.court-delete-dialog button:focus-visible {
+  outline: 3px solid #0f8f72;
+  outline-offset: 3px;
+}
+
+/* Màn hình nhỏ: giảm khoảng trống popup xóa và chia đều chiều rộng hai nút. */
+@media (max-width: 560px) {
+  .court-delete-dialog {
+    padding: 24px 20px;
+  }
+
+  .court-delete-header {
+    gap: 12px;
+  }
+
+  .court-delete-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .court-delete-header h2 {
+    font-size: 22px;
+  }
+
+  .court-delete-info {
+    margin-top: 32px;
+  }
+
+  .court-delete-prices {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .court-delete-actions {
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  .court-delete-actions button {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* Desktop: tăng khoảng đệm nội dung và cỡ chữ tiêu đề trang. */
 @media (min-width: 768px) {
   .admin-main {
     padding: 48px 32px;
