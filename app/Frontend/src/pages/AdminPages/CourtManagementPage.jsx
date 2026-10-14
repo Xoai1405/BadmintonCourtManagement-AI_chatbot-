@@ -3,41 +3,6 @@ import { CircleX, FileText } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import "../../AdminLayout.css";
 
-// Bảng giá mẫu theo GET /api/v1/price-configs, ghép với sân bằng courtType.
-// isPeakHour phân biệt giá thường (false) và giá giờ cao điểm (true).
-const mockPriceConfigs = [
-  {
-    priceConfigId: 1, courtType: "STANDARD_OUTDOOR",
-    startTime: "06:00", endTime: "17:00",
-    pricePerHour: 100000, isPeakHour: false,
-  },
-  {
-    priceConfigId: 2, courtType: "STANDARD_OUTDOOR",
-    startTime: "17:00", endTime: "22:00",
-    pricePerHour: 150000, isPeakHour: true,
-  },
-  {
-    priceConfigId: 3, courtType: "VIP_INDOOR",
-    startTime: "06:00", endTime: "17:00",
-    pricePerHour: 250000, isPeakHour: false,
-  },
-  {
-    priceConfigId: 4, courtType: "VIP_INDOOR",
-    startTime: "17:00", endTime: "22:00",
-    pricePerHour: 350000, isPeakHour: true,
-  },
-  {
-    priceConfigId: 5, courtType: "STANDARD_INDOOR",
-    startTime: "06:00", endTime: "17:00",
-    pricePerHour: 90000, isPeakHour: false,
-  },
-  {
-    priceConfigId: 6, courtType: "STANDARD_INDOOR",
-    startTime: "17:00", endTime: "22:00",
-    pricePerHour: 190000, isPeakHour: true,
-  },
-];
-
 // Giữ giá trị enum theo contract, nhưng hiển thị tên loại sân bằng tiếng Việt.
 const courtTypeLabels = {
   STANDARD_OUTDOOR: "Tiêu chuẩn ngoài trời",
@@ -55,9 +20,9 @@ const statusStyles = {
 const priceFormatter = new Intl.NumberFormat("vi-VN");
 
 // Một loại sân có thể có nhiều khung giờ: bỏ mức giá trùng và sắp xếp tăng dần.
-function getPrices(courtType, isPeakHour) {
+function getPrices(priceConfigs, courtType, isPeakHour) {
   return [...new Set(
-    mockPriceConfigs
+    priceConfigs
       .filter((config) =>
         config.courtType === courtType && config.isPeakHour === isPeakHour
       )
@@ -66,8 +31,8 @@ function getPrices(courtType, isPeakHour) {
 }
 
 // Hiển thị đủ các mức giá tìm được, hoặc thông báo khi chưa cấu hình giá.
-function getPriceLabel(courtType, isPeakHour) {
-  const prices = getPrices(courtType, isPeakHour);
+function formatPriceLabel(priceConfigs, courtType, isPeakHour) {
+  const prices = getPrices(priceConfigs, courtType, isPeakHour);
   if (!prices.length) return "Chưa có giá";
   return `${prices.map((price) => priceFormatter.format(price)).join(" / ")}đ/Giờ`;
 }
@@ -75,7 +40,8 @@ function getPriceLabel(courtType, isPeakHour) {
 export default function CourtManagementPage() {
   // Layout giữ danh sách và ID mock để dữ liệu không mất khi chuyển menu.
   // Các thao tác hiện chỉ cập nhật state, chưa lưu vào database.
-  const { courts, setCourts, allocateCourtId } = useOutletContext();
+  const { courts, setCourts, allocateCourtId, priceConfigs } = useOutletContext();
+  const getPriceLabel = (courtType, isPeakHour) => formatPriceLabel(priceConfigs, courtType, isPeakHour);
   // null: đang thêm sân; có courtId: đang sửa sân tương ứng.
   const [editingCourtId, setEditingCourtId] = useState(null);
   // Khi thêm sân, mặc định Hoạt động; khi sửa sẽ lấy trạng thái hiện tại của sân.
@@ -136,7 +102,7 @@ export default function CourtManagementPage() {
     // Trạng thái thuộc API đổi trạng thái riêng; bản mock lưu cùng khi bấm Thêm/Lưu.
     const requestBody = { name, courtType: form.courtType };
     // Tạm dùng giá thường thấp nhất làm referencePrice cho bản ghi mock.
-    const referencePrice = getPrices(requestBody.courtType, false)[0] ?? 0;
+    const referencePrice = getPrices(priceConfigs, requestBody.courtType, false)[0] ?? 0;
 
     if (editingCourtId !== null) {
       // Cập nhật thông tin và trạng thái của đúng sân, giữ nguyên ID, ảnh và mô tả.
@@ -215,8 +181,8 @@ export default function CourtManagementPage() {
         </p>
 
         {/* Bảng luôn đọc từ state, nên cập nhật ngay sau khi thêm/sửa/xóa/đổi trạng thái. */}
-        <div className="court-table-wrapper">
-          <table className="court-table">
+        <div className="admin-table-wrapper">
+          <table className="admin-table court-table">
             <thead>
               <tr>
                 <th scope="col">Tên sân</th>
@@ -243,20 +209,20 @@ export default function CourtManagementPage() {
                       <span className={`court-status ${status.className}`}>{status.label}</span>
                     </td>
                     <td>
-                      <div className="court-actions">
+                      <div className="admin-table-actions">
                         <button type="button"
                           aria-label={`Xóa ${court.name}`}
                           onClick={() => openDeleteDialog(court)}
-                          className="court-action-button court-action-button--delete">
+                          className="admin-action-button admin-action-button--delete">
                           Xóa
                         </button>
                         <button type="button" aria-label={`Sửa ${court.name}`}
-                          className="court-action-button" onClick={() => openCourtForm(court)}>
+                          className="admin-action-button" onClick={() => openCourtForm(court)}>
                           Sửa
                         </button>
                         <button type="button"
                           aria-label={`${isClosed ? "Kích hoạt" : "Ẩn"} ${court.name}`}
-                          className={`court-action-button${isClosed ? " court-action-button--activate" : ""}`}
+                          className={`admin-action-button${isClosed ? " admin-action-button--activate" : ""}`}
                           onClick={() => handleChangeStatus(court, isClosed ? "ACTIVE" : "CLOSED")}>
                           {isClosed ? "Kích hoạt" : "Ẩn"}
                         </button>
