@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
 import { CircleX, FileText } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
-import "../../AdminLayout.css";
+import "../../components/layout/AdminLayout.css";
+import { adminApi } from "../../api/adminApi.js";
 
 // Giữ giá trị enum theo contract, nhưng hiển thị tên loại sân bằng tiếng Việt.
 const courtTypeLabels = {
@@ -38,9 +39,10 @@ function formatPriceLabel(priceConfigs, courtType, isPeakHour) {
 }
 
 export default function CourtManagementPage() {
-  // Layout giữ danh sách và ID mock để dữ liệu không mất khi chuyển menu.
-  // Các thao tác hiện chỉ cập nhật state, chưa lưu vào database.
-  const { courts, setCourts, allocateCourtId, priceConfigs } = useOutletContext();
+  // Chỉ cập nhật bảng sau khi mock API hoàn tất; dữ liệu chưa lưu vào database.
+  const { courts, setCourts, priceConfigs } = useOutletContext();
+  const [isPending, setIsPending] = useState(false);
+  const [requestError, setRequestError] = useState("");
   const getPriceLabel = (courtType, isPeakHour) => formatPriceLabel(priceConfigs, courtType, isPeakHour);
   // null: đang thêm sân; có courtId: đang sửa sân tương ứng.
   const [editingCourtId, setEditingCourtId] = useState(null);
@@ -61,6 +63,7 @@ export default function CourtManagementPage() {
 
   // Dùng chung một form: không truyền sân thì tạo mới, truyền sân thì điền dữ liệu để sửa.
   const openCourtForm = (court = null) => {
+    setRequestError("");
     setEditingCourtId(court?.courtId ?? null);
     setForm({
       name: court?.name ?? "",
@@ -80,8 +83,9 @@ export default function CourtManagementPage() {
   };
 
   // Kiểm tra form trước khi mô phỏng thao tác thêm/sửa dữ liệu.
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    if (isPending) return;
     const name = form.name.trim();
 
     if (!name) {
@@ -98,65 +102,69 @@ export default function CourtManagementPage() {
       return;
     }
 
-    // Request thêm/sửa sân chỉ gồm name và courtType.
-    // Trạng thái thuộc API đổi trạng thái riêng; bản mock lưu cùng khi bấm Thêm/Lưu.
-    const requestBody = { name, courtType: form.courtType };
-    // Tạm dùng giá thường thấp nhất làm referencePrice cho bản ghi mock.
-    const referencePrice = getPrices(priceConfigs, requestBody.courtType, false)[0] ?? 0;
-
-    if (editingCourtId !== null) {
-      // Cập nhật thông tin và trạng thái của đúng sân, giữ nguyên ID, ảnh và mô tả.
-      setCourts((prev) => prev.map((court) =>
-        court.courtId === editingCourtId
-          ? { ...court, ...requestBody, status: form.status, referencePrice }
-          : court
-      ));
-      setNotice(`Đã cập nhật ${name}.`);
-    } else {
-      // Mô phỏng tạo sân: tự cấp ID và lưu trạng thái người dùng đã chọn trong form.
-      const newCourt = {
-        courtId: allocateCourtId(),
-        ...requestBody,
-        status: form.status,
-        referencePrice,
-        imageUrl: "",
-        description: "",
-      };
-      setCourts((prev) => [...prev, newCourt]);
-      setNotice(`Đã thêm ${name}.`);
+    // Mock API tự cấp ID khi thêm và giữ ảnh/mô tả khi sửa sân.
+    setIsPending(true);
+    setRequestError("");
+    try {
+      const input = { name, courtType: form.courtType, status: form.status };
+      const savedCourt = editingCourtId === null
+        ? await adminApi.createCourt(input)
+        : await adminApi.updateCourt(editingCourtId, input);
+      setCourts((previous) => editingCourtId === null
+        ? [...previous, savedCourt]
+        : previous.map((court) => court.courtId === savedCourt.courtId ? savedCourt : court)
+      );
+      setNotice(`Đã ${editingCourtId === null ? "thêm" : "cập nhật"} ${name}.`);
+      dialogRef.current.close();
+    } catch (error) {
+      // Giữ popup mở để người dùng sửa lại khi request thất bại.
+      setFormError(error.message);
+    } finally {
+      setIsPending(false);
     }
-    dialogRef.current.close();
   };
 
   // Chọn sân rồi mở dialog thông tin. Ưu tiên focus nút Đóng để tránh xóa nhầm.
   const openDeleteDialog = (court) => {
+    setRequestError("");
     setCourtToDelete(court);
     deleteDialogRef.current.showModal();
     deleteCloseButtonRef.current.focus();
   };
 
-  // Chỉ nút Xóa trong popup mới gọi hàm này. Đóng/Escape chỉ đóng popup.
-  // Đây là thao tác mock: chưa gọi backend hoặc xóa dữ liệu trong database.
-  const handleDelete = () => {
-    if (!courtToDelete) return;
-
-    // Tạo mảng mới loại bỏ đúng sân theo courtId, không sửa trực tiếp mảng state.
-    setCourts((prev) => prev.filter((item) => item.courtId !== courtToDelete.courtId));
-    setNotice(`Đã xóa ${courtToDelete.name}.`);
-    deleteDialogRef.current.close();
-    // Nút mở popup sắp bị xóa khỏi bảng, nên trả focus về một nút còn tồn tại.
-    addCourtButtonRef.current.focus();
+  // Chỉ xóa khỏi bảng sau khi mock API xác nhận thành công.
+  const handleDelete = async () => {
+    if (!courtToDelete || isPending) return;
+    setIsPending(true);
+    setRequestError("");
+    try {
+      await adminApi.deleteCourt(courtToDelete.courtId);
+      setCourts((previous) => previous.filter((court) => court.courtId !== courtToDelete.courtId));
+      setNotice(`Đã xóa ${courtToDelete.name}.`);
+      deleteDialogRef.current.close();
+      // Đợi nút hết disabled rồi trả focus về nút còn tồn tại trong trang.
+      requestAnimationFrame(() => addCourtButtonRef.current?.focus());
+    } catch (error) {
+      setRequestError(error.message);
+    } finally {
+      setIsPending(false);
+    }
   };
 
-  // Ẩn = CLOSED, kích hoạt = ACTIVE. Vẫn giữ dòng trong bảng quản lý để kích hoạt lại.
-  const handleChangeStatus = (court, newStatus) => {
-    setCourts((prev) => prev.map((item) =>
-      item.courtId === court.courtId ? { ...item, status: newStatus } : item
-    ));
-    setNotice(newStatus === "CLOSED"
-      ? `Đã ẩn ${court.name}.`
-      : `Đã kích hoạt ${court.name}.`
-    );
+  // Gọi thao tác đổi trạng thái riêng: ẩn = CLOSED, kích hoạt = ACTIVE.
+  const handleChangeStatus = async (court, newStatus) => {
+    if (isPending) return;
+    setIsPending(true);
+    setRequestError("");
+    try {
+      const updatedCourt = await adminApi.changeCourtStatus(court.courtId, newStatus);
+      setCourts((previous) => previous.map((item) => item.courtId === court.courtId ? updatedCourt : item));
+      setNotice(newStatus === "CLOSED" ? `Đã ẩn ${court.name}.` : `Đã kích hoạt ${court.name}.`);
+    } catch (error) {
+      setRequestError(error.message);
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
@@ -169,7 +177,7 @@ export default function CourtManagementPage() {
               Quản lý thông tin và trạng thái vận hành của từng sân
             </p>
           </div>
-          <button ref={addCourtButtonRef} type="button" className="admin-primary-button"
+          <button disabled={isPending} ref={addCourtButtonRef} type="button" className="admin-primary-button"
             onClick={() => openCourtForm()}>
             + Thêm sân
           </button>
@@ -179,6 +187,8 @@ export default function CourtManagementPage() {
         <p role="status" className="admin-notice">
           {notice}
         </p>
+
+        {requestError && <p role="alert" className="court-form-error">{requestError}</p>}
 
         {/* Bảng luôn đọc từ state, nên cập nhật ngay sau khi thêm/sửa/xóa/đổi trạng thái. */}
         <div className="admin-table-wrapper">
@@ -210,17 +220,17 @@ export default function CourtManagementPage() {
                     </td>
                     <td>
                       <div className="admin-table-actions">
-                        <button type="button"
+                        <button disabled={isPending} type="button"
                           aria-label={`Xóa ${court.name}`}
                           onClick={() => openDeleteDialog(court)}
                           className="admin-action-button admin-action-button--delete">
                           Xóa
                         </button>
-                        <button type="button" aria-label={`Sửa ${court.name}`}
+                        <button disabled={isPending} type="button" aria-label={`Sửa ${court.name}`}
                           className="admin-action-button" onClick={() => openCourtForm(court)}>
                           Sửa
                         </button>
-                        <button type="button"
+                        <button disabled={isPending} type="button"
                           aria-label={`${isClosed ? "Kích hoạt" : "Ẩn"} ${court.name}`}
                           className={`admin-action-button${isClosed ? " admin-action-button--activate" : ""}`}
                           onClick={() => handleChangeStatus(court, isClosed ? "ACTIVE" : "CLOSED")}>
@@ -280,12 +290,13 @@ export default function CourtManagementPage() {
             </section>
           )}
 
+          {requestError && <p role="alert" className="court-form-error">{requestError}</p>}
           <footer className="court-delete-actions">
-            <button type="button" className="court-delete-confirm"
-              disabled={!courtToDelete} onClick={handleDelete}>
+            <button disabled={isPending || !courtToDelete} type="button" className="court-delete-confirm"
+              aria-busy={isPending} onClick={handleDelete}>
               Xóa
             </button>
-            <button ref={deleteCloseButtonRef} type="button" className="court-delete-close"
+            <button disabled={isPending} ref={deleteCloseButtonRef} type="button" className="court-delete-close"
               onClick={() => deleteDialogRef.current.close()}>
               Đóng
             </button>
@@ -366,11 +377,11 @@ export default function CourtManagementPage() {
 
             {/* Nút riêng của popup có cùng kích thước, không dùng kích thước nút nhỏ trong bảng. */}
             <footer className="court-form-actions">
-              <button type="button" className="court-form-button court-form-button--secondary"
+              <button disabled={isPending} type="button" className="court-form-button court-form-button--secondary"
                 onClick={() => dialogRef.current.close()}>
                 Đóng
               </button>
-              <button type="submit" className="court-form-button court-form-button--primary">
+              <button disabled={isPending} type="submit" className="court-form-button court-form-button--primary">
                 {editingCourtId === null ? "+ Thêm sân" : "Lưu thay đổi"}
               </button>
             </footer>

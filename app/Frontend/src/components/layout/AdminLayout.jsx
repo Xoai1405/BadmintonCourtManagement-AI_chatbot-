@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import "../../AdminLayout.css";
+import "./AdminLayout.css";
 import SmashFlowLogo from "../../assets/Logo.png";
+import { adminApi } from "../../api/adminApi.js";
 
 // Mỗi mục có đường dẫn riêng; NavLink tự xác định mục đang mở theo URL.
 const menuItems = [
@@ -14,32 +15,26 @@ const menuItems = [
   { icon: "🤖", label: "FAQ Chatbot", path: "/faq-chatbot" },
 ];
 
-// Danh sách sân ban đầu để rỗng; dữ liệu thêm qua form hiện chỉ là dữ liệu mock.
-const mockCourts = [];
-
-// Giá mẫu giữ theo mức giá của màn Court ban đầu; hai màn dùng chung dữ liệu.
-// Giờ thường: 06:00–17:00; giờ cao điểm: 17:00–22:00. Chưa lưu vào database.
-const mockPriceConfigs = [
-  { priceConfigId: 1, courtType: "STANDARD_OUTDOOR", startTime: "06:00", endTime: "17:00", pricePerHour: 100000, isPeakHour: false },
-  { priceConfigId: 2, courtType: "STANDARD_OUTDOOR", startTime: "17:00", endTime: "22:00", pricePerHour: 150000, isPeakHour: true },
-  { priceConfigId: 3, courtType: "VIP_INDOOR", startTime: "06:00", endTime: "17:00", pricePerHour: 250000, isPeakHour: false },
-  { priceConfigId: 4, courtType: "VIP_INDOOR", startTime: "17:00", endTime: "22:00", pricePerHour: 350000, isPeakHour: true },
-  { priceConfigId: 5, courtType: "STANDARD_INDOOR", startTime: "06:00", endTime: "17:00", pricePerHour: 90000, isPeakHour: false },
-  { priceConfigId: 6, courtType: "STANDARD_INDOOR", startTime: "17:00", endTime: "22:00", pricePerHour: 190000, isPeakHour: true },
-];
-
 export default function AdminLayout() {
-  // Giữ state ở layout để chuyển menu rồi quay lại không mất các sân vừa thêm.
-  // State vẫn được khởi tạo lại khi tải lại trang hoặc rời khỏi khu vực quản lý.
-  const [courts, setCourts] = useState(mockCourts);
-  const nextCourtId = useRef(Math.max(0, ...mockCourts.map((court) => court.courtId)) + 1);
+  // Layout giữ kết quả mock API để sân và bảng giá dùng chung dữ liệu khi chuyển menu.
+  const [courts, setCourts] = useState([]);
+  const [priceConfigs, setPriceConfigs] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
-  // Cấp ID tại nơi sở hữu bộ đếm, thay vì để trang con sửa trực tiếp ref của layout.
-  const allocateCourtId = () => nextCourtId.current++;
-
-  const [priceConfigs, setPriceConfigs] = useState(mockPriceConfigs);
-  const nextPriceConfigId = useRef(Math.max(0, ...mockPriceConfigs.map((config) => config.priceConfigId)) + 1);
-  const allocatePriceConfigId = () => nextPriceConfigId.current++;
+  // Không cập nhật state sau khi layout unmount; hỗ trợ StrictMode.
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([adminApi.getCourts(), adminApi.getPriceConfigs()])
+      .then(([courtList, priceList]) => {
+        if (cancelled) return;
+        setCourts(courtList);
+        setPriceConfigs(priceList);
+      })
+      .catch((error) => { if (!cancelled) setLoadError(error.message); })
+      .finally(() => { if (!cancelled) setIsLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div className="admin-layout">
@@ -76,7 +71,9 @@ export default function AdminLayout() {
 
       {/* Nội dung route hiện tại; trang chưa triển khai trả về null để phần này trống. */}
       <main className="admin-main">
-        <Outlet context={{ courts, setCourts, allocateCourtId, priceConfigs, setPriceConfigs, allocatePriceConfigId }} />
+        {isLoading ? <p role="status">Đang tải dữ liệu quản lý…</p>
+          : loadError ? <p role="alert">{loadError}</p>
+          : <Outlet context={{ courts, setCourts, priceConfigs, setPriceConfigs }} />}
       </main>
     </div>
   );

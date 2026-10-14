@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import "../../AdminLayout.css";
+import "../../components/layout/AdminLayout.css";
+import { adminApi } from "../../api/adminApi.js";
 
 const courtTypes = {
   STANDARD_OUTDOOR: "Standard_Outdoor",
@@ -12,7 +13,9 @@ const emptyForm = { courtType: "STANDARD_OUTDOOR", startTime: "", endTime: "", p
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export default function PriceManagementPage() {
-  const { priceConfigs, setPriceConfigs, allocatePriceConfigId } = useOutletContext();
+  const { priceConfigs, setPriceConfigs } = useOutletContext();
+  const [isPending, setIsPending] = useState(false);
+  const [requestError, setRequestError] = useState("");
   const [selectedType, setSelectedType] = useState("STANDARD_OUTDOOR");
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -35,6 +38,7 @@ export default function PriceManagementPage() {
   };
 
   const openForm = (config = null) => {
+    setRequestError("");
     setEditingId(config?.priceConfigId ?? null);
     setForm(config ? {
       courtType: config.courtType,
@@ -53,8 +57,9 @@ export default function PriceManagementPage() {
     formRef.current.elements.namedItem(field).focus();
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    if (isPending) return;
     if (!Object.hasOwn(courtTypes, form.courtType)) {
       showError("Vui lòng chọn loại sân hợp lệ.", "courtType");
       return;
@@ -82,28 +87,52 @@ export default function PriceManagementPage() {
       return;
     }
 
-    const config = { ...form, pricePerHour, priceConfigId: editingId ?? allocatePriceConfigId() };
-    setPriceConfigs((previous) => editingId === null
-      ? [...previous, config]
-      : previous.map((item) => item.priceConfigId === editingId ? config : item)
-    );
-    setSelectedType(form.courtType);
-    setNotice(`Đã ${editingId === null ? "thêm" : "cập nhật"} khung giá ${form.startTime} - ${form.endTime}.`);
-    formDialogRef.current.close();
+    // API kiểm tra lại khung giờ trùng và tự cấp ID cho bản ghi mới.
+    setIsPending(true);
+    setRequestError("");
+    try {
+      const input = { ...form, pricePerHour };
+      const savedConfig = editingId === null
+        ? await adminApi.createPriceConfig(input)
+        : await adminApi.updatePriceConfig(editingId, input);
+      setPriceConfigs((previous) => editingId === null
+        ? [...previous, savedConfig]
+        : previous.map((item) => item.priceConfigId === savedConfig.priceConfigId ? savedConfig : item)
+      );
+      setSelectedType(form.courtType);
+      setNotice(`Đã ${editingId === null ? "thêm" : "cập nhật"} khung giá ${form.startTime} - ${form.endTime}.`);
+      formDialogRef.current.close();
+    } catch (error) {
+      setFormError(error.message);
+    } finally {
+      setIsPending(false);
+    }
   };
 
   const openDeleteDialog = (config) => {
+    setRequestError("");
     setPriceToDelete(config);
     deleteDialogRef.current.showModal();
     deleteCloseRef.current.focus();
   };
 
-  const handleDelete = () => {
-    if (!priceToDelete) return;
-    setPriceConfigs((previous) => previous.filter((config) => config.priceConfigId !== priceToDelete.priceConfigId));
-    setNotice(`Đã xóa khung giá ${priceToDelete.startTime} - ${priceToDelete.endTime}.`);
-    deleteDialogRef.current.close();
-    addButtonRef.current.focus();
+  // Xóa trong mock store trước, sau đó cập nhật bảng nếu request thành công.
+  const handleDelete = async () => {
+    if (!priceToDelete || isPending) return;
+    setIsPending(true);
+    setRequestError("");
+    try {
+      await adminApi.deletePriceConfig(priceToDelete.priceConfigId);
+      setPriceConfigs((previous) => previous.filter((config) => config.priceConfigId !== priceToDelete.priceConfigId));
+      setNotice(`Đã xóa khung giá ${priceToDelete.startTime} - ${priceToDelete.endTime}.`);
+      deleteDialogRef.current.close();
+      // Trả focus sau khi nút hết disabled.
+      requestAnimationFrame(() => addButtonRef.current?.focus());
+    } catch (error) {
+      setRequestError(error.message);
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
@@ -121,12 +150,13 @@ export default function PriceManagementPage() {
               <option key={value} value={value}>Loại: {label}</option>
             ))}
           </select>
-          <button ref={addButtonRef} type="button" className="admin-primary-button price-add-button"
+          <button disabled={isPending} ref={addButtonRef} type="button" className="admin-primary-button price-add-button"
             onClick={() => openForm()}>+ Thêm khung giá</button>
         </div>
       </header>
 
       <p role="status" className="admin-notice price-notice">{notice}</p>
+      {requestError && <p role="alert" className="price-form-error">{requestError}</p>}
 
       <div className="admin-table-wrapper">
         <table className="admin-table price-table" aria-label={`Bảng giá ${courtTypes[selectedType]}`}>
@@ -150,10 +180,10 @@ export default function PriceManagementPage() {
                 </span></td>
                 <td>
                   <div className="admin-table-actions">
-                    <button type="button" className="admin-action-button admin-action-button--delete"
+                    <button disabled={isPending} type="button" className="admin-action-button admin-action-button--delete"
                       aria-label={`Xóa khung giá ${config.startTime} - ${config.endTime}`}
                       onClick={() => openDeleteDialog(config)}>Xóa</button>
-                    <button type="button" className="admin-action-button"
+                    <button disabled={isPending} type="button" className="admin-action-button"
                       aria-label={`Sửa khung giá ${config.startTime} - ${config.endTime}`}
                       onClick={() => openForm(config)}>Sửa</button>
                   </div>
@@ -200,8 +230,8 @@ export default function PriceManagementPage() {
           </label>
           {formError && <p role="alert" className="price-form-error">{formError}</p>}
           <footer className="price-dialog-actions">
-            <button type="button" className="price-dialog-button" onClick={() => formDialogRef.current.close()}>Đóng</button>
-            <button type="submit" className="price-dialog-button price-dialog-button--primary">
+            <button disabled={isPending} type="button" className="price-dialog-button" onClick={() => formDialogRef.current.close()}>Đóng</button>
+            <button disabled={isPending} type="submit" className="price-dialog-button price-dialog-button--primary">
               {editingId === null ? "Thêm khung giá" : "Lưu thay đổi"}
             </button>
           </footer>
@@ -218,11 +248,12 @@ export default function PriceManagementPage() {
           <div><dt>Giá / Giờ</dt><dd>{priceFormatter.format(priceToDelete.pricePerHour)}đ</dd></div>
           <div><dt>Giờ cao điểm</dt><dd>{priceToDelete.isPeakHour ? "True" : "False"}</dd></div>
         </dl>}
+        {requestError && <p role="alert" className="price-form-error">{requestError}</p>}
         <footer className="price-dialog-actions">
-          <button ref={deleteCloseRef} type="button" className="price-dialog-button"
+          <button disabled={isPending} ref={deleteCloseRef} type="button" className="price-dialog-button"
             onClick={() => deleteDialogRef.current.close()}>Đóng</button>
-          <button type="button" className="price-dialog-button price-dialog-button--delete"
-            disabled={!priceToDelete} onClick={handleDelete}>Xóa</button>
+          <button disabled={isPending || !priceToDelete} type="button" className="price-dialog-button price-dialog-button--delete"
+            aria-busy={isPending} onClick={handleDelete}>Xóa</button>
         </footer>
       </dialog>
     </section>

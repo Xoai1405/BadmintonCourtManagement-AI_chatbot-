@@ -5,13 +5,13 @@ import RegisterPage from "./pages/RegisterPage.jsx";
 import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
-import CourtManagementPage from "./pages/AdminPages/CourtManagementPage.jsx";
-import PriceManagementPage from "./pages/AdminPages/PriceManagementPage.jsx";
-import DiscountManagementPage from "./pages/AdminPages/DiscountManagementPage.jsx";
-import StaffManagementPage from "./pages/AdminPages/StaffManagementPage.jsx";
-import CustomerManagementPage from "./pages/AdminPages/CustomerManagementPage.jsx";
-import ReportsPage from "./pages/AdminPages/ReportsPage.jsx";
-import FaqChatbotPage from "./pages/AdminPages/FaqChatbotPage.jsx";
+import CourtManagementPage from "./pages/admin/CourtManagementPage.jsx";
+import PriceManagementPage from "./pages/admin/PriceManagementPage.jsx";
+import DiscountManagementPage from "./pages/admin/DiscountManagementPage.jsx";
+import StaffManagementPage from "./pages/admin/StaffManagementPage.jsx";
+import CustomerManagementPage from "./pages/admin/CustomerManagementPage.jsx";
+import ReportsPage from "./pages/admin/ReportsPage.jsx";
+import FaqChatbotPage from "./pages/admin/FaqChatbotPage.jsx";
 import AdminLayout from "./components/layout/AdminLayout.jsx";
 function App() {
     return (
