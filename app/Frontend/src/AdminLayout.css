@@ -1020,6 +1020,199 @@
   }
 }
 
+/* Màn khách hàng giữ bố cục gốc; chỉ thêm kiểu cho form, nút và nhãn trạng thái. */
+.customer-page-header {
+  margin-bottom: 26px;
+}
+
+/* Ba ô tìm kiếm có chiều rộng cố định như bản mẫu; tự xuống hàng khi thiếu chỗ. */
+.customer-search-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.customer-filter-field {
+  display: grid;
+  width: 154px;
+  max-width: 100%;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.customer-filter-field input {
+  width: 100%;
+  height: 32px;
+  padding: 5px 10px;
+  border: 1px solid #c9cfca;
+  border-radius: 7px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font-size: 13px;
+}
+
+.customer-filter-field input::placeholder {
+  color: #747b76;
+}
+
+.customer-filter-field input:focus {
+  border-color: var(--admin-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(27 125 96 / 12%);
+}
+
+/* Nút tìm kiếm gọn hơn nút Thêm sân, vẫn dùng màu xanh chung của khu quản lý. */
+.customer-search-button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-left: 8px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: var(--admin-primary);
+  color: var(--admin-surface);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background-color 150ms ease;
+}
+
+.customer-search-button:hover {
+  background: var(--admin-primary-hover);
+}
+
+/* Bảng vẫn có 7 cột; khung dùng CSS chung, màn hẹp có thể cuộn ngang. */
+.customer-table {
+  min-width: 1050px;
+}
+
+.customer-table th,
+.customer-table td {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.customer-table tbody tr:hover {
+  background: #f8fcf9;
+}
+
+/* Nhãn dạng viên thuốc: màu xanh cho Active, xám cho Locked; có chấm trạng thái. */
+.customer-status {
+  display: inline-flex;
+  min-width: 78px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  vertical-align: middle;
+}
+
+.customer-status > span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.customer-status--active {
+  background: #e6f8f0;
+  color: #087858;
+}
+
+.customer-status--locked {
+  background: #ededed;
+  color: #666666;
+}
+
+/* Nút xem lịch sử giữ dạng nút viền nhỏ của ảnh, thêm icon và màu hover nhẹ. */
+.customer-history-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-color: #cbd8ce;
+  color: #28654f;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.customer-history-button:hover {
+  border-color: #91b5a1;
+  background: #eef7f1;
+}
+
+.customer-page button:focus-visible,
+.customer-page .admin-table-wrapper:focus-visible {
+  outline: 3px solid var(--admin-primary);
+  outline-offset: 3px;
+}
+
+.customer-table .customer-empty {
+  padding: 24px;
+  color: var(--admin-muted);
+  font-size: 14px;
+  text-align: center;
+  white-space: normal;
+}
+
+/* Native dialog hỗ trợ Escape và giới hạn chiều cao để lịch sử dài vẫn cuộn được. */
+.customer-history-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(700px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: auto;
+  padding: 24px;
+  border: 1px solid #dce6e5;
+  border-radius: 12px;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  box-shadow: 0 16px 48px rgb(0 0 0 / 18%);
+}
+
+.customer-history-dialog::backdrop {
+  background: rgb(0 0 0 / 42%);
+}
+
+.customer-history-dialog h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.customer-history-note,
+.customer-history-summary {
+  margin: 8px 0 16px;
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+.customer-history-name {
+  margin: 20px 0 0;
+  font-weight: 600;
+}
+
+.customer-history-table {
+  min-width: 520px;
+  font-size: 14px;
+}
+
+.customer-history-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
 /* Desktop: tăng khoảng đệm nội dung và cỡ chữ tiêu đề trang. */
 @media (min-width: 768px) {
   .admin-main {
