@@ -11,6 +11,8 @@ let nextPriceId = Math.max(0, ...priceConfigs.map((price) => price.priceConfigId
 const courtTypes = ["STANDARD_OUTDOOR", "STANDARD_INDOOR", "VIP_INDOOR"];
 const courtStatuses = ["ACTIVE", "MAINTENANCE", "CLOSED"];
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
+// Khung giá dùng giờ Việt Nam dạng HH:mm và chỉ nhận phút 00 hoặc 30 như form.
+const priceTimePattern = /^([01]\d|2[0-3]):(00|30)$/;
 const normalizeName = (value) => value.trim().toLocaleLowerCase("vi-VN")
   .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
 const normalizePhone = (value) => value.replace(/[\s().+-]/g, "");
@@ -45,8 +47,11 @@ function getReferencePrice(courtType) {
 
 function validatePrice(input, editingId = null) {
   if (!courtTypes.includes(input.courtType)) throw new Error("Loại sân không hợp lệ.");
-  if (!timePattern.test(input.startTime) || !timePattern.test(input.endTime) || input.endTime <= input.startTime) {
-    throw new Error("Khung giờ không hợp lệ: giờ kết thúc phải sau giờ bắt đầu.");
+  if (!priceTimePattern.test(input.startTime) || !priceTimePattern.test(input.endTime)) {
+    throw new Error("Khung giá phải dùng giờ 24 giờ theo mốc 30 phút (ví dụ 06:00, 06:30).");
+  }
+  if (input.endTime <= input.startTime) {
+    throw new Error("Giờ kết thúc phải sau giờ bắt đầu trong cùng ngày.");
   }
   if (!Number.isSafeInteger(input.pricePerHour) || input.pricePerHour <= 0 || input.pricePerHour > 9999999999) {
     throw new Error("Giá mỗi giờ phải là số nguyên từ 1 đến 9.999.999.999 đồng.");
