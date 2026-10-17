@@ -24,65 +24,61 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name="bookings")
-@Getter 
-@Setter 
-@NoArgsConstructor 
-@AllArgsConstructor 
+@Table(name = "bookings")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Booking {
-    @Id 
-    @GeneratedValue (strategy= GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-
-    
-    @Column (nullable=false, unique=true, name ="booking_code") 
+    @Column(nullable = false, unique = true, name = "booking_code")
     private String bookingCode;
 
-    @ManyToOne 
-    @JoinColumn (nullable=false, name ="customer_id") 
+    @ManyToOne
+    @JoinColumn(nullable = false, name = "customer_id")
     private User customer;
 
-    
-    @ManyToOne 
-    @JoinColumn (nullable=true, name ="created_by_staff_id")
+    @ManyToOne
+    @JoinColumn(nullable = true, name = "created_by_staff_id")
     private User createdByStaff;
 
-
-    @ManyToOne 
-    @JoinColumn (name ="recurring_booking_id")
+    @ManyToOne
+    @JoinColumn(name = "recurring_booking_id")
     private RecurringBooking recurringBooking;
 
-    @ManyToOne 
-    @JoinColumn (name = "court_id", nullable=false) 
+    @ManyToOne
+    @JoinColumn(name = "court_id", nullable = false)
     private Court court;
 
-    @Column (nullable=false) 
+    @Column(nullable = false)
     private LocalDate bookingDate;
 
-    @Column (nullable=false) 
-    private LocalTime start_time;
-    @Column (nullable=false) 
-    private LocalTime end_time;
+    @Column(nullable = false, name = "start_time")
+    private LocalTime startTime;
+    @Column(nullable = false, name = "end_time")
+    private LocalTime endTime;
 
-    @Column (nullable=false) 
+    @Column(nullable = false)
     private BigDecimal courtPrice;
 
-    @Column (nullable=false) 
+    @Column(nullable = false)
     private BigDecimal servicePrice;
 
-    @Column (nullable = false)
+    @Column(nullable = false)
     private BigDecimal totalAmount;
 
-    @Column (nullable=false) 
-    @Enumerated (EnumType.STRING) 
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     BookingStatus bookingStatus;
 
-    @Column (nullable=false)
-    @Enumerated (EnumType.STRING)  
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     PaymentStatus paymentStatus;
 
-    @Column (nullable=true)
+    @Column(nullable = true)
     private String paymentMethod;
 
     @Column
@@ -91,22 +87,17 @@ public class Booking {
     @Column
     private LocalDateTime cancelledAt;
 
-    @Column 
+    @Column
     private LocalDateTime expireAt;
 
-    @Column (nullable=false)
+    @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    @Column 
+    @Column
     private LocalDateTime paidAt;
 
-    @ManyToOne 
-    @JoinColumn (name= "paid_by_staff_id")
+    @ManyToOne
+    @JoinColumn(name = "paid_by_staff_id")
     private User paidByStaff;
-
-
-
-    
-
 
 }

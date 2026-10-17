@@ -3,6 +3,8 @@ package com.smashflow.backend.model;
 import java.math.BigDecimal;
 import java.time.LocalTime;
 
+import com.smashflow.backend.model.enums.CourtType;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -16,30 +18,33 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@Entity 
-@Table (name="price_configs")
-@Getter 
-@Setter 
-@NoArgsConstructor 
-@AllArgsConstructor 
+@Entity
+@Table(name = "price_configs")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class PriceConfig {
-    @Id 
-    @GeneratedValue(strategy=GenerationType.IDENTITY) 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable=false, name="court_type")
-    @Enumerated (EnumType.STRING)
+    @Column(nullable = false, name = "court_type")
+    @Enumerated(EnumType.STRING)
     CourtType courtType;
 
-    @Column (nullable=false, name="start_time") 
+    @Column(nullable = false, name = "start_time")
     private LocalTime startTime;
 
-    @Column (nullable=false, name="end_time") 
+    @Column(nullable = false, name = "end_time")
     private LocalTime endTime;
 
-    @Column (nullable=false, name="price_per_hour")
-    private BigDecimal pricePerHour;
-    
-    @Column (nullable=false, name="is_peak_hour")
+    @Column(nullable = false, name = "price_normal_hour")
+    private BigDecimal priceNormalHour;
+
+    @Column(nullable = false, name = "price_peak_hour")
+    private BigDecimal pricePeakHour;
+
+    @Column(nullable = false, name = "is_peak_hour")
     private boolean isPeakHour;
 }

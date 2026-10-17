@@ -1,10 +1,39 @@
-import React from 'react';
 import Navbar from '../components/Navbar';
 import CourtCard from '../components/CourtCard';
-import { mockCourts } from '../mocks/apiContract';
+import { courtApi } from '../api/apiCourt';
 import { Calendar, MessageCircle, Search } from 'lucide-react';
+import { useState,useEffect } from 'react';
 
 export default function CourtList() {
+  
+
+ const [courts, setCourts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchCourts = async () => {
+      try {
+        const data = await courtApi.getAllCourt();
+        setCourts(data);
+      } catch (err) {
+        setError(err.message || 'Không lấy được danh sách sân');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourts();
+  }, []);
+
+  if (loading) {
+    return <div className="p-6">Đang tải danh sách sân...</div>;
+  }
+
+  if (error) {
+    return <div className="p-6 text-red-500">{error}</div>;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <Navbar />
@@ -47,7 +76,7 @@ export default function CourtList() {
 
         {/* Danh sách thẻ sân */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockCourts.map(court => (
+          {courts.map(court => (
             <CourtCard key={court.id} court={court} />
           ))}
         </div>

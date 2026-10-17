@@ -95,7 +95,7 @@ export default function LoginPage() {
       password,
     });
 
-     navigate("/dashboard");
+     navigate("/");
     } catch (err) {
       setServerError(err.message || "Đăng nhập thất bại, vui lòng thử lại!");
     } finally {
