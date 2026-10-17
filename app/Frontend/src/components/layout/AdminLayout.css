@@ -744,15 +744,7 @@
   color: var(--admin-muted);
 }
 
-/* Nút sửa giữ nền trắng, chữ đen, kích thước và viền chung như nút Sửa bên sân.
-   Chỉ thêm bố cục icon/chữ; focus vẫn giữ tông trắng đen theo yêu cầu. */
-.price-edit-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
+/* Nút Sửa chỉ có chữ, dùng kiểu nút chung như bên sân; focus giữ tông trắng đen. */
 .price-page .price-edit-button:focus-visible {
   outline-color: var(--admin-text);
 }

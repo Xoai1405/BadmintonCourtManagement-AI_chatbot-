@@ -1,5 +1,4 @@
 import { useRef, useState } from "react";
-import { Pencil } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import "../../components/layout/AdminLayout.css";
 import { adminApi } from "../../api/adminApi.js";
@@ -15,8 +14,9 @@ const emptyForm = { courtType: "STANDARD_OUTDOOR", startTime: "", endTime: "", p
 // Giờ sân là giờ địa phương Việt Nam, lưu HH:mm và không đổi qua UTC.
 // Dùng select thay input time để luôn hiện 24 giờ, không phụ thuộc AM/PM của máy.
 const timePattern = /^([01]\d|2[0-3]):(00|30)$/;
-const timeOptions = Array.from({ length: 48 }, (_, index) =>
-  `${String(Math.floor(index / 2)).padStart(2, "0")}:${index % 2 === 0 ? "00" : "30"}`
+// Giờ hoạt động 06:00–22:00, mỗi mốc 30 phút; 22:00 chỉ dùng làm giờ kết thúc.
+const timeOptions = Array.from({ length: 33 }, (_, index) =>
+  `${String(6 + Math.floor(index / 2)).padStart(2, "0")}:${index % 2 === 0 ? "00" : "30"}`
 );
 
 export default function PriceManagementPage() {
@@ -70,12 +70,12 @@ export default function PriceManagementPage() {
       showError("Vui lòng chọn loại sân hợp lệ.", "courtType");
       return;
     }
-    if (!timePattern.test(form.startTime)) {
-      showError("Vui lòng chọn giờ bắt đầu theo mốc 30 phút.", "startTime");
+    if (!timePattern.test(form.startTime) || form.startTime < "06:00" || form.startTime >= "22:00") {
+      showError("Giờ bắt đầu từ 06:00 đến 21:30, theo mốc 30 phút.", "startTime");
       return;
     }
-    if (!timePattern.test(form.endTime)) {
-      showError("Vui lòng chọn giờ kết thúc theo mốc 30 phút.", "endTime");
+    if (!timePattern.test(form.endTime) || form.endTime <= "06:00" || form.endTime > "22:00") {
+      showError("Giờ kết thúc từ 06:30 đến 22:00, theo mốc 30 phút.", "endTime");
       return;
     }
     if (form.endTime <= form.startTime) {
@@ -152,7 +152,7 @@ export default function PriceManagementPage() {
                   <div className="admin-table-actions">
                     <button disabled={isPending} type="button" className="admin-action-button price-edit-button"
                       aria-label={`Sửa giá ${courtTypes[config.courtType]}, ${config.startTime} - ${config.endTime}`}
-                      onClick={() => openForm(config)}><Pencil size={16} aria-hidden="true" />Sửa</button>
+                      onClick={() => openForm(config)}>Sửa</button>
                   </div>
                 </td>
               </tr>
@@ -176,7 +176,7 @@ export default function PriceManagementPage() {
                 className="price-form-input" value={form.startTime}
                 onChange={(event) => updateForm("startTime", event.target.value)}>
                 <option value="" disabled>Chọn giờ</option>
-                {timeOptions.map((time) => <option key={time} value={time}>{time}</option>)}
+                {timeOptions.slice(0, -1).map((time) => <option key={time} value={time}>{time}</option>)}
               </select>
             </label>
             <label className="price-form-field" htmlFor="price-end-time">Giờ kết thúc
@@ -184,7 +184,7 @@ export default function PriceManagementPage() {
                 className="price-form-input" value={form.endTime}
                 onChange={(event) => updateForm("endTime", event.target.value)}>
                 <option value="" disabled>Chọn giờ</option>
-                {timeOptions.map((time) => <option key={time} value={time}>{time}</option>)}
+                {timeOptions.slice(1).map((time) => <option key={time} value={time}>{time}</option>)}
               </select>
             </label>
           </div>

@@ -50,6 +50,10 @@ function validatePrice(input, editingId = null) {
   if (!priceTimePattern.test(input.startTime) || !priceTimePattern.test(input.endTime)) {
     throw new Error("Khung giá phải dùng giờ 24 giờ theo mốc 30 phút (ví dụ 06:00, 06:30).");
   }
+  // Kiểm tra lại giờ hoạt động tại API mock, đồng nhất với lựa chọn trên form.
+  if (input.startTime < "06:00" || input.startTime > "22:00" || input.endTime < "06:00" || input.endTime > "22:00") {
+    throw new Error("Khung giá chỉ được nằm trong giờ hoạt động từ 06:00 đến 22:00.");
+  }
   if (input.endTime <= input.startTime) {
     throw new Error("Giờ kết thúc phải sau giờ bắt đầu trong cùng ngày.");
   }
