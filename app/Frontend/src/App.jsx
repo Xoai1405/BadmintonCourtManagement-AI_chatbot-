@@ -13,8 +13,6 @@ import CustomerManagementPage from "./pages/admin/CustomerManagementPage.jsx";
 import ReportsPage from "./pages/admin/ReportsPage.jsx";
 import FaqChatbotPage from "./pages/admin/FaqChatbotPage.jsx";
 import AdminLayout from "./components/layout/AdminLayout.jsx";
-function App() {
-    return (
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import { Navigate, Route, Routes } from "react-router-dom";
 
@@ -50,14 +48,7 @@ function App() {
         <Route path="/faq-chatbot" element={<FaqChatbotPage />} />
       </Route>
 
-      <Route
-        path="/register"
-        element={<RegisterPage />}
-      />
-     
-     
       {/* 3. Bắt lỗi 404 - Đường dẫn không tồn tại */}
-      {/* 3. Bắt lỗi 404 */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

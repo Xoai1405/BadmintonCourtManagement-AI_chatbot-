@@ -1,6 +1,6 @@
 // Dữ liệu frontend mẫu, tổ chức giống branch feature/frontend-ui.
 // Giữ tên trường/enum mà các màn admin đang sử dụng; không gọi backend.
-export const mockCourts = [
+export const mockAdminCourts = [
   { courtId: 1, name: "Sân 01", courtType: "STANDARD_OUTDOOR", status: "ACTIVE", referencePrice: 100000, imageUrl: "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=2070&auto=format&fit=crop", description: "Sân tiêu chuẩn ngoài trời." },
   { courtId: 2, name: "Sân VIP 02", courtType: "VIP_INDOOR", status: "ACTIVE", referencePrice: 250000, imageUrl: "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?q=80&w=2007&auto=format&fit=crop", description: "Sân VIP trong nhà." },
   { courtId: 3, name: "Sân 03", courtType: "STANDARD_INDOOR", status: "MAINTENANCE", referencePrice: 90000, imageUrl: "https://images.unsplash.com/photo-1572560377017-eb965a3d76b1?q=80&w=2069&auto=format&fit=crop", description: "Sân tiêu chuẩn trong nhà." },
@@ -21,9 +21,9 @@ export const mockCustomers = [
 ];
 
 // Mỗi dòng là một lần đặt sân lẻ hoặc một gói lịch cố định.
-// Ghép theo courtId để lấy đúng ảnh/tên sân từ mockCourts, không dùng ảnh chung.
+// Ghép theo courtId để lấy đúng ảnh/tên sân từ mockAdminCourts, không dùng ảnh chung.
 // Lưu thông tin tại thời điểm tạo lịch sử để không đổi khi admin sửa/xóa sân.
-const historyCourts = Object.fromEntries(mockCourts.map((court) => [
+const historyCourts = Object.fromEntries(mockAdminCourts.map((court) => [
   court.courtId,
   {
     courtName: court.name,

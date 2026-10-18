@@ -1,4 +1,4 @@
-import { mockBookings, mockCourts, mockCustomers, mockPriceConfigs, mockRecurringSessions } from "../mocks/apiContract.js";
+import { mockBookings, mockAdminCourts as mockCourts, mockCustomers, mockPriceConfigs, mockRecurringSessions } from "../mocks/apiContract.js";
 
 // Store chỉ nằm trong frontend: dữ liệu giữ khi chuyển menu và reset khi reload.
 // Clone để component không sửa trực tiếp dữ liệu gốc hoặc dữ liệu trong store.
