@@ -1,4 +1,7 @@
+
 package com.smashflow.backend.config;
+
+import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,43 +14,65 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
-import lombok.RequiredArgsConstructor;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
+        private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-        return new BCryptPasswordEncoder();
-    }
+        public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+                this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        }
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .cors(Customizer.withDefaults())
-                .csrf(AbstractHttpConfigurer::disable)
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
+        @Bean
+        public SecurityFilterChain filterChain(HttpSecurity http)
+                        throws Exception {
+                http
+                                .cors(Customizer.withDefaults())
+                                .csrf(AbstractHttpConfigurer::disable)
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers(
+                                                                "/api/v1/auth/**",
 
-                        .requestMatchers("/api/v1/auth/**", "/error").permitAll()
-                        .anyRequest().authenticated())
+                                                                "/error")
+                                                .permitAll()
+                                                .anyRequest().authenticated())
+                                .exceptionHandling(ex -> ex.authenticationEntryPoint(
+                                                (req, res, e) -> {
+                                                        res.setStatus(401);
+                                                        res.setContentType("application/json;charset=UTF-8");
+                                                        res.getWriter().write(
+                                                                        "{\"message\":\"Chưa đăng nhập hoặc token không hợp lệ\"}");
+                                                }))
+                                .addFilterBefore(
+                                                jwtAuthenticationFilter,
+                                                UsernamePasswordAuthenticationFilter.class);
 
-                .exceptionHandling(ex -> ex.authenticationEntryPoint((req, res, e) -> {
-                    res.setStatus(401);
-                    res.setContentType("application/json;charset=UTF-8");
-                    res.getWriter().write("{\"message\":\"Chưa đăng nhập hoặc token không hợp lệ\"}");
-                }))
+                return http.build();
+        }
 
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
+                CorsConfiguration config = new CorsConfiguration();
+                config.setAllowedOrigins(List.of("http://localhost:5173"));
+                config.setAllowedMethods(
+                                List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+                config.setAllowedHeaders(List.of("*"));
 
-        return http.build();
-    }
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", config);
 
+                return source;
+        }
 }

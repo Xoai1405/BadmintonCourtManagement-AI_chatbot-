@@ -2,6 +2,7 @@ package com.smashflow.backend.exception;
 
 import java.util.Map;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -35,5 +36,22 @@ public class GlobalExceptionHandler {
                 .map(f -> f.getDefaultMessage())
                 .orElse("Dữ liệu không hợp lệ");
         return ResponseEntity.badRequest().body(Map.of("message", msg));
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<?> handleResourceNotFound(
+            ResourceNotFoundException ex) {
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ex.getMessage());
+    }
+
+    @ExceptionHandler(BookingConflictException.class)
+    public ResponseEntity<Map<String, String>> handleBookingConflict(
+            BookingConflictException ex) {
+
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("message", ex.getMessage()));
     }
 }

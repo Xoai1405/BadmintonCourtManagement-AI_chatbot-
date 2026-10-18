@@ -15,7 +15,6 @@ export default function RegisterPage() {
   const [serverError, setServerError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState([false, false]);
-const [successMessage, setSuccessMessage] = useState("");
   const fullNameRef = useRef(null);
   const emailRef = useRef(null);
   const phoneNumberRef = useRef(null);
@@ -152,7 +151,6 @@ const [successMessage, setSuccessMessage] = useState("");
       password,
     });
 
-    setSuccessMessage("Đăng ký thành công!");
 
     navigate("/login", {
       replace: true,
