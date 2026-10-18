@@ -3,19 +3,20 @@ import { CircleX, FileText } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import "../../components/layout/AdminLayout.css";
 import { adminApi } from "../../api/adminApi.js";
+import { courtTypeCodes } from "../../mocks/apiContract.js";
 
-// Giữ giá trị enum theo contract, nhưng hiển thị tên loại sân bằng tiếng Việt.
+// Sân dùng chung tên loại bằng tiếng Việt với dữ liệu khách hàng.
 const courtTypeLabels = {
-  STANDARD_OUTDOOR: "Tiêu chuẩn ngoài trời",
-  STANDARD_INDOOR: "Tiêu chuẩn trong nhà",
-  VIP_INDOOR: "VIP trong nhà",
+  "Sân tiêu chuẩn ngoài trời": "Tiêu chuẩn ngoài trời",
+  "Sân tiêu chuẩn trong nhà": "Tiêu chuẩn trong nhà",
+  "Sân VIP trong nhà": "VIP trong nhà",
 };
 
-// Đổi enum trạng thái thành nhãn và class màu tương ứng trong AdminLayout.css.
+// Trạng thái dùng tiếng Việt như dữ liệu sân chung.
 const statusStyles = {
-  ACTIVE: { label: "Hoạt động", className: "court-status--active" },
-  MAINTENANCE: { label: "Bảo trì", className: "court-status--maintenance" },
-  CLOSED: { label: "Đóng", className: "court-status--closed" },
+  "Hoạt động": { label: "Hoạt động", className: "court-status--active" },
+  "Bảo trì": { label: "Bảo trì", className: "court-status--maintenance" },
+  "Đóng": { label: "Đóng", className: "court-status--closed" },
 };
 
 const priceFormatter = new Intl.NumberFormat("vi-VN");
@@ -25,7 +26,7 @@ function getPrices(priceConfigs, courtType, isPeakHour) {
   return [...new Set(
     priceConfigs
       .filter((config) =>
-        config.courtType === courtType && config.isPeakHour === isPeakHour
+        config.courtType === courtTypeCodes[courtType] && config.isPeakHour === isPeakHour
       )
       .map((config) => config.pricePerHour)
   )].sort((a, b) => a - b);
@@ -44,11 +45,11 @@ export default function CourtManagementPage() {
   const [isPending, setIsPending] = useState(false);
   const [requestError, setRequestError] = useState("");
   const getPriceLabel = (courtType, isPeakHour) => formatPriceLabel(priceConfigs, courtType, isPeakHour);
-  // null: đang thêm sân; có courtId: đang sửa sân tương ứng.
+  // null: đang thêm sân; có id: đang sửa sân tương ứng.
   const [editingCourtId, setEditingCourtId] = useState(null);
   // Khi thêm sân, mặc định Hoạt động; khi sửa sẽ lấy trạng thái hiện tại của sân.
   const [form, setForm] = useState({
-    name: "", courtType: "STANDARD_OUTDOOR", status: "ACTIVE",
+    name: "", type: "Sân tiêu chuẩn ngoài trời", status: "Hoạt động",
   });
   const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
@@ -64,11 +65,11 @@ export default function CourtManagementPage() {
   // Dùng chung một form: không truyền sân thì tạo mới, truyền sân thì điền dữ liệu để sửa.
   const openCourtForm = (court = null) => {
     setRequestError("");
-    setEditingCourtId(court?.courtId ?? null);
+    setEditingCourtId(court?.id ?? null);
     setForm({
       name: court?.name ?? "",
-      courtType: court?.courtType ?? "STANDARD_OUTDOOR",
-      status: court?.status ?? "ACTIVE",
+      type: court?.type ?? "Sân tiêu chuẩn ngoài trời",
+      status: court?.status ?? "Hoạt động",
     });
     setFormError("");
     dialogRef.current.showModal();
@@ -78,7 +79,7 @@ export default function CourtManagementPage() {
   // onClose gọi hàm này khi lưu, bấm Đóng hoặc đóng dialog bằng phím Escape.
   const resetForm = () => {
     setEditingCourtId(null);
-    setForm({ name: "", courtType: "STANDARD_OUTDOOR", status: "ACTIVE" });
+    setForm({ name: "", type: "Sân tiêu chuẩn ngoài trời", status: "Hoạt động" });
     setFormError("");
   };
 
@@ -93,7 +94,7 @@ export default function CourtManagementPage() {
       nameInputRef.current.focus();
       return;
     }
-    if (!Object.hasOwn(courtTypeLabels, form.courtType)) {
+    if (!Object.hasOwn(courtTypeLabels, form.type)) {
       setFormError("Vui lòng chọn loại sân hợp lệ.");
       return;
     }
@@ -106,13 +107,13 @@ export default function CourtManagementPage() {
     setIsPending(true);
     setRequestError("");
     try {
-      const input = { name, courtType: form.courtType, status: form.status };
+      const input = { name, type: form.type, status: form.status };
       const savedCourt = editingCourtId === null
         ? await adminApi.createCourt(input)
         : await adminApi.updateCourt(editingCourtId, input);
       setCourts((previous) => editingCourtId === null
         ? [...previous, savedCourt]
-        : previous.map((court) => court.courtId === savedCourt.courtId ? savedCourt : court)
+        : previous.map((court) => court.id === savedCourt.id ? savedCourt : court)
       );
       setNotice(`Đã ${editingCourtId === null ? "thêm" : "cập nhật"} ${name}.`);
       dialogRef.current.close();
@@ -138,8 +139,8 @@ export default function CourtManagementPage() {
     setIsPending(true);
     setRequestError("");
     try {
-      await adminApi.deleteCourt(courtToDelete.courtId);
-      setCourts((previous) => previous.filter((court) => court.courtId !== courtToDelete.courtId));
+      await adminApi.deleteCourt(courtToDelete.id);
+      setCourts((previous) => previous.filter((court) => court.id !== courtToDelete.id));
       setNotice(`Đã xóa ${courtToDelete.name}.`);
       deleteDialogRef.current.close();
       // Đợi nút hết disabled rồi trả focus về nút còn tồn tại trong trang.
@@ -151,15 +152,15 @@ export default function CourtManagementPage() {
     }
   };
 
-  // Gọi thao tác đổi trạng thái riêng: ẩn = CLOSED, kích hoạt = ACTIVE.
+  // Gọi thao tác đổi trạng thái riêng: ẩn = Đóng, kích hoạt = Hoạt động.
   const handleChangeStatus = async (court, newStatus) => {
     if (isPending) return;
     setIsPending(true);
     setRequestError("");
     try {
-      const updatedCourt = await adminApi.changeCourtStatus(court.courtId, newStatus);
-      setCourts((previous) => previous.map((item) => item.courtId === court.courtId ? updatedCourt : item));
-      setNotice(newStatus === "CLOSED" ? `Đã ẩn ${court.name}.` : `Đã kích hoạt ${court.name}.`);
+      const updatedCourt = await adminApi.changeCourtStatus(court.id, newStatus);
+      setCourts((previous) => previous.map((item) => item.id === court.id ? updatedCourt : item));
+      setNotice(newStatus === "Đóng" ? `Đã ẩn ${court.name}.` : `Đã kích hoạt ${court.name}.`);
     } catch (error) {
       setRequestError(error.message);
     } finally {
@@ -208,13 +209,13 @@ export default function CourtManagementPage() {
                 <tr><td colSpan={6}>Chưa có sân. Chọn “Thêm sân” để tạo sân mới.</td></tr>
               ) : courts.map((court) => {
                 const status = statusStyles[court.status];
-                const isClosed = court.status === "CLOSED";
+                const isClosed = court.status === "Đóng";
                 return (
-                  <tr key={court.courtId}>
+                  <tr key={court.id}>
                     <td>{court.name}</td>
-                    <td>{courtTypeLabels[court.courtType]}</td>
-                    <td>{getPriceLabel(court.courtType, false)}</td>
-                    <td>{getPriceLabel(court.courtType, true)}</td>
+                    <td>{courtTypeLabels[court.type]}</td>
+                    <td>{getPriceLabel(court.type, false)}</td>
+                    <td>{getPriceLabel(court.type, true)}</td>
                     <td>
                       <span className={`court-status ${status.className}`}>{status.label}</span>
                     </td>
@@ -233,7 +234,7 @@ export default function CourtManagementPage() {
                         <button disabled={isPending} type="button"
                           aria-label={`${isClosed ? "Kích hoạt" : "Ẩn"} ${court.name}`}
                           className={`admin-action-button${isClosed ? " admin-action-button--activate" : ""}`}
-                          onClick={() => handleChangeStatus(court, isClosed ? "ACTIVE" : "CLOSED")}>
+                          onClick={() => handleChangeStatus(court, isClosed ? "Hoạt động" : "Đóng")}>
                           {isClosed ? "Kích hoạt" : "Ẩn"}
                         </button>
                       </div>
@@ -269,15 +270,15 @@ export default function CourtManagementPage() {
               </h3>
               <div className="court-delete-card">
                 <h4>{courtToDelete.name}</h4>
-                <p className="court-delete-type">Loại: {courtTypeLabels[courtToDelete.courtType]}</p>
+                <p className="court-delete-type">Loại: {courtTypeLabels[courtToDelete.type]}</p>
                 <dl className="court-delete-prices">
                   <div>
                     <dt>Giá cơ bản:</dt>
-                    <dd>{getPriceLabel(courtToDelete.courtType, false)}</dd>
+                    <dd>{getPriceLabel(courtToDelete.type, false)}</dd>
                   </div>
                   <div>
                     <dt>Giá giờ cao điểm:</dt>
-                    <dd>{getPriceLabel(courtToDelete.courtType, true)}</dd>
+                    <dd>{getPriceLabel(courtToDelete.type, true)}</dd>
                   </div>
                 </dl>
                 <div className="court-delete-status">
@@ -331,10 +332,10 @@ export default function CourtManagementPage() {
 
             <label htmlFor="court-type" className="court-form-field">
               Loại sân
-              <select id="court-type" name="courtType" value={form.courtType}
+              <select id="court-type" name="type" value={form.type}
                 className="court-form-input" required
                 onChange={(event) => {
-                  setForm((prev) => ({ ...prev, courtType: event.target.value }));
+                  setForm((prev) => ({ ...prev, type: event.target.value }));
                   setFormError("");
                 }}>
                 {Object.entries(courtTypeLabels).map(([value, label]) => (
@@ -364,11 +365,11 @@ export default function CourtManagementPage() {
               <dl className="court-form-prices">
                 <div>
                   <dt>Giá cơ bản</dt>
-                  <dd>{getPriceLabel(form.courtType, false)}</dd>
+                  <dd>{getPriceLabel(form.type, false)}</dd>
                 </div>
                 <div>
                   <dt>Giá giờ cao điểm</dt>
-                  <dd>{getPriceLabel(form.courtType, true)}</dd>
+                  <dd>{getPriceLabel(form.type, true)}</dd>
                 </div>
               </dl>
             </section>

@@ -1,18 +1,54 @@
-// Dữ liệu frontend mẫu, tổ chức giống branch feature/frontend-ui.
-// Giữ tên trường/enum mà các màn admin đang sử dụng; không gọi backend.
+// Dữ liệu sân dùng chung theo cấu trúc của giao diện khách hàng.
 export const mockCourts = [
-  { courtId: 1, name: "Sân 01", courtType: "STANDARD_OUTDOOR", status: "ACTIVE", referencePrice: 100000, imageUrl: "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=2070&auto=format&fit=crop", description: "Sân tiêu chuẩn ngoài trời." },
-  { courtId: 2, name: "Sân VIP 02", courtType: "VIP_INDOOR", status: "ACTIVE", referencePrice: 250000, imageUrl: "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?q=80&w=2007&auto=format&fit=crop", description: "Sân VIP trong nhà." },
-  { courtId: 3, name: "Sân 03", courtType: "STANDARD_INDOOR", status: "MAINTENANCE", referencePrice: 90000, imageUrl: "https://images.unsplash.com/photo-1572560377017-eb965a3d76b1?q=80&w=2069&auto=format&fit=crop", description: "Sân tiêu chuẩn trong nhà." },
+  {
+    id: 1,
+    name: "Sân 01",
+    type: "Sân tiêu chuẩn ngoài trời",
+    isVip: false,
+    status: "Hoạt động",
+    basePrice: 100000,
+    peakPrice: 150000,
+    description: "Sân tiêu chuẩn, phù hợp cho đánh đơn và đánh đôi.",
+    imageUrl: "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=2070&auto=format&fit=crop",
+  },
+  {
+    id: 2,
+    name: "Sân VIP 02",
+    type: "Sân VIP trong nhà",
+    isVip: true,
+    status: "Hoạt động",
+    basePrice: 250000,
+    peakPrice: 350000,
+    description: "Sân VIP, không gian thoáng mát, đèn đạt chuẩn thi đấu.",
+    imageUrl: "https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?q=80&w=2007&auto=format&fit=crop",
+  },
+  {
+    id: 3,
+    name: "Sân 03",
+    type: "Sân tiêu chuẩn trong nhà",
+    isVip: false,
+    status: "Bảo trì",
+    basePrice: 80000,
+    peakPrice: 120000,
+    description: "Sân tiêu chuẩn, phù hợp cho đánh đơn và đánh đôi.",
+    imageUrl: "https://images.unsplash.com/photo-1572560377017-eb965a3d76b1?q=80&w=2069&auto=format&fit=crop",
+  },
 ];
+
+// Bảng giá vẫn nhóm theo mã loại sân; dữ liệu sân dùng tên tiếng Việt.
+export const courtTypeCodes = {
+  "Sân tiêu chuẩn ngoài trời": "STANDARD_OUTDOOR",
+  "Sân tiêu chuẩn trong nhà": "STANDARD_INDOOR",
+  "Sân VIP trong nhà": "VIP_INDOOR",
+};
 
 export const mockPriceConfigs = [
   { priceConfigId: 1, courtType: "STANDARD_OUTDOOR", startTime: "06:00", endTime: "17:00", pricePerHour: 100000, isPeakHour: false },
   { priceConfigId: 2, courtType: "STANDARD_OUTDOOR", startTime: "17:00", endTime: "22:00", pricePerHour: 150000, isPeakHour: true },
   { priceConfigId: 3, courtType: "VIP_INDOOR", startTime: "06:00", endTime: "17:00", pricePerHour: 250000, isPeakHour: false },
   { priceConfigId: 4, courtType: "VIP_INDOOR", startTime: "17:00", endTime: "22:00", pricePerHour: 350000, isPeakHour: true },
-  { priceConfigId: 5, courtType: "STANDARD_INDOOR", startTime: "06:00", endTime: "17:00", pricePerHour: 90000, isPeakHour: false },
-  { priceConfigId: 6, courtType: "STANDARD_INDOOR", startTime: "17:00", endTime: "22:00", pricePerHour: 190000, isPeakHour: true },
+  { priceConfigId: 5, courtType: "STANDARD_INDOOR", startTime: "06:00", endTime: "17:00", pricePerHour: 80000, isPeakHour: false },
+  { priceConfigId: 6, courtType: "STANDARD_INDOOR", startTime: "17:00", endTime: "22:00", pricePerHour: 120000, isPeakHour: true },
 ];
 
 export const mockCustomers = [
@@ -21,16 +57,16 @@ export const mockCustomers = [
 ];
 
 // Mỗi dòng là một lần đặt sân lẻ hoặc một gói lịch cố định.
-// Ghép theo courtId để lấy đúng ảnh/tên sân từ mockCourts, không dùng ảnh chung.
+// courtId của booking tham chiếu id của sân trong mockCourts.
 // Lưu thông tin tại thời điểm tạo lịch sử để không đổi khi admin sửa/xóa sân.
 const historyCourts = Object.fromEntries(mockCourts.map((court) => [
-  court.courtId,
+  court.id,
   {
     courtName: court.name,
-    courtTypeLabel: { STANDARD_OUTDOOR: "Tiêu chuẩn ngoài trời", STANDARD_INDOOR: "Tiêu chuẩn trong nhà", VIP_INDOOR: "VIP trong nhà" }[court.courtType],
+    courtTypeLabel: court.type,
     courtDescription: court.description,
-    isVip: court.courtType === "VIP_INDOOR",
-    courtLocation: court.courtType === "STANDARD_OUTDOOR" ? "Ngoài trời" : "Trong nhà",
+    isVip: court.isVip,
+    courtLocation: courtTypeCodes[court.type] === "STANDARD_OUTDOOR" ? "Ngoài trời" : "Trong nhà",
     imageUrl: court.imageUrl,
     imagePosition: "center",
   },

@@ -1,4 +1,4 @@
-import { mockBookings, mockCourts, mockCustomers, mockPriceConfigs, mockRecurringSessions } from "../mocks/apiContract.js";
+import { courtTypeCodes, mockBookings, mockCourts, mockCustomers, mockPriceConfigs, mockRecurringSessions } from "../mocks/apiContract.js";
 
 // Store chỉ nằm trong frontend: dữ liệu giữ khi chuyển menu và reset khi reload.
 // Clone để component không sửa trực tiếp dữ liệu gốc hoặc dữ liệu trong store.
@@ -6,10 +6,10 @@ let courts = structuredClone(mockCourts);
 let priceConfigs = structuredClone(mockPriceConfigs);
 const bookingStore = structuredClone(mockBookings);
 const sessionStore = structuredClone(mockRecurringSessions);
-let nextCourtId = Math.max(0, ...courts.map((court) => court.courtId)) + 1;
+let nextCourtId = Math.max(0, ...courts.map((court) => court.id)) + 1;
 let nextPriceId = Math.max(0, ...priceConfigs.map((price) => price.priceConfigId)) + 1;
 const courtTypes = ["STANDARD_OUTDOOR", "STANDARD_INDOOR", "VIP_INDOOR"];
-const courtStatuses = ["ACTIVE", "MAINTENANCE", "CLOSED"];
+const courtStatuses = ["Hoạt động", "Bảo trì", "Đóng"];
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
 // Khung giá dùng giờ Việt Nam dạng HH:mm và chỉ nhận phút 00 hoặc 30 như form.
 const priceTimePattern = /^([01]\d|2[0-3]):(00|30)$/;
@@ -35,14 +35,18 @@ function findById(items, key, id, label) {
 function validateCourt(input) {
   const name = input.name?.trim();
   if (!name) throw new Error("Vui lòng nhập tên sân.");
-  if (!courtTypes.includes(input.courtType)) throw new Error("Loại sân không hợp lệ.");
+  if (!Object.hasOwn(courtTypeCodes, input.type)) throw new Error("Loại sân không hợp lệ.");
   if (!courtStatuses.includes(input.status)) throw new Error("Trạng thái sân không hợp lệ.");
-  return { name, courtType: input.courtType, status: input.status };
+  return { name, type: input.type, isVip: courtTypeCodes[input.type] === "VIP_INDOOR", status: input.status };
 }
 
-function getReferencePrice(courtType) {
-  const prices = priceConfigs.filter((price) => price.courtType === courtType && !price.isPeakHour);
-  return prices.length ? Math.min(...prices.map((price) => price.pricePerHour)) : 0;
+function getCourtPrices(type) {
+  const prices = priceConfigs.filter((price) => price.courtType === courtTypeCodes[type]);
+  const minimumPrice = (isPeakHour) => {
+    const values = prices.filter((price) => price.isPeakHour === isPeakHour).map((price) => price.pricePerHour);
+    return values.length ? Math.min(...values) : 0;
+  };
+  return { basePrice: minimumPrice(false), peakPrice: minimumPrice(true) };
 }
 
 function validatePrice(input, editingId = null) {
@@ -98,14 +102,14 @@ function cancellationReason(value) {
 
 export const adminApi = {
   getCourts: () => request(() => courts.map((court) => ({
-    ...court, referencePrice: getReferencePrice(court.courtType),
+    ...court, ...getCourtPrices(court.type),
   }))),
 
   createCourt: (input) => {
     const body = structuredClone(input);
     return request(() => {
       const values = validateCourt(body);
-      const court = { ...values, courtId: nextCourtId++, referencePrice: getReferencePrice(values.courtType), imageUrl: "", description: "" };
+      const court = { ...values, id: nextCourtId++, ...getCourtPrices(values.type), imageUrl: "", description: "" };
       courts.push(court);
       return court;
     });
@@ -114,23 +118,23 @@ export const adminApi = {
   updateCourt: (id, input) => {
     const body = structuredClone(input);
     return request(() => {
-      const court = findById(courts, "courtId", id, "Sân");
+      const court = findById(courts, "id", id, "Sân");
       const values = validateCourt(body);
-      Object.assign(court, values, { referencePrice: getReferencePrice(values.courtType) });
+      Object.assign(court, values, getCourtPrices(values.type));
       return court;
     });
   },
 
   deleteCourt: (id) => request(() => {
-    findById(courts, "courtId", id, "Sân");
-    courts = courts.filter((court) => court.courtId !== id);
-    return { courtId: id };
+    findById(courts, "id", id, "Sân");
+    courts = courts.filter((court) => court.id !== id);
+    return { id };
   }),
 
   changeCourtStatus: (id, status) => request(() => {
-    const court = findById(courts, "courtId", id, "Sân");
+    const court = findById(courts, "id", id, "Sân");
     if (!courtStatuses.includes(status)) throw new Error("Trạng thái sân không hợp lệ.");
-    court.status = status;
+    Object.assign(court, { status }, getCourtPrices(court.type));
     return court;
   }),
 
