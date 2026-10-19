@@ -3,6 +3,7 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage.jsx";
 import CourtList from "./pages/CourtList";
 import CourtDetail from "./pages/CourtDetail";
+import BookingConfirm from "./pages/BookingConfirm.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import CourtManagementPage from "./pages/admin/CourtManagementPage.jsx";
 import PriceManagementPage from "./pages/admin/PriceManagementPage.jsx";
@@ -24,6 +25,7 @@ function App() {
       {/* 2. Các trang cần đăng nhập (Protected Routes) */}
       <Route element={<ProtectedRoute />}>
         <Route path="/court/:id" element={<CourtDetail />} />
+        <Route path="/court/:id/confirm" element={<BookingConfirm />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/" element={<CourtList />} />
       </Route>
