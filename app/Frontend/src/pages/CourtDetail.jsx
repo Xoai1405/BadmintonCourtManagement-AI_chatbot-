@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { bookingApi } from "../api/bookingApi";
 import {
   ArrowLeft,
@@ -42,7 +42,7 @@ function formatTime(time) {
 
 export default function CourtDetail() {
   const { id } = useParams();
-
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState("");
   const [now, setNow] = useState(null);
 
@@ -108,7 +108,7 @@ export default function CourtDetail() {
       setSelectedSlots([...selectedSlots, slot.id]);
     }
   };
-  const handleCreateBooking = async () => {
+ const handleCreateBooking = () => {
     if (!isContinuousSelection) {
       setBookingError("Vui lòng chọn các khung giờ liên tiếp.");
       return;
@@ -117,33 +117,19 @@ export default function CourtDetail() {
     const firstSlot = selectedSlotDetails[0];
     const lastSlot = selectedSlotDetails[selectedSlotDetails.length - 1];
 
-    try {
-      setBookingLoading(true);
-      setBookingError("");
-      setBookingMessage("");
+    setBookingError("");
 
-      const booking = await bookingApi.create({
-        courtId: Number(id),
-        bookingDate: selectedDate,
+    // Chuyển hướng sang trang Confirm và truyền toàn bộ dữ liệu qua State
+    navigate(`/court/${id}/confirm`, {
+      state: {
+        court: court,
+        selectedDate: selectedDate,
+        selectedSlots: selectedSlotDetails,
         startTime: formatTime(firstSlot.startTime),
         endTime: formatTime(lastSlot.endTime),
-      });
-
-      setBookingMessage(
-        `Đặt sân thành công. Mã đặt sân: ${booking.bookingCode}`,
-      );
-
-      setSelectedSlots([]);
-
-      // Lấy lại lịch mới để slot vừa đặt chuyển thành BOOKED
-      const availability = await courtApi.getAvailability(id, selectedDate);
-
-      setTimeSlots(availability.slots);
-    } catch (err) {
-      setBookingError(err.message);
-    } finally {
-      setBookingLoading(false);
-    }
+        totalPrice: totalAmount
+      }
+    });
   };
   useEffect(() => {
     const fetchCourt = async () => {
