@@ -42,15 +42,6 @@ export const courtTypeCodes = {
   "Sân VIP trong nhà": "VIP_INDOOR",
 };
 
-export const mockPriceConfigs = [
-  { priceConfigId: 1, courtType: "STANDARD_OUTDOOR", startTime: "06:00", endTime: "17:00", pricePerHour: 100000, isPeakHour: false },
-  { priceConfigId: 2, courtType: "STANDARD_OUTDOOR", startTime: "17:00", endTime: "22:00", pricePerHour: 150000, isPeakHour: true },
-  { priceConfigId: 3, courtType: "VIP_INDOOR", startTime: "06:00", endTime: "17:00", pricePerHour: 250000, isPeakHour: false },
-  { priceConfigId: 4, courtType: "VIP_INDOOR", startTime: "17:00", endTime: "22:00", pricePerHour: 350000, isPeakHour: true },
-  { priceConfigId: 5, courtType: "STANDARD_INDOOR", startTime: "06:00", endTime: "17:00", pricePerHour: 80000, isPeakHour: false },
-  { priceConfigId: 6, courtType: "STANDARD_INDOOR", startTime: "17:00", endTime: "22:00", pricePerHour: 120000, isPeakHour: true },
-];
-
 export const mockCustomers = [
   { id: 1, fullName: "Nguyễn Văn A", phone: "0909 123 456", email: "c.le@email.com", status: "ACTIVE" },
   { id: 2, fullName: "Trần Thị B", phone: "0909 456 789", email: "PVD42@email.com", status: "LOCKED" },

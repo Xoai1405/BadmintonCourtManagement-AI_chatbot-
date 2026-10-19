@@ -12,6 +12,8 @@ import StaffManagementPage from "./pages/admin/StaffManagementPage.jsx";
 import CustomerManagementPage from "./pages/admin/CustomerManagementPage.jsx";
 import ReportsPage from "./pages/admin/ReportsPage.jsx";
 import FaqChatbotPage from "./pages/admin/FaqChatbotPage.jsx";
+import ProfilePage from "./pages/ProfilePage.jsx";
+import FeaturePlaceholderPage from "./pages/FeaturePlaceholderPage.jsx";
 import AdminLayout from "./components/layout/AdminLayout.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import { Navigate, Route, Routes } from "react-router-dom"; // Đã bỏ import BrowserRouter
@@ -28,6 +30,9 @@ function App() {
         <Route path="/court/:id/confirm" element={<BookingConfirm />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/" element={<CourtList />} />
+        <Route path="/recurring-bookings" element={<FeaturePlaceholderPage title="Lịch cố định" description="Quản lý các lịch đặt sân định kỳ của bạn." />} />
+        <Route path="/my-bookings" element={<FeaturePlaceholderPage title="Booking của tôi" description="Theo dõi các lượt đặt sân của bạn." />} />
+        <Route path="/profile" element={<ProfilePage />} />
       </Route>
 
       {/* Các trang quản lý dùng chung sidebar; nội dung từng trang nằm trong Outlet. */}

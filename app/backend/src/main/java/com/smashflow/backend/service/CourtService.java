@@ -1,164 +1,161 @@
 package com.smashflow.backend.service;
 
-import java.sql.Time;
-import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-
+import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 
-import com.smashflow.backend.dto.response.CourtAvailabilityResponse;
-import com.smashflow.backend.dto.response.TimeSlotResponse;
-import com.smashflow.backend.model.enums.SlotStatus;
-import com.smashflow.backend.exception.ResourceNotFoundException;
-
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import com.smashflow.backend.dto.response.CourtAvailabilityResponse;
 import com.smashflow.backend.dto.response.CourtResponse;
+import com.smashflow.backend.dto.response.TimeSlotResponse;
+import com.smashflow.backend.exception.ResourceNotFoundException;
+import com.smashflow.backend.model.Booking;
+import com.smashflow.backend.model.BusinessHourConfig;
 import com.smashflow.backend.model.Court;
 import com.smashflow.backend.model.PriceConfig;
+import com.smashflow.backend.model.enums.BookingStatus;
+import com.smashflow.backend.model.enums.SlotStatus;
 import com.smashflow.backend.repository.BookingRepository;
+import com.smashflow.backend.repository.BusinessHourConfigRepository;
 import com.smashflow.backend.repository.CourtRepository;
 import com.smashflow.backend.repository.PriceConfigRepository;
-import com.smashflow.backend.model.Booking;
-import com.smashflow.backend.model.enums.BookingStatus;
 
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class CourtService {
-    private final CourtRepository courtRepo;
-    private final PriceConfigRepository priceConfigRepo;
-    private final BookingRepository bookingRepo;
 
-    public List<CourtResponse> getAllCourts() {
-        List<Court> listCourt = courtRepo.findAll();
-        List<CourtResponse> res = new ArrayList<>();
-        for (Court x : listCourt) {
-            List<PriceConfig> prices = priceConfigRepo.findByCourtType(x.getCourtType());
+        private final CourtRepository courtRepo;
+        private final PriceConfigRepository priceConfigRepo;
+        private final BusinessHourConfigRepository businessHourConfigRepo;
+        private final BookingRepository bookingRepo;
+        private final PricingService pricingService;
 
-            if (prices.isEmpty()) {
-                throw new ResourceNotFoundException(
-                        "Không tìm thấy cấu hình giá cho sân ID: " + x.getId());
-            }
+        public List<CourtResponse> getAllCourts() {
+                List<Court> courts = courtRepo.findAll();
+                List<CourtResponse> responses = new ArrayList<>();
 
-            PriceConfig price = prices.get(0);
+                for (Court court : courts) {
+                        PriceConfig priceConfig = getPriceConfig(court);
 
-            res.add(new CourtResponse(
-                    x.getId(),
-                    x.getName(),
-                    x.getCourtType(),
-                    x.getImageUrl(),
-                    x.getDescription(),
-                    x.getStatus(),
-                    price.getPriceNormalHour(),
-                    price.getPricePeakHour()));
+                        responses.add(toCourtResponse(court, priceConfig));
+                }
 
-        }
-        return res;
-    }
-
-    public CourtResponse getCourt(Long id) {
-        Court res = courtRepo.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tồn tại dữ liệu sân"));
-
-        List<PriceConfig> prices = priceConfigRepo.findByCourtType(res.getCourtType());
-
-        if (prices.isEmpty()) {
-            throw new ResourceNotFoundException(
-                    "Không tìm thấy cấu hình giá cho sân ID: " + res.getId());
+                return responses;
         }
 
-        PriceConfig price = prices.get(0);
-        return new CourtResponse(
-                res.getId(),
-                res.getName(),
-                res.getCourtType(),
-                res.getImageUrl(),
-                res.getDescription(),
-                res.getStatus(),
-                price.getPriceNormalHour(),
-                price.getPricePeakHour());
+        public CourtResponse getCourt(Long id) {
+                Court court = courtRepo.findById(id)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Không tồn tại dữ liệu sân"));
 
-    }
+                PriceConfig priceConfig = getPriceConfig(court);
 
-    public CourtAvailabilityResponse getAvailability(Long courtId, LocalDate date) {
-        Court court = courtRepo.findById(courtId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân"));
-
-        List<PriceConfig> priceConfigs = priceConfigRepo.findByCourtTypeOrderByStartTimeAsc(
-                court.getCourtType());
-
-        if (priceConfigs.isEmpty()) {
-            throw new ResourceNotFoundException(
-                    "Chưa có cấu hình giá cho sân này");
+                return toCourtResponse(court, priceConfig);
         }
 
-        List<Booking> blockingBookings = bookingRepo.findByCourt_IdAndBookingDateAndBookingStatusIn(
-                courtId,
-                date,
-                List.of(
-                        BookingStatus.PENDING,
-                        BookingStatus.CONFIRMED,
-                        BookingStatus.CHECKED_IN));
+        public CourtAvailabilityResponse getAvailability(
+                        Long courtId,
+                        LocalDate date) {
 
-        ZoneId vietnamZone = ZoneId.of("Asia/Ho_Chi_Minh");
-        LocalDateTime now = LocalDateTime.now(vietnamZone);
+                Court court = courtRepo.findById(courtId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Không tìm thấy sân"));
 
-        List<TimeSlotResponse> slots = new ArrayList<>();
+                PriceConfig priceConfig = getPriceConfig(court);
+                BusinessHourConfig businessConfig = getBusinessHourConfig();
 
-        for (LocalTime start = LocalTime.of(6, 0); start.isBefore(LocalTime.of(22, 0)); start = start.plusMinutes(30)) {
+                List<Booking> blockingBookings = bookingRepo.findByCourt_IdAndBookingDateAndBookingStatusIn(
+                                courtId,
+                                date,
+                                List.of(
+                                                BookingStatus.PENDING,
+                                                BookingStatus.CONFIRMED,
+                                                BookingStatus.CHECKED_IN));
 
-            LocalTime end = start.plusMinutes(30);
+                LocalDateTime now = LocalDateTime.now(
+                                ZoneId.of("Asia/Ho_Chi_Minh"));
 
-            LocalTime slotStart = start;
-            LocalTime slotEnd = end;
+                List<TimeSlotResponse> slots = new ArrayList<>();
 
-            boolean isPast = date.isBefore(now.toLocalDate())
-                    || (date.isEqual(now.toLocalDate())
-                            && !slotStart.isAfter(now.toLocalTime()));
+                for (LocalTime slotStart = businessConfig.getOpeningTime(); slotStart
+                                .isBefore(businessConfig.getClosingTime()); slotStart = slotStart.plusMinutes(30)) {
+                        // Lưu giá trị slotStart hiện tại để sử dụng an toàn
+                        // trong lambda và các xử lý bên dưới.
+                        LocalTime currentSlotStart = slotStart;
 
-            boolean isBooked = blockingBookings.stream()
-                    .anyMatch(booking -> booking.getStartTime().isBefore(slotEnd)
-                            && booking.getEndTime().isAfter(slotStart));
+                        LocalTime slotEnd = currentSlotStart.plusMinutes(30);
 
-            PriceConfig priceConfig = priceConfigs.stream()
-                    .filter(config -> !slotStart.isBefore(config.getStartTime())
-                            && !slotEnd.isAfter(config.getEndTime()))
-                    .findFirst()
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Chưa có cấu hình giá cho khung "
-                                    + slotStart + " - " + slotEnd));
+                        // Kiểm tra slot đã qua hay chưa
+                        boolean isPast = date.isBefore(now.toLocalDate())
+                                        || (date.isEqual(now.toLocalDate())
+                                                        && !currentSlotStart.isAfter(now.toLocalTime()));
 
-            boolean isPeak = priceConfig.isPeakHour();
+                        // Kiểm tra slot có bị đặt trùng với booking nào không
+                        boolean isBooked = blockingBookings.stream()
+                                        .anyMatch(booking -> booking.getStartTime().isBefore(slotEnd)
+                                                        && booking.getEndTime().isAfter(currentSlotStart));
 
-            BigDecimal price = isPeak
-                    ? priceConfig.getPricePeakHour()
-                    : priceConfig.getPriceNormalHour();
+                        // Tính giá cho slot
+                        PricingService.SlotPrice slotPrice = pricingService.getSlotPrice(
+                                        priceConfig,
+                                        businessConfig,
+                                        currentSlotStart,
+                                        slotEnd);
 
-            SlotStatus slotStatus;
+                        // Xác định trạng thái slot
+                        SlotStatus status;
 
-            if (isPast) {
-                slotStatus = SlotStatus.PAST;
-            } else if (isBooked) {
-                slotStatus = SlotStatus.BOOKED;
-            } else {
-                slotStatus = SlotStatus.AVAILABLE;
-            }
+                        if (isPast) {
+                                status = SlotStatus.PAST;
+                        } else if (isBooked) {
+                                status = SlotStatus.BOOKED;
+                        } else {
+                                status = SlotStatus.AVAILABLE;
+                        }
 
-            slots.add(new TimeSlotResponse(
-                    slotStart,
-                    slotEnd,
-                    slotStatus,
-                    isPeak,
-                    price));
+                        // Thêm slot vào danh sách kết quả
+                        slots.add(new TimeSlotResponse(
+                                        currentSlotStart,
+                                        slotEnd,
+                                        status,
+                                        slotPrice.isPeak(),
+                                        slotPrice.hourlyPrice()));
+                }
+
+                return new CourtAvailabilityResponse(courtId, date, slots);
         }
 
-        return new CourtAvailabilityResponse(courtId, date, slots);
-    }
+        private PriceConfig getPriceConfig(Court court) {
+                return priceConfigRepo.findByCourtType(court.getCourtType())
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Chưa có cấu hình giá cho loại sân: "
+                                                                + court.getCourtType()));
+        }
+
+        private BusinessHourConfig getBusinessHourConfig() {
+                return businessHourConfigRepo.findById((short) 1)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Chưa có cấu hình giờ hoạt động"));
+        }
+
+        private CourtResponse toCourtResponse(
+                        Court court,
+                        PriceConfig priceConfig) {
+
+                return new CourtResponse(
+                                court.getId(),
+                                court.getName(),
+                                court.getCourtType(),
+                                court.getImageUrl(),
+                                court.getDescription(),
+                                court.getStatus(),
+                                priceConfig.getPriceNormalHour(),
+                                priceConfig.getPricePeakHour());
+        }
 }

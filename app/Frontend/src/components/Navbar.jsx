@@ -1,99 +1,143 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { User, Lock, LogOut, ChevronDown } from 'lucide-react';
+import { useState } from "react";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { ChevronDown, LockKeyhole, LogOut, UserRound } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
+import logoImg from "../assets/Logo.png";
 
-// Import file Logo từ thư mục assets
-// (Lưu ý: Bạn hãy check kỹ trong thư mục assets, tên file phải chính xác là "Logo.png" - chữ L viết hoa nhé)
-import logoImg from '../assets/Logo.png'; 
+
+const roleLabel = {
+  CUSTOMER: "Khách hàng",
+  STAFF: "Nhân viên",
+  MANAGER: "Quản lý",
+};
 
 export default function Navbar() {
-  // Đang để false để hiện nút Đăng nhập/Đăng ký. Đổi thành true sẽ hiện Avatar.
-  const [isLoggedIn, setIsLoggedIn] = useState(false); 
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
+  const { isAuthenticated, user, logout } = useAuth();
+  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+  const name = user?.fullName || "Người dùng";
+  const initials = name
+    .split(" ")
+    .filter(Boolean)
+    .slice(-2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+  const signOut = () => {
+    logout();
+    setOpen(false);
+    navigate("/login", { replace: true });
+  };
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          
-          {/* Logo Ảnh & Tên hệ thống SmashFlow */}
-          <div className="flex items-center gap-3">
-            {/* Đây là thẻ img hiển thị Logo thực tế */}
-            <img 
-              src={logoImg} 
-              alt="SmashFlow Logo" 
-              className="h-10 w-auto object-contain" 
-            />
-            <Link to="/" className="text-xl font-extrabold text-gray-800 tracking-tight">
-              Smash<span className="text-[#00C475]">Flow</span>
-            </Link>
+    <nav className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-5 px-4 sm:px-6 lg:px-8">
+        <Link to="/" className="flex shrink-0 items-center gap-2">
+          <img
+            src={logoImg}
+            alt="SmashFlow"
+            className="h-10 w-10 object-contain"
+          />
+          <span className="text-xl font-extrabold text-slate-800">
+            Smash<span className="text-emerald-500">Flow</span>
+          </span>
+        </Link>
+        {isAuthenticated && (
+          <div className="hidden h-full items-center gap-8 md:flex">
+            <MenuLink to="/" label="Sân" end />
+            <MenuLink to="/recurring-bookings" label="Lịch cố định" />
+            <MenuLink to="/my-bookings" label="Booking của tôi" />
           </div>
-
-          {/* Menu giữa (Chỉ hiện khi đã đăng nhập) */}
-          {isLoggedIn && (
-            <div className="hidden md:flex items-center space-x-8">
-              <Link to="/" className="text-[#00C475] border-b-2 border-[#00C475] px-1 py-5 text-sm font-semibold">Sân</Link>
-              <Link to="/fixed-schedule" className="text-gray-500 hover:text-gray-800 px-1 py-5 text-sm font-medium transition-colors">Lịch cố định</Link>
-              <Link to="/my-bookings" className="text-gray-500 hover:text-gray-800 px-1 py-5 text-sm font-medium transition-colors">Booking của tôi</Link>
-            </div>
-          )}
-
-          {/* Menu phải (Guest vs Logged In) */}
-          <div className="flex items-center">
-            {isLoggedIn ? (
-              <div className="relative">
-                <button 
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center gap-2 hover:bg-gray-50 p-2 rounded-md transition-colors border border-transparent hover:border-gray-200"
-                >
-                  <img src="https://i.pravatar.cc/150?img=11" alt="Avatar" className="w-8 h-8 rounded-full object-cover" />
-                  <span className="text-sm font-medium text-gray-700">Nguyễn Văn A</span>
-                  <ChevronDown size={16} className="text-gray-500" />
-                </button>
-
-                {/* Dropdown Menu Cá nhân */}
-                {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded-lg shadow-lg py-1 z-50">
-                    <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
-                       <img src="https://i.pravatar.cc/150?img=11" alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
-                       <div>
-                         <p className="text-sm font-bold text-gray-800">Nguyễn Văn A</p>
-                         <p className="text-xs text-gray-500">Khách hàng</p>
-                       </div>
-                    </div>
-                    <Link to="/profile" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
-                      <User size={16} className="text-gray-500"/> Thông tin cá nhân
-                    </Link>
-                    <Link to="/change-password" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
-                      <Lock size={16} className="text-gray-500"/> Đổi mật khẩu
-                    </Link>
-                    <div className="border-t border-gray-100 mt-1"></div>
-                    <button 
-                      onClick={() => {
-                        setIsLoggedIn(false);
-                        setIsDropdownOpen(false);
-                      }} 
-                      className="flex items-center gap-3 w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium"
-                    >
-                      <LogOut size={16} /> Đăng xuất
-                    </button>
+        )}
+        {isAuthenticated ? (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setOpen(!open)}
+              className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <Avatar initials={initials} />
+              <span className="hidden sm:inline">{name}</span>
+              <ChevronDown size={17} />
+            </button>
+            {open && (
+              <div className="absolute right-0 top-[calc(100%+10px)] w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+                <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-4">
+                  <Avatar initials={initials} large />
+                  <div>
+                    <p className="font-bold text-slate-800">{name}</p>
+                    <p className="text-xs text-slate-500">
+                      {roleLabel[user?.role] || "Khách hàng"}
+                    </p>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex gap-3">
-                <Link to="/login" className="px-5 py-2.5 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">
-                  Đăng nhập
+                </div>
+                <Link
+                  to="/profile"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <UserRound size={19} />
+                  Thông tin cá nhân
                 </Link>
-                <Link to="/register" className="px-5 py-2.5 text-sm font-medium text-white bg-gray-600 hover:bg-gray-700 rounded-md transition-colors">
-                  Đăng ký
+                <Link
+                  to="/profile#change-password"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <LockKeyhole size={19} />
+                  Đổi mật khẩu
                 </Link>
+                <div className="border-t border-slate-100" />
+                <button
+                  type="button"
+                  onClick={signOut}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-semibold text-rose-500 hover:bg-rose-50"
+                >
+                  <LogOut size={19} />
+                  Đăng xuất
+                </button>
               </div>
             )}
           </div>
-          
-        </div>
+        ) : (
+          <div className="flex gap-3">
+            <Link
+              to="/login"
+              className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700"
+            >
+              Đăng nhập
+            </Link>
+            <Link
+              to="/register"
+              className="rounded-lg bg-slate-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Đăng ký
+            </Link>
+          </div>
+        )}
       </div>
+      
     </nav>
+  );
+}
+function MenuLink({ to, label, end }) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) =>
+        `flex h-full items-center border-b-2 px-1 text-base ${isActive ? "border-emerald-500 font-semibold text-slate-900" : "border-transparent text-slate-500 hover:text-slate-900"}`
+      }
+    >
+      {label}
+    </NavLink>
+  );
+}
+function Avatar({ initials, large = false }) {
+  return (
+    <span
+      className={`grid place-items-center rounded-full bg-slate-800 font-bold text-white ${large ? "h-12 w-12 text-sm" : "h-9 w-9 text-xs"}`}
+    >
+      {initials || "SF"}
+    </span>
   );
 }

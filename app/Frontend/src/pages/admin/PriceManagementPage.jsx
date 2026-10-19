@@ -1,112 +1,119 @@
 import { useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import "../../components/layout/AdminLayout.css";
-import { adminApi } from "../../api/adminApi.js";
-
-// Hiển thị cùng tên tiếng Việt với màn Quản lý sân; giữ nguyên enum gửi API.
+import { priceConfigApi } from "../../api/priceConfigApi.js";
+import { businessHourApi } from "../../api/businessHourApi.js";
 const courtTypes = {
   STANDARD_OUTDOOR: "Tiêu chuẩn ngoài trời",
   STANDARD_INDOOR: "Tiêu chuẩn trong nhà",
   VIP_INDOOR: "VIP trong nhà",
 };
+
 const priceFormatter = new Intl.NumberFormat("vi-VN");
-const emptyForm = { courtType: "STANDARD_OUTDOOR", startTime: "", endTime: "", pricePerHour: "", isPeakHour: false };
-// Giờ sân là giờ địa phương Việt Nam, lưu HH:mm và không đổi qua UTC.
-// Dùng select thay input time để luôn hiện 24 giờ, không phụ thuộc AM/PM của máy.
-const timePattern = /^([01]\d|2[0-3]):(00|30)$/;
-// Giờ hoạt động 06:00–22:00, mỗi mốc 30 phút; 22:00 chỉ dùng làm giờ kết thúc.
-const timeOptions = Array.from({ length: 33 }, (_, index) =>
-  `${String(6 + Math.floor(index / 2)).padStart(2, "0")}:${index % 2 === 0 ? "00" : "30"}`
-);
+const typeOrder = Object.keys(courtTypes);
+const timeOptions = Array.from({ length: 48 }, (_, index) => {
+  const hour = String(Math.floor(index / 2)).padStart(2, "0");
+  const minute = index % 2 === 0 ? "00" : "30";
+  return `${hour}:${minute}`;
+});
+
+const emptyPriceForm = {
+  courtType: "",
+  priceNormalHour: "",
+  pricePeakHour: "",
+};
 
 export default function PriceManagementPage() {
-  const { priceConfigs, setPriceConfigs } = useOutletContext();
+  const {
+    priceConfigs,
+    setPriceConfigs,
+    businessHourConfig,
+    setBusinessHourConfig,
+  } = useOutletContext();
+
   const [isPending, setIsPending] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState(emptyForm);
+  const [editingPriceId, setEditingPriceId] = useState(null);
+  const [priceForm, setPriceForm] = useState(emptyPriceForm);
+  const [hoursForm, setHoursForm] = useState(null);
   const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
-  const formDialogRef = useRef(null);
-  const formRef = useRef(null);
+  const priceDialogRef = useRef(null);
+  const hoursDialogRef = useRef(null);
 
-  // Mỗi bản ghi là một dòng: 3 loại sân × 2 khung giờ = 6 dòng dữ liệu mẫu.
-  // Sao chép trước khi sắp xếp để không thay đổi state dùng chung với màn Court.
-  const typeOrder = Object.keys(courtTypes);
-  const visiblePrices = [...priceConfigs].sort((a, b) =>
-    typeOrder.indexOf(a.courtType) - typeOrder.indexOf(b.courtType) ||
-    a.startTime.localeCompare(b.startTime)
+  const visiblePrices = [...priceConfigs].sort(
+    (a, b) => typeOrder.indexOf(a.courtType) - typeOrder.indexOf(b.courtType),
   );
 
-  const updateForm = (field, value) => {
-    setForm((previous) => ({ ...previous, [field]: value }));
-    setFormError("");
-  };
-
-  // Chỉ sửa bản ghi đã có; loại sân giữ nguyên để không chuyển nhầm khung giá.
-  const openForm = (config) => {
-    setEditingId(config.priceConfigId);
-    setForm({
+  const openPriceForm = (config) => {
+    setEditingPriceId(config.id);
+    setPriceForm({
       courtType: config.courtType,
-      startTime: config.startTime,
-      endTime: config.endTime,
-      pricePerHour: String(config.pricePerHour),
-      // Giữ cố định nhóm giá của dòng đang sửa để mỗi loại sân vẫn có đủ hai nhóm giá.
-      isPeakHour: config.isPeakHour,
+      priceNormalHour: String(config.priceNormalHour),
+      pricePeakHour: String(config.pricePeakHour),
     });
     setFormError("");
-    formDialogRef.current.showModal();
-    formRef.current.elements.namedItem("pricePerHour").focus();
+    priceDialogRef.current.showModal();
   };
 
-  const showError = (message, field) => {
-    setFormError(message);
-    formRef.current.elements.namedItem(field).focus();
+  const openHoursForm = () => {
+    setHoursForm({ ...businessHourConfig });
+    setFormError("");
+    hoursDialogRef.current.showModal();
   };
 
-  const handleSubmit = async (event) => {
+  const updatePriceForm = (field, value) => {
+    setPriceForm((previous) => ({ ...previous, [field]: value }));
+    setFormError("");
+  };
+
+  const updateHoursForm = (field, value) => {
+    setHoursForm((previous) => ({ ...previous, [field]: value }));
+    setFormError("");
+  };
+
+  const handlePriceSubmit = async (event) => {
     event.preventDefault();
-    if (isPending || editingId === null) return;
-    if (!Object.hasOwn(courtTypes, form.courtType)) {
-      showError("Vui lòng chọn loại sân hợp lệ.", "courtType");
-      return;
-    }
-    if (!timePattern.test(form.startTime) || form.startTime < "06:00" || form.startTime >= "22:00") {
-      showError("Giờ bắt đầu từ 06:00 đến 21:30, theo mốc 30 phút.", "startTime");
-      return;
-    }
-    if (!timePattern.test(form.endTime) || form.endTime <= "06:00" || form.endTime > "22:00") {
-      showError("Giờ kết thúc từ 06:30 đến 22:00, theo mốc 30 phút.", "endTime");
-      return;
-    }
-    if (form.endTime <= form.startTime) {
-      showError("Giờ kết thúc phải sau giờ bắt đầu trong cùng ngày.", "endTime");
-      return;
-    }
-    const pricePerHour = Number(form.pricePerHour);
-    if (!form.pricePerHour.trim() || !Number.isSafeInteger(pricePerHour) || pricePerHour <= 0 || pricePerHour > 9999999999) {
-      showError("Giá mỗi giờ phải là số nguyên từ 1 đến 9.999.999.999 đồng.", "pricePerHour");
-      return;
-    }
-    // Hai khung giờ liền nhau được phép; cùng loại sân thì không được chồng lấn.
-    const overlapping = priceConfigs.some((config) =>
-      config.priceConfigId !== editingId && config.courtType === form.courtType &&
-      form.startTime < config.endTime && form.endTime > config.startTime
-    );
-    if (overlapping) {
-      showError("Khung giờ bị trùng với một khung giá của loại sân này.", "startTime");
+    if (isPending || editingPriceId === null) return;
+
+    const priceNormalHour = Number(priceForm.priceNormalHour);
+    const pricePeakHour = Number(priceForm.pricePeakHour);
+
+    if (!Number.isSafeInteger(priceNormalHour) || priceNormalHour <= 0
+      || !Number.isSafeInteger(pricePeakHour) || pricePeakHour <= 0) {
+      setFormError("Giá thường và giá cao điểm phải là số nguyên dương.");
       return;
     }
 
-    // Cập nhật đúng một khung giá qua API mock hiện có; Court đọc cùng state.
     setIsPending(true);
     try {
-      const input = { ...form, pricePerHour };
-      const savedConfig = await adminApi.updatePriceConfig(editingId, input);
-      setPriceConfigs((previous) =>
-        previous.map((item) => item.priceConfigId === savedConfig.priceConfigId ? savedConfig : item)
-      );
-      setNotice(`Đã cập nhật giá ${courtTypes[savedConfig.courtType]}, khung giờ ${savedConfig.startTime} - ${savedConfig.endTime}.`);
-      formDialogRef.current.close();
+      const savedConfig = await priceConfigApi.update({
+        courtType: priceForm.courtType,
+        priceNormalHour,
+        pricePeakHour,
+      });
+
+      setPriceConfigs((previous) => previous.map((item) =>
+        item.id === savedConfig.id ? savedConfig : item,
+      ));
+      setNotice(`Đã cập nhật giá ${courtTypes[savedConfig.courtType]}.`);
+      priceDialogRef.current.close();
+    } catch (error) {
+      setFormError(error.message);
+    } finally {
+      setIsPending(false);
+    }
+  };
+
+  const handleHoursSubmit = async (event) => {
+    event.preventDefault();
+    if (isPending || !hoursForm) return;
+
+    setIsPending(true);
+    try {
+      const savedConfig = await businessHourApi.update(hoursForm);
+      setBusinessHourConfig(savedConfig);
+      setNotice("Đã cập nhật giờ hoạt động và giờ cao điểm.");
+      hoursDialogRef.current.close();
     } catch (error) {
       setFormError(error.message);
     } finally {
@@ -119,40 +126,65 @@ export default function PriceManagementPage() {
       <header className="admin-page-header price-page-header">
         <div>
           <h1 id="price-page-title" className="admin-page-title">Cấu hình giá sân</h1>
-          <p className="admin-page-description">Thiết lập giá theo khung giờ cho từng loại sân</p>
+          <p className="admin-page-description">
+            Thiết lập giá thường, giá cao điểm và khung giờ dùng chung cho toàn hệ thống.
+          </p>
         </div>
       </header>
 
       <p role="status" className="admin-notice">{notice}</p>
 
+      {businessHourConfig && (
+        <section className="business-hours-card" aria-labelledby="business-hours-title">
+          <div>
+            <h2 id="business-hours-title">Khung giờ áp dụng chung</h2>
+            <p>Thay đổi ở đây sẽ ảnh hưởng đến lịch trống và cách tính giá của mọi loại sân.</p>
+          </div>
+          <dl className="business-hours-values">
+            <div>
+              <dt>Giờ hoạt động</dt>
+              <dd>{businessHourConfig.openingTime} – {businessHourConfig.closingTime}</dd>
+            </div>
+            <div>
+              <dt>Giờ cao điểm</dt>
+              <dd>{businessHourConfig.peakStartTime} – {businessHourConfig.peakEndTime}</dd>
+            </div>
+          </dl>
+          <button disabled={isPending} type="button" className="admin-action-button price-edit-button" onClick={openHoursForm}>
+            Sửa khung giờ
+          </button>
+        </section>
+      )}
+
       <div className="admin-table-wrapper">
-        <table className="admin-table price-table" aria-label="Bảng giá sân theo khung giờ">
+        <table className="admin-table price-table" aria-label="Bảng giá theo loại sân">
           <thead>
             <tr>
-              <th scope="col">Khung giờ</th>
-              <th scope="col">Loại</th>
-              <th scope="col">Giá cơ bản</th>
+              <th scope="col">Loại sân</th>
+              <th scope="col">Giá giờ thường</th>
               <th scope="col">Giá giờ cao điểm</th>
               <th scope="col"><span className="admin-visually-hidden">Thao tác</span></th>
             </tr>
           </thead>
           <tbody>
             {visiblePrices.length === 0 ? (
-              <tr><td colSpan={5} className="price-empty">Chưa có dữ liệu bảng giá.</td></tr>
+              <tr><td colSpan={4} className="price-empty">Chưa có dữ liệu bảng giá.</td></tr>
             ) : visiblePrices.map((config) => (
-              <tr key={config.priceConfigId}>
-                <td>{config.startTime} - {config.endTime}</td>
+              <tr key={config.id}>
                 <td>{courtTypes[config.courtType]}</td>
-                {/* Mỗi khung giờ chỉ thuộc một nhóm giá; cột còn lại hiển thị dấu —. */}
-                <td>{config.isPeakHour ? <span className="price-unavailable" aria-label="Không áp dụng">—</span>
-                  : `${priceFormatter.format(config.pricePerHour)}đ/giờ`}</td>
-                <td>{config.isPeakHour ? `${priceFormatter.format(config.pricePerHour)}đ/giờ`
-                  : <span className="price-unavailable" aria-label="Không áp dụng">—</span>}</td>
+                <td>{priceFormatter.format(config.priceNormalHour)}đ/giờ</td>
+                <td>{priceFormatter.format(config.pricePeakHour)}đ/giờ</td>
                 <td>
                   <div className="admin-table-actions">
-                    <button disabled={isPending} type="button" className="admin-action-button price-edit-button"
-                      aria-label={`Sửa giá ${courtTypes[config.courtType]}, ${config.startTime} - ${config.endTime}`}
-                      onClick={() => openForm(config)}>Sửa</button>
+                    <button
+                      disabled={isPending}
+                      type="button"
+                      className="admin-action-button price-edit-button"
+                      aria-label={`Sửa giá ${courtTypes[config.courtType]}`}
+                      onClick={() => openPriceForm(config)}
+                    >
+                      Sửa
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -161,48 +193,68 @@ export default function PriceManagementPage() {
         </table>
       </div>
 
-      <dialog ref={formDialogRef} className="price-dialog" aria-labelledby="price-form-title"
+      <dialog
+        ref={priceDialogRef}
+        className="price-dialog"
+        aria-labelledby="price-form-title"
         onCancel={(event) => { if (isPending) event.preventDefault(); }}
-        onClose={() => { setEditingId(null); setForm(emptyForm); setFormError(""); }}>
-        <form ref={formRef} onSubmit={handleSubmit} noValidate className="price-form">
-          <h2 id="price-form-title" className="price-dialog-title">Sửa khung giá</h2>
-          <label className="price-form-field" htmlFor="price-form-type">Loại
-            <input id="price-form-type" name="courtType" className="price-form-input"
-              value={courtTypes[form.courtType]} readOnly />
+        onClose={() => { setEditingPriceId(null); setPriceForm(emptyPriceForm); setFormError(""); }}
+      >
+        <form onSubmit={handlePriceSubmit} noValidate className="price-form">
+          <h2 id="price-form-title" className="price-dialog-title">Cập nhật giá sân</h2>
+          <label className="price-form-field" htmlFor="price-form-type">
+            Loại sân
+            <input id="price-form-type" className="price-form-input" value={courtTypes[priceForm.courtType] ?? ""} readOnly />
           </label>
-          <div className="price-time-fields">
-            <label className="price-form-field" htmlFor="price-start-time">Giờ bắt đầu
-              <select disabled={isPending} id="price-start-time" name="startTime" required
-                className="price-form-input" value={form.startTime}
-                onChange={(event) => updateForm("startTime", event.target.value)}>
-                <option value="" disabled>Chọn giờ</option>
-                {timeOptions.slice(0, -1).map((time) => <option key={time} value={time}>{time}</option>)}
-              </select>
-            </label>
-            <label className="price-form-field" htmlFor="price-end-time">Giờ kết thúc
-              <select disabled={isPending} id="price-end-time" name="endTime" required
-                className="price-form-input" value={form.endTime}
-                onChange={(event) => updateForm("endTime", event.target.value)}>
-                <option value="" disabled>Chọn giờ</option>
-                {timeOptions.slice(1).map((time) => <option key={time} value={time}>{time}</option>)}
-              </select>
-            </label>
-          </div>
-          <label className="price-form-field" htmlFor="price-per-hour">{form.isPeakHour ? "Giá giờ cao điểm (đồng/giờ)" : "Giá cơ bản (đồng/giờ)"}
-            <input disabled={isPending} id="price-per-hour" name="pricePerHour" type="number" required min="1" max="9999999999" step="1"
-              className="price-form-input" value={form.pricePerHour} placeholder="Ví dụ: 100000"
-              onChange={(event) => updateForm("pricePerHour", event.target.value)} />
+          <label className="price-form-field" htmlFor="price-normal-hour">
+            Giá giờ thường (đồng/giờ)
+            <input disabled={isPending} id="price-normal-hour" type="number" required min="1" step="1" className="price-form-input" value={priceForm.priceNormalHour} onChange={(event) => updatePriceForm("priceNormalHour", event.target.value)} />
+          </label>
+          <label className="price-form-field" htmlFor="price-peak-hour">
+            Giá giờ cao điểm (đồng/giờ)
+            <input disabled={isPending} id="price-peak-hour" type="number" required min="1" step="1" className="price-form-input" value={priceForm.pricePeakHour} onChange={(event) => updatePriceForm("pricePeakHour", event.target.value)} />
           </label>
           {formError && <p role="alert" className="price-form-error">{formError}</p>}
           <footer className="price-dialog-actions">
-            <button disabled={isPending} type="button" className="price-dialog-button" onClick={() => formDialogRef.current.close()}>Đóng</button>
-            <button disabled={isPending} aria-busy={isPending} type="submit" className="price-dialog-button price-dialog-button--primary">
-              {isPending ? "Đang lưu…" : "Lưu thay đổi"}
-            </button>
+            <button disabled={isPending} type="button" className="price-dialog-button" onClick={() => priceDialogRef.current.close()}>Đóng</button>
+            <button disabled={isPending} type="submit" className="price-dialog-button price-dialog-button--primary">{isPending ? "Đang lưu…" : "Lưu thay đổi"}</button>
           </footer>
         </form>
       </dialog>
 
+      <dialog
+        ref={hoursDialogRef}
+        className="price-dialog"
+        aria-labelledby="hours-form-title"
+        onCancel={(event) => { if (isPending) event.preventDefault(); }}
+        onClose={() => { setHoursForm(null); setFormError(""); }}
+      >
+        <form onSubmit={handleHoursSubmit} noValidate className="price-form">
+          <h2 id="hours-form-title" className="price-dialog-title">Cập nhật khung giờ</h2>
+          <div className="price-time-fields">
+            <TimeField id="opening-time" label="Giờ mở cửa" value={hoursForm?.openingTime ?? ""} disabled={isPending} onChange={(value) => updateHoursForm("openingTime", value)} />
+            <TimeField id="closing-time" label="Giờ đóng cửa" value={hoursForm?.closingTime ?? ""} disabled={isPending} onChange={(value) => updateHoursForm("closingTime", value)} />
+            <TimeField id="peak-start-time" label="Bắt đầu cao điểm" value={hoursForm?.peakStartTime ?? ""} disabled={isPending} onChange={(value) => updateHoursForm("peakStartTime", value)} />
+            <TimeField id="peak-end-time" label="Kết thúc cao điểm" value={hoursForm?.peakEndTime ?? ""} disabled={isPending} onChange={(value) => updateHoursForm("peakEndTime", value)} />
+          </div>
+          {formError && <p role="alert" className="price-form-error">{formError}</p>}
+          <footer className="price-dialog-actions">
+            <button disabled={isPending} type="button" className="price-dialog-button" onClick={() => hoursDialogRef.current.close()}>Đóng</button>
+            <button disabled={isPending} type="submit" className="price-dialog-button price-dialog-button--primary">{isPending ? "Đang lưu…" : "Lưu thay đổi"}</button>
+          </footer>
+        </form>
+      </dialog>
     </section>
+  );
+}
+
+function TimeField({ id, label, value, disabled, onChange }) {
+  return (
+    <label className="price-form-field" htmlFor={id}>
+      {label}
+      <select disabled={disabled} id={id} required className="price-form-input" value={value} onChange={(event) => onChange(event.target.value)}>
+        {timeOptions.map((time) => <option key={time} value={time}>{time}</option>)}
+      </select>
+    </label>
   );
 }

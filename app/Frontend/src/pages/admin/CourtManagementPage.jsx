@@ -21,15 +21,13 @@ const statusStyles = {
 
 const priceFormatter = new Intl.NumberFormat("vi-VN");
 
-// Một loại sân có thể có nhiều khung giờ: bỏ mức giá trùng và sắp xếp tăng dần.
+// V3 có đúng một cấu hình giá cho mỗi loại sân.
 function getPrices(priceConfigs, courtType, isPeakHour) {
-  return [...new Set(
-    priceConfigs
-      .filter((config) =>
-        config.courtType === courtTypeCodes[courtType] && config.isPeakHour === isPeakHour
-      )
-      .map((config) => config.pricePerHour)
-  )].sort((a, b) => a - b);
+  const config = priceConfigs.find(
+    (item) => item.courtType === courtTypeCodes[courtType],
+  );
+  if (!config) return [];
+  return [isPeakHour ? config.pricePeakHour : config.priceNormalHour];
 }
 
 // Hiển thị đủ các mức giá tìm được, hoặc thông báo khi chưa cấu hình giá.

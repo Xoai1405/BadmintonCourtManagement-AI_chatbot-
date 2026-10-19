@@ -3,6 +3,9 @@ import { NavLink, Outlet } from "react-router-dom";
 import "./AdminLayout.css";
 import SmashFlowLogo from "../../assets/Logo.png";
 import { adminApi } from "../../api/adminApi.js";
+import { priceConfigApi } from "../../api/priceConfigApi.js";
+import { businessHourApi } from "../../api/businessHourApi.js";
+import ChatbotButton from "../ChatbotButton.jsx";
 
 // Mỗi mục có đường dẫn riêng; NavLink tự xác định mục đang mở theo URL.
 const menuItems = [
@@ -19,17 +22,23 @@ export default function AdminLayout() {
   // Layout giữ kết quả mock API để sân và bảng giá dùng chung dữ liệu khi chuyển menu.
   const [courts, setCourts] = useState([]);
   const [priceConfigs, setPriceConfigs] = useState([]);
+  const [businessHourConfig, setBusinessHourConfig] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
   // Không cập nhật state sau khi layout unmount; hỗ trợ StrictMode.
   useEffect(() => {
     let cancelled = false;
-    Promise.all([adminApi.getCourts(), adminApi.getPriceConfigs()])
-      .then(([courtList, priceList]) => {
+    Promise.all([
+      adminApi.getCourts(),
+      priceConfigApi.getAll(),
+      businessHourApi.get(),
+    ])
+      .then(([courtList, priceList, businessHours]) => {
         if (cancelled) return;
         setCourts(courtList);
         setPriceConfigs(priceList);
+        setBusinessHourConfig(businessHours);
       })
       .catch((error) => { if (!cancelled) setLoadError(error.message); })
       .finally(() => { if (!cancelled) setIsLoading(false); });
@@ -73,8 +82,16 @@ export default function AdminLayout() {
       <main className="admin-main">
         {isLoading ? <p role="status">Đang tải dữ liệu quản lý…</p>
           : loadError ? <p role="alert">{loadError}</p>
-          : <Outlet context={{ courts, setCourts, priceConfigs, setPriceConfigs }} />}
+          : <Outlet context={{
+            courts,
+            setCourts,
+            priceConfigs,
+            setPriceConfigs,
+            businessHourConfig,
+            setBusinessHourConfig,
+          }} />}
       </main>
+      <ChatbotButton />
     </div>
   );
 }
