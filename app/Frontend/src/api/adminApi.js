@@ -1,18 +1,13 @@
-import { courtTypeCodes, mockBookings, mockCourts, mockCustomers, mockPriceConfigs, mockRecurringSessions } from "../mocks/apiContract.js";
+import { courtTypeCodes, mockBookings, mockCourts, mockCustomers, mockRecurringSessions } from "../mocks/apiContract.js";
 
 // Store chỉ nằm trong frontend: dữ liệu giữ khi chuyển menu và reset khi reload.
 // Clone để component không sửa trực tiếp dữ liệu gốc hoặc dữ liệu trong store.
 let courts = structuredClone(mockCourts);
-let priceConfigs = structuredClone(mockPriceConfigs);
 const bookingStore = structuredClone(mockBookings);
 const sessionStore = structuredClone(mockRecurringSessions);
 let nextCourtId = Math.max(0, ...courts.map((court) => court.id)) + 1;
-let nextPriceId = Math.max(0, ...priceConfigs.map((price) => price.priceConfigId)) + 1;
-const courtTypes = ["STANDARD_OUTDOOR", "STANDARD_INDOOR", "VIP_INDOOR"];
 const courtStatuses = ["Hoạt động", "Bảo trì", "Đóng"];
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
-// Khung giá dùng giờ Việt Nam dạng HH:mm và chỉ nhận phút 00 hoặc 30 như form.
-const priceTimePattern = /^([01]\d|2[0-3]):(00|30)$/;
 const normalizeName = (value) => value.trim().toLocaleLowerCase("vi-VN")
   .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
 const normalizePhone = (value) => value.replace(/[\s().+-]/g, "");
@@ -41,37 +36,9 @@ function validateCourt(input) {
 }
 
 function getCourtPrices(type) {
-  const prices = priceConfigs.filter((price) => price.courtType === courtTypeCodes[type]);
-  const minimumPrice = (isPeakHour) => {
-    const values = prices.filter((price) => price.isPeakHour === isPeakHour).map((price) => price.pricePerHour);
-    return values.length ? Math.min(...values) : 0;
-  };
-  return { basePrice: minimumPrice(false), peakPrice: minimumPrice(true) };
+  return { basePrice: 0, peakPrice: 0 };
 }
 
-function validatePrice(input, editingId = null) {
-  if (!courtTypes.includes(input.courtType)) throw new Error("Loại sân không hợp lệ.");
-  if (!priceTimePattern.test(input.startTime) || !priceTimePattern.test(input.endTime)) {
-    throw new Error("Khung giá phải dùng giờ 24 giờ theo mốc 30 phút (ví dụ 06:00, 06:30).");
-  }
-  // Kiểm tra lại giờ hoạt động tại API mock, đồng nhất với lựa chọn trên form.
-  if (input.startTime < "06:00" || input.startTime > "22:00" || input.endTime < "06:00" || input.endTime > "22:00") {
-    throw new Error("Khung giá chỉ được nằm trong giờ hoạt động từ 06:00 đến 22:00.");
-  }
-  if (input.endTime <= input.startTime) {
-    throw new Error("Giờ kết thúc phải sau giờ bắt đầu trong cùng ngày.");
-  }
-  if (!Number.isSafeInteger(input.pricePerHour) || input.pricePerHour <= 0 || input.pricePerHour > 9999999999) {
-    throw new Error("Giá mỗi giờ phải là số nguyên từ 1 đến 9.999.999.999 đồng.");
-  }
-  if (typeof input.isPeakHour !== "boolean") throw new Error("Giờ cao điểm phải là true hoặc false.");
-  if (priceConfigs.some((price) => price.priceConfigId !== editingId && price.courtType === input.courtType &&
-    input.startTime < price.endTime && input.endTime > price.startTime)) {
-    throw new Error("Khung giờ bị trùng với một khung giá của loại sân này.");
-  }
-  return { courtType: input.courtType, startTime: input.startTime, endTime: input.endTime,
-    pricePerHour: input.pricePerHour, isPeakHour: input.isPeakHour };
-}
 
 function customerBooking(customerId, bookingId) {
   findById(mockCustomers, "id", customerId, "Khách hàng");
@@ -136,32 +103,6 @@ export const adminApi = {
     if (!courtStatuses.includes(status)) throw new Error("Trạng thái sân không hợp lệ.");
     Object.assign(court, { status }, getCourtPrices(court.type));
     return court;
-  }),
-
-  getPriceConfigs: () => request(() => priceConfigs),
-
-  createPriceConfig: (input) => {
-    const body = structuredClone(input);
-    return request(() => {
-      const price = { ...validatePrice(body), priceConfigId: nextPriceId++ };
-      priceConfigs.push(price);
-      return price;
-    });
-  },
-
-  updatePriceConfig: (id, input) => {
-    const body = structuredClone(input);
-    return request(() => {
-      const price = findById(priceConfigs, "priceConfigId", id, "Khung giá");
-      Object.assign(price, validatePrice(body, id));
-      return price;
-    });
-  },
-
-  deletePriceConfig: (id) => request(() => {
-    findById(priceConfigs, "priceConfigId", id, "Khung giá");
-    priceConfigs = priceConfigs.filter((price) => price.priceConfigId !== id);
-    return { priceConfigId: id };
   }),
 
   getCustomers: (filters = {}) => {

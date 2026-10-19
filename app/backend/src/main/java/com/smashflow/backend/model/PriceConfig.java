@@ -1,7 +1,6 @@
 package com.smashflow.backend.model;
 
 import java.math.BigDecimal;
-import java.time.LocalTime;
 
 import com.smashflow.backend.model.enums.CourtType;
 
@@ -25,26 +24,18 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PriceConfig {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, name = "court_type")
     @Enumerated(EnumType.STRING)
-    CourtType courtType;
+    @Column(name = "court_type", nullable = false, unique = true)
+    private CourtType courtType;
 
-    @Column(nullable = false, name = "start_time")
-    private LocalTime startTime;
-
-    @Column(nullable = false, name = "end_time")
-    private LocalTime endTime;
-
-    @Column(nullable = false, name = "price_normal_hour")
+    @Column(name = "price_normal_hour", nullable = false)
     private BigDecimal priceNormalHour;
 
-    @Column(nullable = false, name = "price_peak_hour")
+    @Column(name = "price_peak_hour", nullable = false)
     private BigDecimal pricePeakHour;
-
-    @Column(nullable = false, name = "is_peak_hour")
-    private boolean isPeakHour;
 }

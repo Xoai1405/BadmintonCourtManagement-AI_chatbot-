@@ -133,8 +133,8 @@ a {
   display: grid;
   grid-template-columns: 1fr 1fr;
   width: 100%;
-  max-width: 1020px;
-  min-height: 470px;
+  max-width: max-content;
+  min-height: 1020px;
   overflow: hidden;
   border: 1px solid rgba(220, 230, 229, 0.9);
   border-radius: var(--radius-card);

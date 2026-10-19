@@ -730,7 +730,55 @@
 /* Bảng giá dùng cùng cỡ chữ, đệm ô, căn trái và khoảng cách nút của bảng sân.
    Chỉ đặt chiều rộng tối thiểu riêng vì bảng có 5 cột; khung chung cho cuộn ngang. */
 .price-table {
-  min-width: 920px;
+  min-width: 720px;
+}
+
+.business-hours-card {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  padding: 24px 28px;
+  border: 1px solid var(--admin-form-border);
+  border-radius: 14px;
+  background: #f7fcf9;
+}
+
+.business-hours-card h2,
+.business-hours-card p {
+  margin: 0;
+}
+
+.business-hours-card h2 {
+  font-size: 18px;
+}
+
+.business-hours-card p {
+  margin-top: 6px;
+  color: var(--admin-muted);
+  font-size: 14px;
+}
+
+.business-hours-values {
+  display: flex;
+  gap: 24px;
+  margin: 0;
+}
+
+.business-hours-values div {
+  display: grid;
+  gap: 4px;
+}
+
+.business-hours-values dt {
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+
+.business-hours-values dd {
+  margin: 0;
+  font-weight: 700;
 }
 
 .price-table .price-empty {
@@ -874,6 +922,18 @@
 }
 
 @media (max-width: 767px) {
+  .business-hours-card {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 20px;
+  }
+
+  .business-hours-values {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
   .price-dialog {
     padding: 24px 20px;
   }
