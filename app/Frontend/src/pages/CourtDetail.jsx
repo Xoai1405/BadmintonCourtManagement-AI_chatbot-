@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { bookingApi } from "../api/bookingApi";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   MessageCircle,
@@ -8,8 +7,8 @@ import {
   FileText,
   Calendar,
 } from "lucide-react";
-
-import { courtApi } from "../api/apiCourt";
+import ChatbotButton from "../components/ChatbotButton";
+import { courtApi } from "../api/CourtApi";
 import Navbar from "../components/Navbar";
 import { getCourtImageById } from "../utils/CourtImageById";
 import { getCourtTypeLabel } from "../utils/CourtUtils";
@@ -42,7 +41,7 @@ function formatTime(time) {
 
 export default function CourtDetail() {
   const { id } = useParams();
-
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState("");
   const [now, setNow] = useState(null);
 
@@ -69,9 +68,8 @@ export default function CourtDetail() {
   const [slotLoading, setSlotLoading] = useState(false);
   const [slotError, setSlotError] = useState("");
   const [selectedSlots, setSelectedSlots] = useState([]);
-  const [bookingLoading, setBookingLoading] = useState(false);
-  const [bookingError, setBookingError] = useState("");
-  const [bookingMessage, setBookingMessage] = useState("");
+
+  const [selectionError, setSelectionError] = useState("");
 
   //Fetch slot mỗi khi đổi sân hoặc ngày
   useEffect(() => {
@@ -101,49 +99,38 @@ export default function CourtDetail() {
   const [error, setError] = useState("");
 
   const toggleSlot = (slot) => {
-    if (slot.status === "booked") return;
+    if (slot.status !== "AVAILABLE") return;
     if (selectedSlots.includes(slot.id)) {
       setSelectedSlots(selectedSlots.filter((sId) => sId !== slot.id));
     } else {
       setSelectedSlots([...selectedSlots, slot.id]);
     }
   };
-  const handleCreateBooking = async () => {
+  const handleCreateBooking = () => {
     if (!isContinuousSelection) {
-      setBookingError("Vui lòng chọn các khung giờ liên tiếp.");
+      setSelectionError("Vui lòng chọn các khung giờ liên tiếp.");
       return;
     }
+
+    setSelectionError("");
 
     const firstSlot = selectedSlotDetails[0];
     const lastSlot = selectedSlotDetails[selectedSlotDetails.length - 1];
 
-    try {
-      setBookingLoading(true);
-      setBookingError("");
-      setBookingMessage("");
-
-      const booking = await bookingApi.create({
+    // Chuyển hướng sang trang Confirm và truyền toàn bộ dữ liệu qua State
+    navigate(`/court/${id}/confirm`, {
+      state: {
         courtId: Number(id),
         bookingDate: selectedDate,
         startTime: formatTime(firstSlot.startTime),
         endTime: formatTime(lastSlot.endTime),
-      });
 
-      setBookingMessage(
-        `Đặt sân thành công. Mã đặt sân: ${booking.bookingCode}`,
-      );
-
-      setSelectedSlots([]);
-
-      // Lấy lại lịch mới để slot vừa đặt chuyển thành BOOKED
-      const availability = await courtApi.getAvailability(id, selectedDate);
-
-      setTimeSlots(availability.slots);
-    } catch (err) {
-      setBookingError(err.message);
-    } finally {
-      setBookingLoading(false);
-    }
+        // Chỉ dùng hiển thị preview
+        court,
+        selectedSlots: selectedSlotDetails,
+        previewTotalPrice: totalAmount,
+      },
+    });
   };
   useEffect(() => {
     const fetchCourt = async () => {
@@ -198,6 +185,12 @@ export default function CourtDetail() {
 
       return selectedSlotDetails[index - 1].endTime === slot.startTime;
     });
+
+  const hasNonContinuousSelection =
+    selectedSlots.length > 1 && !isContinuousSelection;
+
+  ///////////Khối return chính
+
   return (
     <div className="min-h-screen bg-white pb-20">
       {/* 1. THANH MENU DÙNG CHUNG (Tự động lấy Logo và UI từ file Navbar.jsx) */}
@@ -367,42 +360,34 @@ export default function CourtDetail() {
                   </span>
                 </p>
               </div>
-              {bookingError && (
-                <p className="mb-3 text-sm text-red-500">{bookingError}</p>
-              )}
-
-              {bookingMessage && (
-                <p className="mb-3 text-sm text-emerald-600">
-                  {bookingMessage}
-                </p>
+              {selectionError && (
+                <p className="mb-3 text-sm text-red-500">{selectionError}</p>
               )}
               <button
                 type="button"
                 onClick={handleCreateBooking}
-                disabled={
-                  selectedSlots.length === 0 ||
-                  !isContinuousSelection ||
-                  bookingLoading
-                }
+                disabled={selectedSlots.length === 0 || !isContinuousSelection}
                 className={`px-8 py-3 rounded-lg font-bold transition-all flex items-center gap-2 ${
-                  selectedSlots.length > 0 &&
-                  isContinuousSelection &&
-                  !bookingLoading
+                  selectedSlots.length > 0 && isContinuousSelection
                     ? "bg-[#00C475] text-white shadow-md hover:bg-[#00B068]"
                     : "bg-gray-200 text-gray-400 cursor-not-allowed"
                 }`}
               >
-                {bookingLoading ? "Đang tạo đặt sân..." : "Đặt sân ngay"}
-                {!bookingLoading && <span className="text-lg">→</span>}
+                Xác nhận khung giờ
+                <span className="text-lg">→</span>
               </button>
             </div>
+
+            {hasNonContinuousSelection && (
+              <p className="mt-2 text-sm font-medium text-red-500">
+                Vui lòng chọn các khung giờ liên tiếp để tiếp tục.
+              </p>
+            )}
           </div>
         </div>
       </div>
 
-      <button className="fixed bottom-8 right-8 w-14 h-14 bg-[#00C475] rounded-full flex items-center justify-center text-white shadow-lg hover:bg-[#00B068] transition-colors">
-        <MessageCircle size={28} />
-      </button>
+      <ChatbotButton />
     </div>
   );
 }

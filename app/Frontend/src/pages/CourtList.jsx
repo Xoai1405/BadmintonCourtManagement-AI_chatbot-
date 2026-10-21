@@ -1,8 +1,9 @@
 import Navbar from '../components/Navbar';
 import CourtCard from '../components/CourtCard';
-import { courtApi } from '../api/apiCourt';
-import { Calendar, MessageCircle, Search } from 'lucide-react';
+import { courtApi } from '../api/CourtApi';
+import { Calendar, Search } from 'lucide-react';
 import { useState,useEffect } from 'react';
+import ChatbotButton from "../components/ChatbotButton";
 
 export default function CourtList() {
   
@@ -80,12 +81,10 @@ export default function CourtList() {
             <CourtCard key={court.id} court={court} />
           ))}
         </div>
+
+        <ChatbotButton/>
       </div>
 
-      {/* Nút Chatbot */}
-      <button className="fixed bottom-8 right-8 w-14 h-14 bg-[#00C475] rounded-full flex items-center justify-center text-white shadow-lg hover:bg-[#00B068] transition-colors">
-        <MessageCircle size={28} />
-      </button>
     </div>
   );
 }
