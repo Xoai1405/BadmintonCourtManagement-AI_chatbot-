@@ -1,12 +1,9 @@
-import { courtTypeCodes, mockBookings, mockCourts, mockCustomers, mockRecurringSessions } from "../mocks/apiContract.js";
+import { mockBookings, mockCustomers, mockRecurringSessions } from "../mocks/apiContract.js";
 
 // Store chỉ nằm trong frontend: dữ liệu giữ khi chuyển menu và reset khi reload.
 // Clone để component không sửa trực tiếp dữ liệu gốc hoặc dữ liệu trong store.
-let courts = structuredClone(mockCourts);
 const bookingStore = structuredClone(mockBookings);
 const sessionStore = structuredClone(mockRecurringSessions);
-let nextCourtId = Math.max(0, ...courts.map((court) => court.id)) + 1;
-const courtStatuses = ["Hoạt động", "Bảo trì", "Đóng"];
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
 const normalizeName = (value) => value.trim().toLocaleLowerCase("vi-VN")
   .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
@@ -26,19 +23,6 @@ function findById(items, key, id, label) {
   if (!item) throw new Error(`${label} không tồn tại.`);
   return item;
 }
-
-function validateCourt(input) {
-  const name = input.name?.trim();
-  if (!name) throw new Error("Vui lòng nhập tên sân.");
-  if (!Object.hasOwn(courtTypeCodes, input.type)) throw new Error("Loại sân không hợp lệ.");
-  if (!courtStatuses.includes(input.status)) throw new Error("Trạng thái sân không hợp lệ.");
-  return { name, type: input.type, isVip: courtTypeCodes[input.type] === "VIP_INDOOR", status: input.status };
-}
-
-function getCourtPrices(type) {
-  return { basePrice: 0, peakPrice: 0 };
-}
-
 
 function customerBooking(customerId, bookingId) {
   findById(mockCustomers, "id", customerId, "Khách hàng");
@@ -68,43 +52,6 @@ function cancellationReason(value) {
 }
 
 export const adminApi = {
-  getCourts: () => request(() => courts.map((court) => ({
-    ...court, ...getCourtPrices(court.type),
-  }))),
-
-  createCourt: (input) => {
-    const body = structuredClone(input);
-    return request(() => {
-      const values = validateCourt(body);
-      const court = { ...values, id: nextCourtId++, ...getCourtPrices(values.type), imageUrl: "", description: "" };
-      courts.push(court);
-      return court;
-    });
-  },
-
-  updateCourt: (id, input) => {
-    const body = structuredClone(input);
-    return request(() => {
-      const court = findById(courts, "id", id, "Sân");
-      const values = validateCourt(body);
-      Object.assign(court, values, getCourtPrices(values.type));
-      return court;
-    });
-  },
-
-  deleteCourt: (id) => request(() => {
-    findById(courts, "id", id, "Sân");
-    courts = courts.filter((court) => court.id !== id);
-    return { id };
-  }),
-
-  changeCourtStatus: (id, status) => request(() => {
-    const court = findById(courts, "id", id, "Sân");
-    if (!courtStatuses.includes(status)) throw new Error("Trạng thái sân không hợp lệ.");
-    Object.assign(court, { status }, getCourtPrices(court.type));
-    return court;
-  }),
-
   getCustomers: (filters = {}) => {
     const query = { ...filters };
     return request(() => mockCustomers.filter((customer) =>

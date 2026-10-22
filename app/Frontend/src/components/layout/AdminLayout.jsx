@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import "./AdminLayout.css";
 import SmashFlowLogo from "../../assets/Logo.png";
-import { adminApi } from "../../api/adminApi.js";
+import { courtApi } from "../../api/CourtApi.js";
 import { priceConfigApi } from "../../api/priceConfigApi.js";
 import { businessHourApi } from "../../api/businessHourApi.js";
 import ChatbotButton from "../ChatbotButton.jsx";
@@ -30,7 +30,7 @@ export default function AdminLayout() {
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      adminApi.getCourts(),
+      courtApi.getAllCourt(),
       priceConfigApi.getAll(),
       businessHourApi.get(),
     ])
