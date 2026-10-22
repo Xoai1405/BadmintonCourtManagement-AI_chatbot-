@@ -9,6 +9,8 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.smashflow.backend.dto.request.CreateCourtRequest;
+import com.smashflow.backend.dto.request.UpdateCourtRequest;
 import com.smashflow.backend.dto.response.CourtAvailabilityResponse;
 import com.smashflow.backend.dto.response.CourtResponse;
 import com.smashflow.backend.dto.response.TimeSlotResponse;
@@ -157,5 +159,39 @@ public class CourtService {
                                 court.getStatus(),
                                 priceConfig.getPriceNormalHour(),
                                 priceConfig.getPricePeakHour());
+        }
+
+        public CourtResponse createCourt(CreateCourtRequest request) {
+                if (courtRepo.existsByName(request.name())) {
+                        throw new IllegalArgumentException("Tên sân đã được sử dụng");
+                }
+
+                Court court = new Court();
+                court.setName(request.name());
+                court.setCourtType(request.courtType());
+                court.setDescription(request.description());
+                court.setStatus(request.status());
+
+                court = courtRepo.save(court);
+                PriceConfig priceConfig = getPriceConfig(court);
+                return toCourtResponse(court, priceConfig);
+        }
+
+        public CourtResponse updateCourt(UpdateCourtRequest request) {
+
+                Court court = courtRepo.findById(request.courtId())
+                                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân"));
+
+                if (courtRepo.existsByNameAndIdNot(request.name(), request.courtId())) {
+                        throw new IllegalArgumentException("Tên sân đã được sử dụng");
+                }
+                court.setName(request.name());
+                court.setCourtType(request.courtType());
+                court.setDescription(request.description());
+                court.setStatus(request.status());
+
+                court = courtRepo.save(court);
+                PriceConfig priceConfig = getPriceConfig(court);
+                return toCourtResponse(court, priceConfig);
         }
 }
