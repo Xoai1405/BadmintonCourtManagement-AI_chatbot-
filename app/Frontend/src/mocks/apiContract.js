@@ -171,3 +171,96 @@ export const generateTimeSlots = () => {
 
   return slots;
 };
+
+// DTO mock cho panel nhân viên theo SE214_API Contract (bản kết thúc ở Nhóm 3, API 11).
+// Các model UI của admin ở trên giữ riêng, không dùng làm response của booking API.
+export const mockStaffCourts = mockCourts.map((court) => ({
+  courtId: court.id, name: court.name, courtType: courtTypeCodes[court.type],
+  status: court.status === "Bảo trì" ? "MAINTENANCE" : "ACTIVE", referencePrice: court.basePrice,
+  imageUrl: court.imageUrl, description: court.description,
+}));
+export const mockBookingServices = [
+  { serviceId: 1, name: "Nước Aquafina", category: "DRINK", unitPrice: 10000, status: "ACTIVE" },
+  { serviceId: 2, name: "Thuê vợt", category: "RACKET_RENTAL", unitPrice: 20000, status: "ACTIVE" },
+  { serviceId: 3, name: "Ống cầu lông", category: "OTHER", unitPrice: 120000, status: "ACTIVE" },
+  { serviceId: 4, name: "Khăn thể thao", category: "OTHER", unitPrice: 15000, status: "ACTIVE" },
+];
+
+const staffDemoCustomers = [
+  ...mockCustomers,
+  { id: 3, fullName: "Lê Minh Anh", phone: "0912 345 678", email: "minhanh@example.com" },
+  { id: 4, fullName: "Phạm Quốc Huy", phone: "0986 234 567", email: "quochuy@example.com" },
+  { id: 5, fullName: "Võ Ngọc Linh", phone: "0938 567 890", email: "ngoclinh@example.com" },
+  { id: 6, fullName: "Đặng Hoàng Nam", phone: "0977 456 123", email: "hoangnam@example.com" },
+];
+// Catalog cục bộ để giữ gợi ý email/SĐT của UI; file contract chưa có GET /customers.
+export const mockStaffCustomers = staffDemoCustomers.map((customer) => ({
+  userId: customer.id, fullName: customer.fullName, phoneNumber: customer.phone.replace(/\s/g, ""),
+  email: customer.email, role: "CUSTOMER",
+}));
+const staffDemoDate = (offset = 0) => new Date(Date.now() + (7 + offset * 24) * 3600000).toISOString().slice(0, 10);
+const staffDemoTimestamp = (minutes = 0) => `${new Date(Date.now() + 7 * 3600000 + minutes * 60000).toISOString().slice(0, 19)}+07:00`;
+const staffDemoRows = [
+  { customerId: 1, courtId: 1, status: "PENDING", time: "18:00", services: [{ serviceId: 1, quantity: 2 }, { serviceId: 2, quantity: 2 }] },
+  { customerId: 3, courtId: 2, status: "CONFIRMED", time: "18:00", paid: true },
+  { customerId: 4, courtId: 1, status: "CHECKED_IN", time: "19:00", services: [{ serviceId: 1, quantity: 4 }] },
+  { customerId: 5, courtId: 2, status: "COMPLETED", time: "16:00", paid: true },
+  { customerId: 6, courtId: 1, status: "PENDING", time: "20:00", offset: 1 },
+  { customerId: 2, courtId: 2, status: "CANCELLED", time: "17:00" },
+  { customerId: 3, courtId: 1, status: "NO_SHOW", time: "15:00" },
+  { customerId: 5, courtId: 2, status: "CONFIRMED", time: "19:00", offset: 1 },
+];
+
+export const mockStaffBookings = staffDemoRows.map((entry, index) => {
+  const services = (entry.services ?? []).map(({ serviceId, quantity }) => {
+    const service = mockBookingServices.find((item) => item.serviceId === serviceId);
+    return { serviceId, name: service.name, quantity, priceAtBooking: service.unitPrice, subtotal: quantity * service.unitPrice };
+  });
+  const courtFee = entry.courtId === 2 ? 250000 : 180000;
+  const serviceFee = services.reduce((total, service) => total + service.subtotal, 0);
+  const startDate = staffDemoDate(entry.offset);
+  const customer = mockStaffCustomers.find((item) => item.userId === entry.customerId);
+  return {
+    bookingId: index + 1, bookingCode: `BK${startDate.replaceAll("-", "")}${String(index + 1).padStart(3, "0")}`,
+    customer: { userId: customer.userId, fullName: customer.fullName, phoneNumber: customer.phoneNumber },
+    courtId: entry.courtId, courtName: mockStaffCourts.find((court) => court.courtId === entry.courtId).name,
+    courtType: mockStaffCourts.find((court) => court.courtId === entry.courtId).courtType,
+    bookingDate: startDate, startTime: entry.time, endTime: `${String(Number(entry.time.slice(0, 2)) + 1).padStart(2, "0")}:00`,
+    bookingStatus: entry.status, paymentStatus: entry.paid ? "PAID" : "UNPAID",
+    courtPrice: courtFee, servicePrice: serviceFee, totalAmount: courtFee + serviceFee, services,
+    cancelReason: entry.status === "CANCELLED" ? "Khách hàng yêu cầu đổi lịch." : null,
+    cancelledAt: entry.status === "CANCELLED" ? staffDemoTimestamp(-1) : null,
+    expireAt: entry.status === "PENDING" ? staffDemoTimestamp(25) : null, createdAt: staffDemoTimestamp(-5),
+    paymentMethod: entry.paid ? "Chuyển khoản" : null,
+    paidAt: entry.paid ? `${startDate}T14:30:00+07:00` : null,
+    paidBy: entry.paid ? "Đoàn Thị B" : null,
+  };
+});
+
+// TẠM: file contract chưa định nghĩa API/DTO gói lịch cố định.
+// Giữ model gói để chạy UI; ID trong dữ liệu vẫn là Long, prefix chỉ dùng cho URL của UI.
+export const mockStaffRecurringBookings = mockBookings.filter((booking) => booking.type === "RECURRING").map((booking) => ({
+  ...booking,
+  customer: staffDemoCustomers.find((customer) => customer.id === booking.customerId), staffName: "Đoàn Thị B",
+}));
+
+// Buổi trong gói là booking thật theo DTO /bookings, dùng bookingId dạng số.
+export const mockStaffRecurringSessions = mockRecurringSessions.map((session, index) => {
+  const customer = mockStaffCustomers.find((item) => item.userId === session.customerId);
+  return {
+    bookingId: 1001 + index, bookingCode: session.code,
+    customer: { userId: customer.userId, fullName: customer.fullName, phoneNumber: customer.phoneNumber },
+    courtId: session.courtId, courtName: session.courtName, courtType: courtTypeCodes[session.courtTypeLabel],
+    bookingDate: session.startDate, startTime: session.startTime, endTime: session.endTime,
+    courtPrice: session.courtFee - session.discountAmount, servicePrice: 0, totalAmount: session.amount,
+    bookingStatus: session.status, paymentStatus: session.paymentStatus,
+    paymentMethod: session.paymentMethod, paidAt: session.paidAt ? `${session.paidAt}+07:00` : null, paidBy: session.confirmedBy,
+    cancelReason: session.cancellationReason, cancelledAt: session.status === "CANCELLED" ? `${session.startDate}T09:00:00+07:00` : null,
+    expireAt: null, createdAt: `${session.createdAt}T16:42:00+07:00`, services: [],
+  };
+});
+// TẠM: liên kết gói và ưu đãi để dựng UI, không thêm các trường này vào response /bookings.
+export const mockStaffRecurringSessionLinks = mockRecurringSessions.map((session, index) => ({
+  bookingId: 1001 + index, packageId: session.packageId, packageCode: session.packageCode,
+  originalCourtPrice: session.courtFee, discountPercent: session.discountPercent, discountAmount: session.discountAmount,
+}));

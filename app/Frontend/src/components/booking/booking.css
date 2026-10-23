@@ -229,7 +229,7 @@
 .booking-multiselect-footer button:focus-visible { outline: 2px solid #00a77f; outline-offset: 2px; }
 
 /* Ô khoảng ngày mở lịch riêng; dấu X chỉ xuất hiện khi đã áp dụng bộ lọc ngày. */
-.booking-date-picker { position: relative; min-width: 0; }
+.booking-date-picker { position: relative; min-width: 0; font-family: "Be Vietnam Pro", sans-serif; }
 .booking-date-picker .booking-history-date-range { width: 100%; padding-right: 30px; text-align: left; }
 .booking-history-date-range[aria-expanded="true"] { border-color: #00b98a; }
 .booking-date-clear {
