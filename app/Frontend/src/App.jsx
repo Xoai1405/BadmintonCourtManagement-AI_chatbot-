@@ -17,6 +17,7 @@ import FeaturePlaceholderPage from "./pages/FeaturePlaceholderPage.jsx";
 import MyBookings from "./pages/MyBookings.jsx";
 import SingleBookingDetail from "./pages/SingleBookingDetail.jsx"; // [ĐÃ THÊM] Import component chi tiết
 import AdminLayout from "./components/layout/AdminLayout.jsx";
+import AdminRoute from "./components/auth/AdminRoute.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import StaffLayout from "./components/layout/StaffLayout.jsx";
 import BookingLookupPage from "./pages/staff/BookingLookupPage.jsx";
@@ -52,16 +53,17 @@ function App() {
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
 
-      {/* Panel quản lý mở trực tiếp, không yêu cầu đăng nhập. */}
-      <Route element={<AdminLayout />}>
-        <Route path="/admin" element={<Navigate to="/courts" replace />} />
-        <Route path="/courts" element={<CourtManagementPage />} />
-        <Route path="/prices" element={<PriceManagementPage />} />
-        <Route path="/discounts" element={<DiscountManagementPage />} />
-        <Route path="/staff" element={<StaffManagementPage />} />
-        <Route path="/customers" element={<CustomerManagementPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/faq-chatbot" element={<FaqChatbotPage />} />
+      {/* Các trang quản lý dùng chung sidebar; nội dung từng trang nằm trong Outlet. */}
+      <Route element={<AdminRoute />}>
+        <Route element={<AdminLayout />}>
+          <Route path="/courts" element={<CourtManagementPage />} />
+          <Route path="/prices" element={<PriceManagementPage />} />
+          <Route path="/discounts" element={<DiscountManagementPage />} />
+          <Route path="/staff" element={<StaffManagementPage />} />
+          <Route path="/customers" element={<CustomerManagementPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/faq-chatbot" element={<FaqChatbotPage />} />
+        </Route>
       </Route>
 
       {/* 3. Bắt lỗi 404 - Đường dẫn không tồn tại */}
