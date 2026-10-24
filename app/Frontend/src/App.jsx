@@ -19,6 +19,9 @@ import SingleBookingDetail from "./pages/SingleBookingDetail.jsx"; // [ĐÃ THÊ
 import AdminLayout from "./components/layout/AdminLayout.jsx";
 import AdminRoute from "./components/auth/AdminRoute.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
+import StaffLayout from "./components/layout/StaffLayout.jsx";
+import BookingLookupPage from "./pages/staff/BookingLookupPage.jsx";
+import BookingDetailPage from "./pages/staff/BookingDetailPage.jsx";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 function App() {
@@ -27,6 +30,13 @@ function App() {
       {/* 1. Các trang public (Ai cũng xem được) */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+
+      {/* Panel nhân viên mở trực tiếp, không yêu cầu đăng nhập. */}
+      <Route element={<StaffLayout />}>
+        <Route path="/staff/create-booking" element={null} />
+        <Route path="/staff/bookings" element={<BookingLookupPage />} />
+        <Route path="/staff/bookings/:id" element={<BookingDetailPage />} />
+      </Route>
       
       {/* 2. Các trang cần đăng nhập (Protected Routes) */}
       <Route element={<ProtectedRoute />}>
