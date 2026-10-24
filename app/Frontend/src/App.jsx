@@ -13,7 +13,7 @@ import CustomerManagementPage from "./pages/admin/CustomerManagementPage.jsx";
 import ReportsPage from "./pages/admin/ReportsPage.jsx";
 import FaqChatbotPage from "./pages/admin/FaqChatbotPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
-import FeaturePlaceholderPage from "./pages/FeaturePlaceholderPage.jsx";
+import RecurringBooking from "./pages/RecurringBooking.jsx";
 import MyBookings from "./pages/MyBookings.jsx";
 import SingleBookingDetail from "./pages/SingleBookingDetail.jsx"; // [ĐÃ THÊM] Import component chi tiết
 import AdminLayout from "./components/layout/AdminLayout.jsx";
@@ -34,7 +34,7 @@ function App() {
         <Route path="/courts/:id/confirm" element={<BookingConfirm />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/" element={<CourtList />} />
-        <Route path="/recurring-bookings" element={<FeaturePlaceholderPage title="Lịch cố định" description="Quản lý các lịch đặt sân định kỳ của bạn." />} />
+        <Route path="/recurring-bookings" element={<RecurringBooking />} />
         
         {/* Quản lý Booking */}
         <Route path="/my-bookings" element={<MyBookings />} />
