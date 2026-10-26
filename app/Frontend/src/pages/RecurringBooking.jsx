@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; //BaoDen Them
+import { courtApi } from '../api/CourtApi'; //BaoDen Them
+import { previewRecurringBookingApi } from '../api/bookingApi'; //BaoDen Them
+
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { ChevronDown, CalendarDays, Clock, MapPin, Search, Calendar as CalendarIcon, Info, CheckCircle2, AlertCircle, MessageCircle, X, Wallet } from 'lucide-react';
@@ -21,12 +24,22 @@ export default function RecurringBooking() {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
   // Danh sách Tên sân (Mock combobox)
-  const courtOptions = [
-    { id: '1', name: 'Sân VIP 02' },
-    { id: '2', name: 'Sân 01' },
-    { id: '3', name: 'Sân 03' },
-    { id: '4', name: 'Sân 04' }
-  ];
+  const [courts, setCourts] = useState([]); // Danh sách sân từ backend
+  const [previewResult, setPreviewResult] = useState(null); // Kết quả tính tiền & conflict từ backend
+  const [conflicts, setConflicts] = useState([]); // Danh sách ngày bị trùng
+  const [loading, setLoading] = useState(false); // Trạng thái đang kiểm tra
+
+  useEffect(() => {
+    const fetchCourts = async () => {
+      try {
+        const data = await courtApi.getAllCourt();
+        setCourts(data);
+      } catch (err) {
+        console.error("Lỗi tải danh sách sân:", err);
+      }
+    };
+    fetchCourts();
+  }, []);
 
   // Danh sách Thứ trong tuần
   const weekDays = [
@@ -45,19 +58,52 @@ export default function RecurringBooking() {
     );
   };
 
-  // Hàm giả lập logic Kiểm tra lịch (Validate) khi bấm nút
-  const handleValidate = () => {
-    // Điều kiện bắt buộc để kiểm tra
+  // Bảng map từ ID thứ của FE sang Enum của Backend
+  const mapDayToEnum = {
+    1: "MON",
+    2: "TUE",
+    3: "WES",
+    4: "THU",
+    5: "FRI",
+    6: "SAT",
+    0: "SUN"
+  };
+
+  const handleValidate = async () => {
     if (!selectedCourt || !selectedTime || selectedDays.length === 0 || !startDate || !endDate) {
       alert("Vui lòng nhập đầy đủ thông tin để kiểm tra lịch trống!");
       return;
     }
 
-    // [Giả lập] Nếu chọn Thứ 3 (id=2), hệ thống báo Trùng lịch. Còn lại thì Hợp lệ.
-    if (selectedDays.includes(2)) {
-      setValidationStatus('CONFLICT');
-    } else {
-      setValidationStatus('AVAILABLE');
+    // Tách chuỗi giờ ví dụ: "17:00 - 19:00" thành startTime "17:00:00" và endTime "19:00:00"
+    const [startHour, endHour] = selectedTime.split(" - ");
+
+    const payload = {
+      courtId: Number(selectedCourt),
+      startTime: `${startHour}:00`,
+      endTime: `${endHour}:00`,
+      daysOfWeek: selectedDays.map(d => mapDayToEnum[d]),
+      startDate: startDate,
+      endDate: endDate
+    };
+
+    try {
+      setLoading(true);
+      const data = await previewRecurringBookingApi(payload);
+      setPreviewResult(data);
+
+      if (data.conflictingSlotList && data.conflictingSlotList.length > 0) {
+        setValidationStatus('CONFLICT');
+        setConflicts(data.conflictingSlotList);
+      } else {
+        setValidationStatus('AVAILABLE');
+        setConflicts([]);
+      }
+    } catch (error) {
+      alert(error.response?.data?.message || "Có lỗi khi kiểm tra lịch!");
+      setValidationStatus('IDLE');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -89,14 +135,17 @@ export default function RecurringBooking() {
                   <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wide">Sân <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <MapPin size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#00C475]" />
-                    <select 
-                      value={selectedCourt} 
-                      onChange={(e) => setSelectedCourt(e.target.value)} 
-                      className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-xl h-[46px] pl-10 pr-10 text-[14px] text-gray-800 font-semibold outline-none focus:border-[#00C475] focus:bg-white transition-colors cursor-pointer"
+                    <select
+                        value={selectedCourt}
+                        onChange={(e) => {
+                          setSelectedCourt(e.target.value);
+                          setValidationStatus('IDLE'); // Đổi sân thì reset trạng thái kiểm tra
+                        }}
+                        className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-xl h-[46px] pl-10 pr-10 text-[14px] text-gray-800 font-semibold outline-none focus:border-[#00C475] focus:bg-white transition-colors cursor-pointer"
                     >
                       <option value="" disabled>Chọn sân...</option>
-                      {courtOptions.map(court => (
-                        <option key={court.id} value={court.name}>{court.name}</option>
+                      {courts.map(court => (
+                          <option key={court.id} value={court.id}>{court.name}</option>
                       ))}
                     </select>
                     <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -193,9 +242,12 @@ export default function RecurringBooking() {
                     <AlertCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
                     <div className="text-xs text-red-700/90 leading-relaxed">
                       <p className="font-bold mb-1">Đã có khách đặt khung giờ này vào ngày:</p>
-                      <ul className="list-disc pl-4 space-y-0.5 font-medium">
-                        <li>Thứ 3 (15/10/2026)</li>
-                        <li>Thứ 3 (22/10/2026)</li>
+                      <ul className="list-disc pl-4 space-y-0.5 font-medium max-h-36 overflow-y-auto">
+                        {conflicts.map((item, index) => (
+                            <li key={index}>
+                              {item.dayOfWeek} ({item.date.split('-').reverse().join('/')})
+                            </li>
+                        ))}
                       </ul>
                     </div>
                   </div>
@@ -213,15 +265,21 @@ export default function RecurringBooking() {
               <div className="space-y-4 mb-8">
                 <div className="flex justify-between items-center text-[13px]">
                   <span className="text-gray-500 flex items-center gap-2"><CalendarIcon size={16}/> Số buổi</span>
-                  <span className="font-bold text-gray-800">12 Buổi</span>
+                  <span className="font-bold text-gray-800">
+                    {previewResult ? `${previewResult.totalSessions} Buổi` : '0 Buổi'}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-[13px]">
                   <span className="text-gray-500 flex items-center gap-2"><Info size={16}/> Chiết khấu</span>
-                  <span className="font-bold text-gray-800">10%</span>
+                  <span className="font-bold text-gray-800">
+                    {previewResult ? `${previewResult.discountPercent}%` : '0%'}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-[13px] pt-4 border-t border-gray-100">
                   <span className="text-gray-500 flex items-center gap-2 font-medium"><Wallet size={16}/> Tổng tiền chu kỳ</span>
-                  <span className="font-bold text-[#00C475] text-[17px]">2.340.000đ</span>
+                  <span className="font-bold text-[#00C475] text-[17px]">
+                    {previewResult ? `${new Intl.NumberFormat("vi-VN").format(previewResult.totalPrice)}đ` : '0đ'}
+                  </span>
                 </div>
               </div>
 
@@ -234,12 +292,13 @@ export default function RecurringBooking() {
                   <CheckCircle2 size={18} /> Xác nhận đặt lịch
                 </button>
               ) : (
-                <button 
-                  onClick={handleValidate}
-                  className="w-full bg-gray-100 text-gray-400 py-3.5 rounded-xl font-bold hover:bg-gray-200 hover:text-gray-600 transition-colors shadow-sm"
-                >
-                  Kiểm tra lịch
-                </button>
+                  <button
+                      onClick={handleValidate}
+                      disabled={loading}
+                      className="w-full bg-[#00C475] text-white py-3.5 rounded-xl font-bold hover:bg-[#00B068] transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {loading ? "Đang kiểm tra lịch..." : "Kiểm tra lịch"}
+                  </button>
               )}
 
             </div>
