@@ -118,7 +118,7 @@ export default function CourtDetail() {
     const lastSlot = selectedSlotDetails[selectedSlotDetails.length - 1];
 
     // Chuyển hướng sang trang Confirm và truyền toàn bộ dữ liệu qua State
-    navigate(`/court/${id}/confirm`, {
+    navigate(`/courts/${id}/confirm`, {
       state: {
         courtId: Number(id),
         bookingDate: selectedDate,

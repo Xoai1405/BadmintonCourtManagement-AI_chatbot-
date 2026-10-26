@@ -36,7 +36,7 @@ export default function CourtCard({ court }) {
           
           {/* ĐÂY LÀ NÚT CHUYỂN TRANG */}
           <Link 
-             to={`/court/${court.id}`}
+             to={`/courts/${court.id}`}
             className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
               court.status.toString() === "ACTIVE" 
               ? 'bg-[#00C475] text-white hover:bg-[#00B068]' 
