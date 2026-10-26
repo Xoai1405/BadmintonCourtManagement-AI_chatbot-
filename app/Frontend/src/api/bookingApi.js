@@ -206,6 +206,12 @@ function toStaffPackage(group, includeSessions = false) {
   };
 }
 
+// Thêm API xem trước lịch đặt cố định (Preview & Check conflict) //BaoDen Them
+export const previewRecurringBookingApi = async (payload) => { //BaoDen Them
+  const response = await axiosClient.post("/api/recurring-bookings/preview", payload); //BaoDen Them
+  return response.data; //BaoDen Them
+}; //BaoDen Them
+
 export const bookingApi = {
   getStaffBookings: async (filters = {}) => {
     const query = { ...filters, courtIds: (filters.courtIds ?? (filters.courtId ? [filters.courtId] : [])).map(String) };
