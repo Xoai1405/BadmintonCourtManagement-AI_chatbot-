@@ -13,10 +13,16 @@ import CustomerManagementPage from "./pages/admin/CustomerManagementPage.jsx";
 import ReportsPage from "./pages/admin/ReportsPage.jsx";
 import FaqChatbotPage from "./pages/admin/FaqChatbotPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
-import FeaturePlaceholderPage from "./pages/FeaturePlaceholderPage.jsx";
+import RecurringBooking from "./pages/RecurringBooking.jsx";
+import MyBookings from "./pages/MyBookings.jsx";
+import SingleBookingDetail from "./pages/SingleBookingDetail.jsx"; // [ĐÃ THÊM] Import component chi tiết
 import AdminLayout from "./components/layout/AdminLayout.jsx";
+import AdminRoute from "./components/auth/AdminRoute.jsx";
 import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
-import { Navigate, Route, Routes } from "react-router-dom"; // Đã bỏ import BrowserRouter
+import StaffLayout from "./components/layout/StaffLayout.jsx";
+import BookingLookupPage from "./pages/staff/BookingLookupPage.jsx";
+import BookingDetailPage from "./pages/staff/BookingDetailPage.jsx";
+import { Navigate, Route, Routes } from "react-router-dom";
 
 function App() {
   return (
@@ -24,26 +30,40 @@ function App() {
       {/* 1. Các trang public (Ai cũng xem được) */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+
+      {/* Panel nhân viên mở trực tiếp, không yêu cầu đăng nhập. */}
+      <Route element={<StaffLayout />}>
+        <Route path="/staff/create-booking" element={null} />
+        <Route path="/staff/bookings" element={<BookingLookupPage />} />
+        <Route path="/staff/bookings/:id" element={<BookingDetailPage />} />
+      </Route>
+      
       {/* 2. Các trang cần đăng nhập (Protected Routes) */}
       <Route element={<ProtectedRoute />}>
-        <Route path="/court/:id" element={<CourtDetail />} />
-        <Route path="/court/:id/confirm" element={<BookingConfirm />} />
+        <Route path="/courts/:id" element={<CourtDetail />} />
+        <Route path="/courts/:id/confirm" element={<BookingConfirm />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/" element={<CourtList />} />
-        <Route path="/recurring-bookings" element={<FeaturePlaceholderPage title="Lịch cố định" description="Quản lý các lịch đặt sân định kỳ của bạn." />} />
-        <Route path="/my-bookings" element={<FeaturePlaceholderPage title="Booking của tôi" description="Theo dõi các lượt đặt sân của bạn." />} />
+        <Route path="/recurring-bookings" element={<RecurringBooking />} />
+        
+        {/* Quản lý Booking */}
+        <Route path="/my-bookings" element={<MyBookings />} />
+        <Route path="/my-bookings/:id" element={<SingleBookingDetail />} />
+        
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
 
       {/* Các trang quản lý dùng chung sidebar; nội dung từng trang nằm trong Outlet. */}
-      <Route element={<AdminLayout />}>
-        <Route path="/courts" element={<CourtManagementPage />} />
-        <Route path="/prices" element={<PriceManagementPage />} />
-        <Route path="/discounts" element={<DiscountManagementPage />} />
-        <Route path="/staff" element={<StaffManagementPage />} />
-        <Route path="/customers" element={<CustomerManagementPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/faq-chatbot" element={<FaqChatbotPage />} />
+      <Route element={<AdminRoute />}>
+        <Route element={<AdminLayout />}>
+          <Route path="/courts" element={<CourtManagementPage />} />
+          <Route path="/prices" element={<PriceManagementPage />} />
+          <Route path="/discounts" element={<DiscountManagementPage />} />
+          <Route path="/staff" element={<StaffManagementPage />} />
+          <Route path="/customers" element={<CustomerManagementPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/faq-chatbot" element={<FaqChatbotPage />} />
+        </Route>
       </Route>
 
       {/* 3. Bắt lỗi 404 - Đường dẫn không tồn tại */}
