@@ -7,6 +7,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.smashflow.backend.model.converter.DayOfWeekListConverter;
 import com.smashflow.backend.model.enums.RecurBookingStatus;
 
 import jakarta.persistence.*;
@@ -44,9 +45,9 @@ public class RecurringBooking {
     @Column (nullable=false, name ="end_date")
     private LocalDate endDate;
 
-    @Column (nullable=false, name ="days_of_week")
-    @Enumerated (EnumType.STRING)
-    private DayOfWeek daysOfWeek;
+    @Convert(converter = DayOfWeekListConverter.class)
+    @Column(nullable = false, name = "days_of_week")
+    private List<DayOfWeek> daysOfWeek;
 
     @Column (nullable=false, name ="start_time")
     private LocalTime startTime;

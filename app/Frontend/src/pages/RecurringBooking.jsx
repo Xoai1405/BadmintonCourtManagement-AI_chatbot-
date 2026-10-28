@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'; //BaoDen Them
 import { courtApi } from '../api/CourtApi'; //BaoDen Them
-import { previewRecurringBookingApi } from '../api/bookingApi'; //BaoDen Them
+import { previewRecurringBookingApi, createRecurringBookingApi } from '../api/bookingApi'; //BaoDen Them
 
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
@@ -27,6 +27,9 @@ export default function RecurringBooking() {
   
   // State quản lý Modal
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+
+  const [createdBookingId, setCreatedBookingId] = useState(null); // Lưu ID đơn vừa tạo
+  const [submitting, setSubmitting] = useState(false); // Trạng thái đang lưu đơn
 
   // Danh sách Tên sân (Mock combobox)
   const [courts, setCourts] = useState([]); // Danh sách sân từ backend
@@ -143,8 +146,32 @@ export default function RecurringBooking() {
   };
 
   // Hàm xử lý Đặt lịch (Chỉ chạy khi Available)
-  const handleSubmitBooking = () => {
-    setIsSuccessModalOpen(true);
+  const handleSubmitBooking = async () => {
+    try {
+      setSubmitting(true);
+      const payload = {
+        courtId: Number(selectedCourt),
+        startTime: startTime.length === 5 ? `${startTime}:00` : startTime,
+        endTime: endTime.length === 5 ? `${endTime}:00` : endTime,
+        daysOfWeek: selectedDays.map(d => mapDayToEnum[d]),
+        startDate: startDate,
+        endDate: endDate
+      };
+
+      const result = await createRecurringBookingApi(payload);
+      setCreatedBookingId(result.recurringBookingId);
+      setIsSuccessModalOpen(true);
+    } catch (error) {
+      console.error("Lỗi đặt lịch cố định:", error);
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        alert("Vui lòng đăng nhập để thực hiện đặt lịch!");
+        navigate('/login');
+      } else {
+        alert(error.response?.data?.message || "Đặt lịch thất bại, vui lòng thử lại!");
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const getSelectedCourtName = () => {
@@ -416,12 +443,13 @@ export default function RecurringBooking() {
 
               {/* Nút Hành động */}
               {validationStatus === 'AVAILABLE' ? (
-                <button 
-                  onClick={handleSubmitBooking}
-                  className="w-full bg-[#00C475] text-white py-3.5 rounded-xl font-bold hover:bg-[#00B068] transition-colors shadow-sm flex items-center justify-center gap-2"
-                >
-                  <CheckCircle2 size={18} /> Xác nhận đặt lịch
-                </button>
+                  <button
+                      onClick={handleSubmitBooking}
+                      disabled={submitting}
+                      className="w-full bg-[#00C475] text-white py-3.5 rounded-xl font-bold hover:bg-[#00B068] transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <CheckCircle2 size={18} /> {submitting ? "Đang gửi yêu cầu..." : "Xác nhận đặt lịch"}
+                  </button>
               ) : validationStatus === 'CONFLICT' ? (
                 <div className="space-y-2">
                   <button

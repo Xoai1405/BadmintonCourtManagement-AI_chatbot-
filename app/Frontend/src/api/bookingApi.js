@@ -212,6 +212,12 @@ export const previewRecurringBookingApi = async (payload) => { //BaoDen Them
   return response.data; //BaoDen Them
 }; //BaoDen Them
 
+// Thêm API tạo đơn đặt lịch cố định //BaoDen Them
+export const createRecurringBookingApi = async (payload) => { //BaoDen Them
+  const response = await axiosClient.post("/api/recurring-bookings", payload); //BaoDen Them
+  return response.data; //BaoDen Them
+}; //BaoDen Them
+
 export const bookingApi = {
   getStaffBookings: async (filters = {}) => {
     const query = { ...filters, courtIds: (filters.courtIds ?? (filters.courtId ? [filters.courtId] : [])).map(String) };
