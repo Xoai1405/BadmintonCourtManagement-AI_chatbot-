@@ -318,4 +318,8 @@ export const bookingApi = {
       throw new Error(message, { cause: err });
     }
   },
+  getMyBookingsApi: async () => {
+  const response = await axiosClient.get("/api/v1/bookings/me");
+  return response.data;
+}
 };
