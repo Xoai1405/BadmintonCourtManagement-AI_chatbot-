@@ -2,29 +2,27 @@ package com.smashflow.backend.service;
 
 import com.smashflow.backend.dto.request.recurringBooking.RecurringBookingPreviewRequest;
 import com.smashflow.backend.dto.response.recurringBooking.RecurringBookingPreviewResponse;
+import com.smashflow.backend.dto.response.recurringBooking.RecurringBookingResponse;
 import com.smashflow.backend.dto.response.recurringBooking.SingleConflictResponse;
+import com.smashflow.backend.exception.BookingConflictException;
 import com.smashflow.backend.exception.ResourceNotFoundException;
-import com.smashflow.backend.model.BusinessHourConfig;
-import com.smashflow.backend.model.Court;
-import com.smashflow.backend.model.DiscountConfig;
-import com.smashflow.backend.model.DayOfWeek;
-import com.smashflow.backend.model.enums.BookingStatus;
-import com.smashflow.backend.model.enums.CourtStatus;
-import com.smashflow.backend.model.enums.DiscountStatus;
-import com.smashflow.backend.repository.BookingRepository;
-import com.smashflow.backend.repository.BusinessHourConfigRepository;
-import com.smashflow.backend.repository.CourtRepository;
-import com.smashflow.backend.repository.DiscountConfigRepository;
+import com.smashflow.backend.model.*;
+import com.smashflow.backend.model.enums.*;
+import com.smashflow.backend.repository.*;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +33,8 @@ public class RecurringBookingService {
     private final DiscountConfigRepository discountConfigRepository;
     private final BusinessHourConfigRepository businessHourConfigRepository;
     private final PricingService pricingService;
+    private final UserRepository userRepository;
+    private final RecurringBookingRepository recurringBookingRepository;
 
     // Các trạng thái booking được coi là "đang chiếm chỗ"
     private static final List<BookingStatus> BLOCKING_STATUSES = List.of(
@@ -196,5 +196,113 @@ public class RecurringBookingService {
             case SATURDAY  -> DayOfWeek.SAT;
             case SUNDAY    -> DayOfWeek.SUN;
         };
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    /**
+     * SCRUM-31: Tạo gói đặt lịch cố định và tự động sinh các buổi lẻ trong DB
+     */
+    @Transactional
+    public RecurringBookingResponse createRecurringBooking(RecurringBookingPreviewRequest request, Long customerId) {
+        // 1. Kiểm tra khách hàng và sân
+        User customer = userRepository.findById(customerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin khách hàng!"));
+
+        Court court = courtRepository.findById(request.courtId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân với ID: " + request.courtId()));
+
+        if (court.getStatus() != CourtStatus.ACTIVE) {
+            throw new IllegalArgumentException("Sân hiện không hoạt động!");
+        }
+
+        // 2. GỌI HÀM PREVIEW: Vừa check trùng lịch, vừa lấy luôn kết quả tính tiền
+        RecurringBookingPreviewResponse preview = previewRecurringBooking(request);
+
+        // Nếu có ngày bị trùng -> Chặn lại ngay
+        if (!preview.conflictingSlotList().isEmpty()) {
+            throw new BookingConflictException("Khung giờ này đã bị trùng lịch. Không thể hoàn tất đặt lịch!");
+        }
+
+        // Lấy danh sách các ngày trong chu kỳ
+        List<LocalDate> allSessionDates = generateSessionDates(
+                request.startDate(),
+                request.endDate(),
+                request.daysOfWeek()
+        );
+
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+
+        // 3. Lưu gói đặt lịch cố định (Cha)
+        RecurringBooking recurringBooking = new RecurringBooking();
+        recurringBooking.setCustomer(customer);
+        recurringBooking.setCourt(court);
+        recurringBooking.setStartDate(request.startDate());
+        recurringBooking.setEndDate(request.endDate());
+        recurringBooking.setDaysOfWeek(request.daysOfWeek());
+        recurringBooking.setStartTime(request.startTime());
+        recurringBooking.setEndTime(request.endTime());
+        recurringBooking.setDiscountRate(preview.discountPercent());
+        recurringBooking.setTotalAmount(preview.totalPrice());
+        recurringBooking.setStatus(RecurBookingStatus.ACTIVE);
+        recurringBooking.setCreatedAt(now);
+
+        RecurringBooking savedRecurringBooking = recurringBookingRepository.save(recurringBooking);
+
+        // 4. Tự động sinh các buổi con (Booking)
+        BigDecimal sessionDiscountedPrice = preview.totalPrice()
+                .divide(BigDecimal.valueOf(preview.totalSessions()), 2, RoundingMode.HALF_UP);
+
+        List<Booking> subBookings = new ArrayList<>();
+        for (LocalDate sessionDate : allSessionDates) {
+            Booking session = new Booking();
+            session.setBookingCode("BK" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase());
+            session.setCustomer(customer);
+            session.setCourt(court);
+            session.setRecurringBooking(savedRecurringBooking);
+            session.setBookingDate(sessionDate);
+            session.setStartTime(request.startTime());
+            session.setEndTime(request.endTime());
+            session.setCourtPrice(sessionDiscountedPrice);
+            session.setServicePrice(BigDecimal.ZERO);
+            session.setTotalAmount(sessionDiscountedPrice);
+            session.setBookingStatus(BookingStatus.PENDING);
+            session.setPaymentStatus(PaymentStatus.UNPAID);
+            session.setCreatedAt(now);
+            session.setExpireAt(now.plusMinutes(15));
+
+            subBookings.add(session);
+        }
+
+        bookingRepository.saveAll(subBookings);
+
+        // 5. Trả về ID gói vừa tạo
+        return new RecurringBookingResponse(
+                savedRecurringBooking.getId(),
+                court.getName(),
+                request.startTime(),
+                request.endTime(),
+                request.startDate(),
+                request.endDate(),
+                preview.totalSessions(),
+                preview.discountPercent(),
+                preview.totalPrice(),
+                savedRecurringBooking.getStatus().name()
+        );
     }
 }
