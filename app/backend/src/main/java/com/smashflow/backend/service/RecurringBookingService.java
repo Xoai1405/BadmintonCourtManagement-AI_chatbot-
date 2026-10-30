@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -72,6 +73,11 @@ public class RecurringBookingService {
             throw new IllegalArgumentException("Ngày kết thúc phải sau ngày bắt đầu");
         }
 
+        // Kiểm tra mốc 30 phút giống BookingService
+        if (!isHalfHourSlot(request.startTime()) || !isHalfHourSlot(request.endTime())) {
+            throw new IllegalArgumentException("Giờ đặt sân phải theo mốc 30 phút (:00 hoặc :30)");
+        }
+
         // Lấy giờ hoạt động từ DB thay vì hardcode
         BusinessHourConfig businessConfig = businessHourConfigRepository.findById((short) 1)
                 .orElseThrow(() -> new ResourceNotFoundException("Chưa có cấu hình giờ hoạt động của hệ thống"));
@@ -80,7 +86,7 @@ public class RecurringBookingService {
                 || request.endTime().isAfter(businessConfig.getClosingTime())) {
             throw new IllegalArgumentException(
                     "Sân chỉ hoạt động từ " + businessConfig.getOpeningTime()
-                    + " đến " + businessConfig.getClosingTime());
+                            + " đến " + businessConfig.getClosingTime());
         }
 
         // 3. Sinh tất cả ngày trong chu kỳ khớp với daysOfWeek được yêu cầu
@@ -89,6 +95,18 @@ public class RecurringBookingService {
                 request.endDate(),
                 request.daysOfWeek()
         );
+
+        // Chặn chia cho 0 nếu không có ngày nào khớp
+        if (allSessionDates.isEmpty()) {
+            throw new IllegalArgumentException("Không có buổi chơi nào phù hợp với các thứ trong tuần trong khoảng thời gian đã chọn!");
+        }
+
+        // Chặn đặt ngày/giờ đã qua trong quá khứ
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        LocalDateTime firstSessionStart = LocalDateTime.of(allSessionDates.getFirst(), request.startTime());
+        if (!firstSessionStart.isAfter(now)) {
+            throw new IllegalArgumentException("Không thể đặt lịch cho khung giờ đã qua trong quá khứ!");
+        }
 
         // 4. Kiểm tra trùng lịch từng ngày — tái sử dụng existsOverlap() từ SCRUM-15
         List<SingleConflictResponse> conflictingSlots = new ArrayList<>();
@@ -197,6 +215,14 @@ public class RecurringBookingService {
             case SUNDAY    -> DayOfWeek.SUN;
         };
     }
+    /**
+     * Kiểm tra thời gian có đúng mốc 30 phút hay không (:00 hoặc :30)
+     */
+    private boolean isHalfHourSlot(LocalTime time) {
+        return time.getMinute() % 30 == 0
+                && time.getSecond() == 0
+                && time.getNano() == 0;
+    }
 
 
 
@@ -223,6 +249,11 @@ public class RecurringBookingService {
         // 1. Kiểm tra khách hàng và sân
         User customer = userRepository.findById(customerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin khách hàng!"));
+
+        // Kiểm tra trạng thái tài khoản khách hàng giống BookingService
+        if (customer.getStatus() != UserStatus.ACTIVE) {
+            throw new IllegalArgumentException("Tài khoản của bạn hiện đang bị khóa hoặc không thể đặt sân!");
+        }
 
         Court court = courtRepository.findById(request.courtId())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân với ID: " + request.courtId()));
