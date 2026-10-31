@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
@@ -8,15 +9,20 @@ import {
   ChevronDown,
   Clock,
   CreditCard,
+  CalendarDays,
+  Repeat,
 } from 'lucide-react';
 import { bookingApi } from '../api/bookingApi';
 
 // ==================== FORMAT DATA ====================
 const formatDate = (value) => {
   if (!value) return '—';
+
   const datePart = String(value).split('T')[0];
   const parts = datePart.split('-');
+
   if (parts.length !== 3) return datePart;
+
   const [year, month, day] = parts;
   return `${day}/${month}/${year}`;
 };
@@ -27,58 +33,78 @@ const formatTime = (value) => {
 };
 
 const formatMoney = (value) => {
-  if (value === null || value === undefined || value === '') return '—';
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+
   return `${Number(value).toLocaleString('vi-VN')}đ`;
 };
 
 const getDuration = (startTime, endTime) => {
   if (!startTime || !endTime) return '—';
+
   const toMinutes = (value) => {
     const [hours, minutes] = String(value).split(':').map(Number);
     return hours * 60 + minutes;
   };
+
   const duration = toMinutes(endTime) - toMinutes(startTime);
+
   if (duration <= 0) return '—';
+
   const hours = Math.floor(duration / 60);
   const minutes = duration % 60;
+
   if (minutes === 0) return `${hours} giờ`;
   if (hours === 0) return `${minutes} phút`;
+
   return `${hours} giờ ${minutes} phút`;
 };
 
 const getCourtTypeLabel = (courtType) => {
   if (!courtType) return '';
+
   const type = String(courtType).toUpperCase();
-  if (type.includes('INDOOR') || type.includes('IN_DOOR')) return '(Trong nhà)';
-  if (type.includes('OUTDOOR') || type.includes('OUT_DOOR')) return '(Ngoài trời)';
+
+  if (type.includes('INDOOR') || type.includes('IN_DOOR')) {
+    return '(Trong nhà)';
+  }
+
+  if (type.includes('OUTDOOR') || type.includes('OUT_DOOR')) {
+    return '(Ngoài trời)';
+  }
+
   return `(${courtType})`;
 };
 
 // ==================== NORMALIZE API DATA ====================
+// API hiện tại trả về dữ liệu booking lẻ.
+// Không suy luận booking lẻ/lịch cố định từ những field
+// không có trong BookingDetailResponse.
 const normalizeBooking = (booking) => {
-  const isRecurring = Boolean(
-    booking.recurringBookingId ?? booking.recurringBooking?.id
-  );
-
   return {
     id: booking.id,
     code: booking.bookingCode ?? `#${booking.id}`,
-    type: isRecurring ? 'RECURRING' : 'SINGLE',
-    courtId: booking.courtId ?? booking.court?.id,
+    type: 'SINGLE',
+
+    courtId: booking.courtId,
     courtName:
       booking.courtName ??
-      booking.court?.name ??
-      (booking.courtId ? `Sân ${booking.courtId}` : 'Chưa có thông tin sân'),
-    courtTypeLabel: getCourtTypeLabel(
-      booking.courtType ?? booking.court?.courtType
-    ),
-    img: booking.courtImageUrl ?? booking.court?.imageUrl ?? '',
+      (booking.courtId
+        ? `Sân ${booking.courtId}`
+        : 'Chưa có thông tin sân'),
+
+    courtTypeLabel: getCourtTypeLabel(booking.courtType),
+    img: booking.courtImageUrl ?? '',
+
     date: formatDate(booking.bookingDate),
     time: `${formatTime(booking.startTime)} - ${formatTime(booking.endTime)}`,
     duration: getDuration(booking.startTime, booking.endTime),
+
     status: booking.bookingStatus,
     paymentStatus: booking.paymentStatus,
-    total: formatMoney(booking.totalAmount ?? booking.courtPrice),
+
+    total: formatMoney(booking.totalAmount),
     rawDate: booking.bookingDate,
     expireAt: booking.expireAt,
   };
@@ -111,30 +137,35 @@ const renderStatusBadge = (booking) => {
           Chờ nhân viên xác nhận
         </span>
       );
+
     case 'CONFIRMED':
       return (
         <span className="inline-block px-3 py-1 bg-emerald-50 text-emerald-600 font-semibold rounded-full text-[11px]">
           Đã xác nhận
         </span>
       );
+
     case 'CHECKED_IN':
       return (
         <span className="inline-block px-3 py-1 bg-blue-50 text-blue-600 font-semibold rounded-full text-[11px]">
           Đang chơi
         </span>
       );
+
     case 'COMPLETED':
       return (
         <span className="inline-block px-3 py-1 bg-gray-100 text-gray-600 font-semibold rounded-full text-[11px]">
           Hoàn thành
         </span>
       );
+
     case 'NO_SHOW':
       return (
         <span className="inline-block px-3 py-1 bg-red-50 text-red-500 font-semibold rounded-full text-[11px]">
           Bùng lịch
         </span>
       );
+
     default:
       return (
         <span className="inline-block px-3 py-1 bg-gray-100 text-gray-600 font-semibold rounded-full text-[11px]">
@@ -144,33 +175,33 @@ const renderStatusBadge = (booking) => {
   }
 };
 
-const renderPaymentBadge = (paymentStatus) => {
-  switch (paymentStatus) {
-    case 'PAID':
-      return (
-        <span className="inline-block px-3 py-1 border border-emerald-500 text-emerald-600 font-semibold rounded-full text-[11px]">
-          Đã thanh toán tiền sân
-        </span>
-      );
-    case 'UNPAID':
-      return (
-        <span className="inline-block px-3 py-1 border border-amber-500 text-amber-600 font-semibold rounded-full text-[11px]">
-          Chưa thanh toán tiền sân
-        </span>
-      );
-    default:
-      return (
-        <span className="inline-block px-3 py-1 border border-gray-300 text-gray-500 font-semibold rounded-full text-[11px]">
-          {paymentStatus || 'Chưa xác định thanh toán'}
-        </span>
-      );
+// Badge kết toán: chỉ hiện sau khi nhân viên xác nhận (tiền sân đã thanh toán).
+// paymentStatus PAID    => Chưa kết toán (có thể phát sinh tiền dịch vụ)
+// paymentStatus SETTLED => Đã kết toán (nhân viên đã thu đủ tiền / bùng lịch)
+const renderSettlementBadge = (booking) => {
+  if (booking.paymentStatus === 'SETTLED') {
+    return (
+      <span className="inline-block px-3 py-1 border border-emerald-500 text-emerald-600 font-semibold rounded-full text-[11px]">
+        Đã kết toán
+      </span>
+    );
   }
+
+  if (booking.paymentStatus === 'PAID' && booking.status !== 'CANCELLED') {
+    return (
+      <span className="inline-block px-3 py-1 border border-amber-500 text-amber-600 font-semibold rounded-full text-[11px]">
+        Chưa kết toán
+      </span>
+    );
+  }
+
+  return null;
 };
 
-// ==================== BOOKING COUNTDOWN ====================
 const BookingCountdown = ({ expireAt }) => {
   const [remaining, setRemaining] = useState(() => {
     if (!expireAt) return 0;
+
     return Math.max(
       0,
       Math.floor((new Date(expireAt).getTime() - Date.now()) / 1000)
@@ -185,11 +216,14 @@ const BookingCountdown = ({ expireAt }) => {
         0,
         Math.floor((new Date(expireAt).getTime() - Date.now()) / 1000)
       );
+
       setRemaining(seconds);
     };
 
     updateCountdown();
+
     const timer = setInterval(updateCountdown, 1000);
+
     return () => clearInterval(timer);
   }, [expireAt]);
 
@@ -203,17 +237,45 @@ const BookingCountdown = ({ expireAt }) => {
   return <span>{`${hours}:${minutes}:${seconds}`}</span>;
 };
 
+// ==================== RECURRING EMPTY STATE ====================
+const RecurringEmptyState = () => {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-5 text-center">
+      <div className="w-20 h-20 rounded-full bg-purple-50 flex items-center justify-center mb-5">
+        <Repeat size={34} className="text-purple-500" />
+      </div>
+
+      <h3 className="text-lg font-bold text-gray-800 mb-2">
+        Lịch đặt cố định
+      </h3>
+
+      <p className="text-sm text-gray-500 max-w-md leading-relaxed">
+        Đây là nơi hiển thị các gói đặt sân cố định của bạn, bao gồm
+        thông tin sân, thứ trong tuần, khung giờ và thời hạn của lịch đặt.
+      </p>
+
+      <div className="mt-5 px-4 py-2.5 rounded-lg bg-purple-50 text-purple-600 text-xs font-semibold">
+        Chức năng đang chờ tích hợp API
+      </div>
+    </div>
+  );
+};
+
 // ==================== MAIN COMPONENT ====================
 export default function MyBookings() {
-  const [activeTab, setActiveTab] = useState('ALL');
+  // Chỉ còn 2 tab chính
+  const [activeTab, setActiveTab] = useState('SINGLE');
+
   const [showCalendar, setShowCalendar] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [courtFilter, setCourtFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // ==================== FETCH SINGLE BOOKINGS ====================
   useEffect(() => {
     let cancelled = false;
 
@@ -221,12 +283,14 @@ export default function MyBookings() {
       try {
         setLoading(true);
         setError('');
+
         const data = await bookingApi.getMyBookingsApi();
 
         if (!cancelled) {
           if (!Array.isArray(data)) {
             throw new Error('Dữ liệu booking trả về không đúng định dạng.');
           }
+
           setBookings(data.map(normalizeBooking));
         }
       } catch (err) {
@@ -238,21 +302,29 @@ export default function MyBookings() {
           );
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
     fetchBookings();
+
     return () => {
       cancelled = true;
     };
   }, []);
 
+  // ==================== FILTER OPTIONS ====================
   const courtOptions = useMemo(() => {
     const uniqueCourts = new Map();
+
     bookings.forEach((booking) => {
-      if (booking.courtName) uniqueCourts.set(booking.courtName, booking.courtName);
+      if (booking.courtName) {
+        uniqueCourts.set(booking.courtName, booking.courtName);
+      }
     });
+
     return Array.from(uniqueCourts.values());
   }, [bookings]);
 
@@ -261,35 +333,71 @@ export default function MyBookings() {
     [bookings]
   );
 
+  // ==================== FILTER SINGLE BOOKINGS ====================
   const filteredBookings = useMemo(() => {
     return bookings.filter((booking) => {
-      if (activeTab === 'SINGLE' && booking.type !== 'SINGLE') return false;
-      if (activeTab === 'RECURRING' && booking.type !== 'RECURRING') return false;
-      if (activeTab === 'UNPAID' && booking.paymentStatus !== 'UNPAID') return false;
-      if (activeTab === 'PAID' && booking.paymentStatus !== 'PAID') return false;
-      if (courtFilter !== 'ALL' && booking.courtName !== courtFilter) return false;
-      if (statusFilter !== 'ALL' && booking.status !== statusFilter) return false;
+      if (
+        courtFilter !== 'ALL' &&
+        booking.courtName !== courtFilter
+      ) {
+        return false;
+      }
+
+      if (
+        statusFilter !== 'ALL' &&
+        booking.status !== statusFilter
+      ) {
+        return false;
+      }
 
       if (searchTerm.trim()) {
         const term = searchTerm.trim().toLowerCase();
-        const matchCode = String(booking.code).toLowerCase().includes(term);
-        const matchCourt = String(booking.courtName).toLowerCase().includes(term);
+
+        const matchCode = String(booking.code)
+          .toLowerCase()
+          .includes(term);
+
+        const matchCourt = String(booking.courtName)
+          .toLowerCase()
+          .includes(term);
+
         if (!matchCode && !matchCourt) return false;
       }
+
       return true;
     });
-  }, [bookings, activeTab, courtFilter, statusFilter, searchTerm]);
+  }, [bookings, courtFilter, statusFilter, searchTerm]);
 
+  // ==================== TAB HANDLER ====================
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+
+    // Reset bộ lọc khi chuyển tab
+    setSearchTerm('');
+    setCourtFilter('ALL');
+    setStatusFilter('ALL');
+    setShowCalendar(false);
+  };
+
+  // ==================== RENDER ====================
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20">
       <Navbar />
 
       <div className="max-w-[1100px] mx-auto px-4 mt-8">
+
+        {/* Page heading */}
         <div className="flex justify-between items-center mb-8 gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-1">Booking của tôi</h1>
-            <p className="text-sm text-gray-500">Quản lý các lịch đặt sân của bạn</p>
+            <h1 className="text-2xl font-bold text-gray-800 mb-1">
+              Booking của tôi
+            </h1>
+
+            <p className="text-sm text-gray-500">
+              Quản lý các lịch đặt sân của bạn
+            </p>
           </div>
+
           <Link
             to="/"
             className="flex items-center gap-2 bg-[#00C475] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-[#00B068] transition-colors shadow-sm text-sm"
@@ -299,113 +407,155 @@ export default function MyBookings() {
           </Link>
         </div>
 
+        {/* Main container */}
         <div className="bg-white rounded-2xl shadow-[0_2px_20px_-5px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden">
-          {/* Tabs */}
-          <div className="flex items-center gap-8 border-b border-gray-100 px-6 pt-4 overflow-x-auto">
-            {[
-              { id: 'ALL', label: 'Tất cả' },
-              { id: 'SINGLE', label: 'Đặt sân lẻ' },
-              { id: 'RECURRING', label: 'Lịch cố định' },
-              { id: 'UNPAID', label: 'Chưa thanh toán' },
-              { id: 'PAID', label: 'Đã thanh toán' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`pb-4 px-1 text-[13px] font-bold border-b-2 whitespace-nowrap flex items-center gap-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-[#00C475] text-[#00C475]'
-                    : 'border-transparent text-gray-500 hover:text-gray-800'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+
+          {/* ==================== MAIN TABS ==================== */}
+          <div className="flex items-center gap-8 border-b border-gray-100 px-6 pt-4">
+            <button
+              onClick={() => handleTabChange('SINGLE')}
+              className={`pb-4 px-1 text-[13px] font-bold border-b-2 whitespace-nowrap flex items-center gap-2 transition-colors ${
+                activeTab === 'SINGLE'
+                  ? 'border-[#00C475] text-[#00C475]'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              <CalendarDays size={16} />
+              Booking lẻ
+
+              <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                activeTab === 'SINGLE'
+                  ? 'bg-emerald-50 text-[#00C475]'
+                  : 'bg-gray-100 text-gray-500'
+              }`}>
+                {bookings.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => handleTabChange('RECURRING')}
+              className={`pb-4 px-1 text-[13px] font-bold border-b-2 whitespace-nowrap flex items-center gap-2 transition-colors ${
+                activeTab === 'RECURRING'
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              <Repeat size={16} />
+              Lịch cố định
+            </button>
           </div>
 
-          {/* Filters */}
-          <div className="p-5 flex flex-wrap gap-4 items-center border-b border-gray-100 bg-white">
-            <div className="relative">
-              <button
-                onClick={() => setShowCalendar(!showCalendar)}
-                className="flex items-center justify-between bg-white border border-gray-200 rounded-md h-[38px] w-60 px-3 hover:border-[#00C475] transition-colors"
-              >
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Calendar size={16} />
-                  <span className="text-[13px]">Lọc theo ngày chơi</span>
-                </div>
-              </button>
-              {showCalendar && (
-                <div className="absolute top-[44px] left-0 bg-white rounded-xl shadow-xl border border-gray-200 p-4 w-[280px] z-50">
-                  <p className="text-sm text-gray-500 text-center mb-2">
-                    Tính năng lọc ngày sẽ được bổ sung sau.
-                  </p>
+          {/* ==================== SINGLE BOOKING TAB ==================== */}
+          {activeTab === 'SINGLE' && (
+            <>
+              {/* Filters */}
+              <div className="p-5 flex flex-wrap gap-4 items-center border-b border-gray-100 bg-white">
+
+                {/* Date filter */}
+                <div className="relative">
                   <button
-                    onClick={() => setShowCalendar(false)}
-                    className="w-full bg-[#00C475] text-white py-2 rounded-lg text-sm font-semibold mt-2 hover:bg-[#00B068]"
+                    onClick={() => setShowCalendar(!showCalendar)}
+                    className="flex items-center justify-between bg-white border border-gray-200 rounded-md h-[38px] w-60 px-3 hover:border-[#00C475] transition-colors"
                   >
-                    Đóng
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Calendar size={16} />
+                      <span className="text-[13px]">
+                        Lọc theo ngày chơi
+                      </span>
+                    </div>
                   </button>
+
+                  {showCalendar && (
+                    <div className="absolute top-[44px] left-0 bg-white rounded-xl shadow-xl border border-gray-200 p-4 w-[280px] z-50">
+                      <p className="text-sm text-gray-500 text-center mb-2">
+                        Tính năng lọc ngày sẽ được bổ sung sau.
+                      </p>
+
+                      <button
+                        onClick={() => setShowCalendar(false)}
+                        className="w-full bg-[#00C475] text-white py-2 rounded-lg text-sm font-semibold mt-2 hover:bg-[#00B068]"
+                      >
+                        Đóng
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div className="relative">
-              <select
-                value={courtFilter}
-                onChange={(e) => setCourtFilter(e.target.value)}
-                className="appearance-none bg-white border border-gray-200 rounded-md h-[38px] w-40 pl-3 pr-8 text-[13px] text-gray-600 outline-none cursor-pointer hover:border-[#00C475]"
-              >
-                <option value="ALL">Tất cả sân</option>
-                {courtOptions.map((courtName) => (
-                  <option key={courtName} value={courtName}>{courtName}</option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
+                {/* Court filter */}
+                <div className="relative">
+                  <select
+                    value={courtFilter}
+                    onChange={(e) => setCourtFilter(e.target.value)}
+                    className="appearance-none bg-white border border-gray-200 rounded-md h-[38px] w-40 pl-3 pr-8 text-[13px] text-gray-600 outline-none cursor-pointer hover:border-[#00C475]"
+                  >
+                    <option value="ALL">Tất cả sân</option>
 
-            <div className="relative">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="appearance-none bg-white border border-gray-200 rounded-md h-[38px] w-48 pl-3 pr-8 text-[13px] text-gray-600 outline-none cursor-pointer hover:border-[#00C475]"
-              >
-                <option value="ALL">Tất cả trạng thái</option>
-                {statusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {status === 'PENDING'
-                      ? 'Chờ xác nhận'
-                      : status === 'CONFIRMED'
-                        ? 'Đã xác nhận'
-                        : status === 'CHECKED_IN'
-                          ? 'Đang chơi'
-                          : status === 'COMPLETED'
-                            ? 'Hoàn thành'
-                            : status === 'CANCELLED'
-                              ? 'Đã hủy'
-                              : status === 'NO_SHOW'
-                                ? 'Bùng lịch'
-                                : status}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
+                    {courtOptions.map((courtName) => (
+                      <option key={courtName} value={courtName}>
+                        {courtName}
+                      </option>
+                    ))}
+                  </select>
 
-            <div className="relative flex-1 min-w-[200px]">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Tìm theo mã booking, tên sân..."
-                className="w-full bg-white border border-gray-200 rounded-md h-[38px] pl-9 pr-3 text-[13px] text-gray-600 outline-none focus:border-[#00C475]"
-              />
-            </div>
-          </div>
+                  <ChevronDown
+                    size={14}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                  />
+                </div>
 
-          {/* Booking list */}
-          <div className="p-5 space-y-3">
+                {/* Status filter */}
+                <div className="relative">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="appearance-none bg-white border border-gray-200 rounded-md h-[38px] w-48 pl-3 pr-8 text-[13px] text-gray-600 outline-none cursor-pointer hover:border-[#00C475]"
+                  >
+                    <option value="ALL">Tất cả trạng thái</option>
+
+                    {statusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {status === 'PENDING'
+                          ? 'Chờ xác nhận'
+                          : status === 'CONFIRMED'
+                            ? 'Đã xác nhận'
+                            : status === 'CHECKED_IN'
+                              ? 'Đang chơi'
+                              : status === 'COMPLETED'
+                                ? 'Hoàn thành'
+                                : status === 'CANCELLED'
+                                  ? 'Đã hủy'
+                                  : status === 'NO_SHOW'
+                                    ? 'Bùng lịch'
+                                    : status}
+                      </option>
+                    ))}
+                  </select>
+
+                  <ChevronDown
+                    size={14}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                  />
+                </div>
+
+                {/* Search */}
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search
+                    size={16}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  />
+
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Tìm theo mã booking, tên sân..."
+                    className="w-full bg-white border border-gray-200 rounded-md h-[38px] pl-9 pr-3 text-[13px] text-gray-600 outline-none focus:border-[#00C475]"
+                  />
+                </div>
+              </div>
+
+              {/* Booking list */}
+              <div className="p-5 space-y-3">
             {loading ? (
               <div className="text-center py-10 text-gray-500 text-sm">Đang tải danh sách booking...</div>
             ) : error ? (
@@ -481,9 +631,16 @@ export default function MyBookings() {
                       <p className="text-[11px] text-gray-400 mb-2">Trạng thái booking</p>
                       <div className="flex flex-col items-start gap-2">
                         {renderStatusBadge(booking)}
-                        {renderPaymentBadge(booking.paymentStatus)}
                       </div>
                     </div>
+
+                    {/* Sau khi nhân viên xác nhận: khung thanh toán được thay bằng cột Trạng thái kết toán */}
+                    {!canPay && renderSettlementBadge(booking) && (
+                      <div className="min-w-0">
+                        <p className="text-[11px] text-gray-400 mb-2">Trạng thái kết toán</p>
+                        {renderSettlementBadge(booking)}
+                      </div>
+                    )}
 
                     {canPay && (
                       <div className="flex h-[68px] w-full min-w-0 max-w-[180px] self-center flex-col justify-between rounded-xl border border-amber-200 bg-amber-50 p-2">
@@ -520,6 +677,13 @@ export default function MyBookings() {
               })
             )}
           </div>
+            </>
+          )}
+
+          {/* ==================== RECURRING BOOKING TAB ==================== */}
+          {activeTab === 'RECURRING' && (
+            <RecurringEmptyState />
+          )}
         </div>
       </div>
     </div>

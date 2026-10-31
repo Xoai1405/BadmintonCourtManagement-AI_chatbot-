@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import com.smashflow.backend.dto.request.CreateBookingRequest;
 import com.smashflow.backend.dto.response.BookingDetailResponse;
 import com.smashflow.backend.dto.response.BookingResponse;
+import com.smashflow.backend.dto.response.StaffBookingResponse;
 import com.smashflow.backend.exception.BookingConflictException;
 import com.smashflow.backend.exception.ResourceNotFoundException;
 import com.smashflow.backend.model.Booking;
@@ -121,8 +122,221 @@ public class BookingService {
                                 .createdAt(booking.getCreatedAt())
                                 .expireAt(booking.getExpireAt())
                                 .paidAt(booking.getPaidAt())
+                                .paidByStaffName(booking.getPaidByStaff() == null
+                                                ? null
+                                                : booking.getPaidByStaff().getFullName())
 
                                 .build();
+        }
+
+        // ===================== NHÂN VIÊN =====================
+
+        // Danh sách booking lẻ cho trang tra cứu của nhân viên
+        public List<StaffBookingResponse> getStaffBookings() {
+                return bookingRepo.findAllSingleBookings()
+                                .stream()
+                                .map(this::toStaffResponse)
+                                .toList();
+        }
+
+        public StaffBookingResponse getStaffBookingDetail(Long bookingId) {
+                Booking booking = bookingRepo.findById(bookingId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Không tìm thấy booking"));
+                return toStaffResponse(booking);
+        }
+
+        /**
+         * Nhân viên xác nhận booking sau khi kiểm tra đã nhận tiền sân (FR-15, FR-24).
+         * PENDING -> CONFIRMED, đồng thời ghi nhận tiền sân đã thanh toán.
+         */
+        @Transactional
+        public StaffBookingResponse confirmBooking(Long bookingId, Long staffId) {
+                Booking booking = bookingRepo.findByIdForUpdate(bookingId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Không tìm thấy booking"));
+
+                User staff = userRepo.findById(staffId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Không tìm thấy nhân viên"));
+
+                if (booking.getBookingStatus() != BookingStatus.PENDING) {
+                        throw new IllegalStateException(
+                                        "Chỉ xác nhận được booking đang chờ xác nhận");
+                }
+
+                if (booking.getPaymentStatus() != PaymentStatus.UNPAID) {
+                        throw new IllegalStateException(
+                                        "Booking đã được thanh toán trước đó");
+                }
+
+                // FR-14: kiểm tra lại trùng lịch khi xác nhận
+                boolean hasConflict = bookingRepo.existsOverlapExcluding(
+                                booking.getCourt().getId(),
+                                booking.getBookingDate(),
+                                booking.getStartTime(),
+                                booking.getEndTime(),
+                                booking.getId(),
+                                List.of(
+                                                BookingStatus.CONFIRMED,
+                                                BookingStatus.CHECKED_IN));
+
+                if (hasConflict) {
+                        throw new BookingConflictException(
+                                        "Khung giờ này đã có booking khác được xác nhận");
+                }
+
+                LocalDateTime now = LocalDateTime.now(
+                                ZoneId.of("Asia/Ho_Chi_Minh"));
+
+                booking.setBookingStatus(BookingStatus.CONFIRMED);
+                booking.setPaymentStatus(PaymentStatus.PAID);
+                // Khách tự đặt thanh toán tiền sân bằng chuyển khoản / QR.
+                // DB chỉ cho phép 'CASH' hoặc 'BANK_TRANSFER' (chk_payment_method).
+                if (booking.getPaymentMethod() == null) {
+                        booking.setPaymentMethod("BANK_TRANSFER");
+                }
+                booking.setPaidAt(now);
+                booking.setPaidByStaff(staff);
+                // Đã xác nhận thì không còn hạn giữ chỗ
+                booking.setExpireAt(null);
+
+                return toStaffResponse(bookingRepo.save(booking));
+        }
+
+        /**
+         * Check-in: khách đã đến sân (FR-30). CONFIRMED -> CHECKED_IN.
+         */
+        @Transactional
+        public StaffBookingResponse checkInBooking(Long bookingId) {
+                Booking booking = lockBooking(bookingId);
+
+                if (booking.getBookingStatus() != BookingStatus.CONFIRMED) {
+                        throw new IllegalStateException(
+                                        "Chỉ check-in được booking đã xác nhận");
+                }
+
+                booking.setBookingStatus(BookingStatus.CHECKED_IN);
+                return toStaffResponse(bookingRepo.save(booking));
+        }
+
+        /**
+         * Xác nhận thu đủ tiền khi khách trả sân (kết toán).
+         * Chỉ khi booking đang CHECKED_IN và tiền sân đã thanh toán (PAID).
+         * Chỉ đổi trạng thái sang SETTLED; giữ nguyên paidAt / paidByStaff /
+         * paymentMethod
+         * (thông tin lúc nhân viên xác nhận tiền sân).
+         */
+        @Transactional
+        public StaffBookingResponse settleBooking(Long bookingId) {
+                Booking booking = lockBooking(bookingId);
+
+                if (booking.getBookingStatus() != BookingStatus.CHECKED_IN) {
+                        throw new IllegalStateException(
+                                        "Chỉ thu tiền khi khách đã check-in");
+                }
+
+                if (booking.getPaymentStatus() == PaymentStatus.SETTLED) {
+                        throw new IllegalStateException(
+                                        "Booking đã được kết toán");
+                }
+
+                if (booking.getPaymentStatus() != PaymentStatus.PAID) {
+                        throw new IllegalStateException(
+                                        "Booking chưa thanh toán tiền sân");
+                }
+
+                booking.setPaymentStatus(PaymentStatus.SETTLED);
+
+                return toStaffResponse(bookingRepo.save(booking));
+        }
+
+        /**
+         * Hoàn thành (FR-19): chỉ khi đã check-in và đã kết toán.
+         */
+        @Transactional
+        public StaffBookingResponse completeBooking(Long bookingId) {
+                Booking booking = lockBooking(bookingId);
+
+                if (booking.getBookingStatus() != BookingStatus.CHECKED_IN) {
+                        throw new IllegalStateException(
+                                        "Chỉ hoàn thành được booking đang chơi");
+                }
+
+                if (booking.getPaymentStatus() != PaymentStatus.SETTLED) {
+                        throw new IllegalStateException(
+                                        "Vui lòng xác nhận thu đủ tiền trước khi hoàn thành");
+                }
+
+                booking.setBookingStatus(BookingStatus.COMPLETED);
+                return toStaffResponse(bookingRepo.save(booking));
+        }
+
+        /**
+         * Bùng lịch (BR-15): chỉ sau giờ bắt đầu chơi 30 phút.
+         * Đơn chuyển sang Đã kết toán, không hoàn tiền.
+         */
+        @Transactional
+        public StaffBookingResponse noShowBooking(Long bookingId) {
+                Booking booking = lockBooking(bookingId);
+
+                if (booking.getBookingStatus() != BookingStatus.CONFIRMED) {
+                        throw new IllegalStateException(
+                                        "Chỉ đánh dấu bùng lịch cho booking đã xác nhận");
+                }
+
+                LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+                LocalDateTime allowedFrom = LocalDateTime.of(
+                                booking.getBookingDate(),
+                                booking.getStartTime()).plusMinutes(30);
+
+                if (now.isBefore(allowedFrom)) {
+                        throw new IllegalStateException(
+                                        "Chỉ đánh dấu bùng lịch sau giờ bắt đầu chơi 30 phút");
+                }
+
+                booking.setBookingStatus(BookingStatus.NO_SHOW);
+                // Giữ nguyên thông tin xác nhận tiền sân
+                booking.setPaymentStatus(PaymentStatus.SETTLED);
+
+                return toStaffResponse(bookingRepo.save(booking));
+        }
+
+        private Booking lockBooking(Long bookingId) {
+                return bookingRepo.findByIdForUpdate(bookingId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Không tìm thấy booking"));
+        }
+
+        private StaffBookingResponse toStaffResponse(Booking b) {
+                User customer = b.getCustomer();
+                return new StaffBookingResponse(
+                                b.getId(),
+                                b.getBookingCode(),
+                                new StaffBookingResponse.CustomerInfo(
+                                                customer.getId(),
+                                                customer.getFullName(),
+                                                customer.getPhoneNumber(),
+                                                customer.getEmail()),
+                                b.getCourt().getId(),
+                                b.getCourt().getName(),
+                                b.getCourt().getCourtType(),
+                                b.getBookingDate(),
+                                b.getStartTime(),
+                                b.getEndTime(),
+                                b.getCourtPrice(),
+                                b.getServicePrice(),
+                                b.getTotalAmount(),
+                                b.getBookingStatus(),
+                                b.getPaymentStatus(),
+                                b.getPaymentMethod(),
+                                b.getPaidAt(),
+                                b.getPaidByStaff() == null ? null : b.getPaidByStaff().getFullName(),
+                                b.getCreatedByStaff() == null ? null : b.getCreatedByStaff().getFullName(),
+                                b.getCancelReason(),
+                                b.getCancelledAt(),
+                                b.getExpireAt(),
+                                b.getCreatedAt());
         }
 
         @Transactional

@@ -3,14 +3,14 @@ import { Check, ChevronDown, ClipboardList, Search } from "lucide-react";
 import BookingMultiSelect from "../../components/booking/BookingMultiSelect.jsx";
 import DateRangePicker from "../../components/booking/DateRangePicker.jsx";
 import { Link } from "react-router-dom";
-import { bookingApi, bookingStatusLabel, formatBookingDate, formatBookingDays, formatBookingMoney, staffBookingStatuses, staffBookingTypes, staffRecurringStatuses } from "../../api/bookingApi.js";
+import { bookingApi, bookingStatusLabel, formatBookingDate, formatBookingDays, formatBookingMoney, settlementLabel, settlementStatus, staffBookingStatuses, staffBookingTypes, staffRecurringStatuses } from "../../api/bookingApi.js";
 
 const emptyFilters = { name: "", phone: "", email: "", courtIds: [], fromDate: "", toDate: "" };
 const allStatusOptions = [
   ...staffBookingStatuses.filter((item) => item.value !== "ALL").map((item) => ({ ...item, value: `SINGLE:${item.value}`, type: "SINGLE", group: "Đặt sân lẻ" })),
   ...staffRecurringStatuses.map((item) => ({ ...item, value: `RECURRING:${item.value}`, type: "RECURRING", group: "Lịch cố định" })),
 ];
-const paymentOptions = [{ value: "UNPAID", label: "Chưa thanh toán" }, { value: "PAID", label: "Đã thanh toán" }];
+const paymentOptions = [{ value: "UNSETTLED", label: "Chưa kết toán" }, { value: "SETTLED", label: "Đã kết toán" }];
 
 const normalizeSuggestion = (value, field) => field === "phone"
   ? value.replace(/[\s().+-]/g, "")
@@ -133,7 +133,7 @@ export default function BookingLookupPage() {
   const visible = bookings.filter((booking) => (bookingType === "ALL" || booking.type === bookingType)
     && (!statuses.length || statuses.includes(`${booking.type}:${booking.status}`))
     && (!paymentStatuses.length || paymentStatuses.length === paymentOptions.length
-      || (booking.type === "SINGLE" && paymentStatuses.includes(booking.paymentStatus))));
+      || (booking.type === "SINGLE" && paymentStatuses.includes(settlementStatus(booking)))));
   const selectedCourts = courts.filter((court) => filters.courtIds.includes(String(court.id)));
   const courtLabel = !selectedCourts.length ? "Sân: Tất cả" : selectedCourts.length === 1
     ? selectedCourts[0].name : `Sân: ${selectedCourts.length} đã chọn`;
@@ -181,9 +181,9 @@ export default function BookingLookupPage() {
         </div>
         <div className="staff-lookup-selects">
           <BookingMultiSelect label="Trạng thái" accessibleLabel="Lọc trạng thái booking" options={statusOptions} values={statuses} onChange={setStatuses} />
-          <BookingMultiSelect label="Thanh toán" accessibleLabel="Lọc thanh toán" options={paymentOptions} values={paymentStatuses} onChange={setPaymentStatuses}
+          <BookingMultiSelect label="Kết toán" accessibleLabel="Lọc kết toán theo buổi" options={paymentOptions} values={paymentStatuses} onChange={setPaymentStatuses}
             disabled={bookingType === "RECURRING"} allLabel={bookingType === "RECURRING" ? "Từng buổi" : "Tất cả"}
-            hint="Lọc thanh toán của đặt sân lẻ. Với lịch cố định, xem thanh toán từng buổi trong Chi tiết." />
+            hint="Lọc kết toán của đặt sân lẻ. Với lịch cố định, xem từng buổi trong Chi tiết." />
         </div>
       </div>
 
@@ -193,7 +193,7 @@ export default function BookingLookupPage() {
           <div className="staff-lookup-table-canvas">
             <table className="staff-lookup-table">
               <colgroup><col className="staff-col-code" /><col className="staff-col-customer" /><col className="staff-col-court" /><col className="staff-col-date" /><col className="staff-col-status" /><col className="staff-col-payment" /><col className="staff-col-money" /><col className="staff-col-actions" /></colgroup>
-              <thead><tr><th scope="col">Mã</th><th scope="col">Khách</th><th scope="col">Sân</th><th scope="col">Ngày/Giờ</th><th scope="col">Trạng thái</th><th scope="col">Thanh toán</th><th scope="col">Tổng tiền</th><th scope="col"><span className="staff-sr-only">Thao tác</span></th></tr></thead>
+              <thead><tr><th scope="col">Mã</th><th scope="col">Khách</th><th scope="col">Sân</th><th scope="col">Ngày/Giờ</th><th scope="col">Trạng thái</th><th scope="col">Kết toán theo buổi</th><th scope="col">Tổng tiền</th><th scope="col"><span className="staff-sr-only">Thao tác</span></th></tr></thead>
               <tbody>
                 {isLoading ? <tr><td colSpan={8}><div className="staff-empty" role="status"><span className="staff-loading-dot" />Đang tải danh sách booking…</div></td></tr>
                   : error ? <tr><td colSpan={8}><div className="staff-empty"><ClipboardList size={30} /><strong>Chưa thể hiển thị danh sách</strong><span>Kiểm tra bộ lọc và tìm kiếm lại.</span></div></td></tr>
@@ -209,7 +209,9 @@ export default function BookingLookupPage() {
                           <span className="staff-lookup-time">{booking.startTime} – {booking.endTime}</span>{isRecurring && <span className="staff-lookup-repeat">{formatBookingDays(booking.daysOfWeek)} · {booking.sessionCount} buổi</span>}</td>
                         <td><span className={`staff-badge staff-badge-${booking.status.toLowerCase()}`}>{bookingStatusLabel(booking.status)}</span></td>
                         <td>{isRecurring ? <span className="staff-package-payment"><strong>{booking.paidSessionCount}/{booking.sessionCount} đã thu</strong><small>Theo từng buổi</small></span>
-                          : <span className={`staff-payment-label ${booking.paymentStatus === "PAID" ? "is-paid" : ""}`}>{booking.paymentStatus === "PAID" ? "Đã thanh toán" : "Chưa thanh toán"}</span>}</td>
+                          : settlementStatus(booking)
+                            ? <span className={`staff-payment-label ${settlementStatus(booking) === "SETTLED" ? "is-paid" : ""}`}>{settlementLabel(settlementStatus(booking))}</span>
+                            : <span aria-label="Chưa có kết toán">–</span>}</td>
                         <td>{formatBookingMoney(booking.amount)}{isRecurring && <small className="staff-lookup-money-note">Tiền sân gói</small>}</td>
                         <td><Link className="staff-lookup-detail-link" to={`/staff/bookings/${booking.id}`} aria-label={`Chi tiết ${isRecurring ? "gói" : "booking"} ${booking.code}`}>Chi tiết</Link></td>
                       </tr>; })}
