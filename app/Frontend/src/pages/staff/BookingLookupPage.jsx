@@ -208,7 +208,9 @@ export default function BookingLookupPage() {
                         <td><span className="staff-lookup-date"><time dateTime={booking.startDate}>{formatBookingDate(booking.startDate)}</time>{isRecurring && <> – <time dateTime={booking.endDate}>{formatBookingDate(booking.endDate)}</time></>}</span>
                           <span className="staff-lookup-time">{booking.startTime} – {booking.endTime}</span>{isRecurring && <span className="staff-lookup-repeat">{formatBookingDays(booking.daysOfWeek)} · {booking.sessionCount} buổi</span>}</td>
                         <td><span className={`staff-badge staff-badge-${booking.status.toLowerCase()}`}>{bookingStatusLabel(booking.status)}</span></td>
-                        <td>{isRecurring ? <span className="staff-package-payment"><strong>{booking.paidSessionCount}/{booking.sessionCount} đã thu</strong><small>Theo từng buổi</small></span>
+                        <td>{isRecurring ? booking.paymentStatus === "PAID"
+                          ? <span className="staff-package-payment"><strong>{booking.settledSessionCount}/{booking.sessionCount} đã kết toán</strong><small>Theo từng buổi</small></span>
+                          : <span className="staff-package-payment"><strong>{booking.status === "CANCELLED" ? "–" : "Chưa thanh toán gói"}</strong>{booking.status !== "CANCELLED" && <small>Chờ xác nhận</small>}</span>
                           : settlementStatus(booking)
                             ? <span className={`staff-payment-label ${settlementStatus(booking) === "SETTLED" ? "is-paid" : ""}`}>{settlementLabel(settlementStatus(booking))}</span>
                             : <span aria-label="Chưa có kết toán">–</span>}</td>

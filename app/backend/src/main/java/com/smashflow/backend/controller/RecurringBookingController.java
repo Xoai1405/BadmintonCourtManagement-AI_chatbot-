@@ -2,8 +2,10 @@ package com.smashflow.backend.controller;
 
 import com.smashflow.backend.dto.request.recurringBooking.RecurringBookingPreviewRequest;
 import com.smashflow.backend.dto.response.recurringBooking.RecurringBookingPreviewResponse;
+import com.smashflow.backend.dto.response.recurringBooking.RecurringBookingDetailResponse;
 import com.smashflow.backend.dto.response.recurringBooking.RecurringBookingResponse;
 import com.smashflow.backend.service.CustomUserDetails;
+import com.smashflow.backend.service.RecurringBookingManagementService;
 import com.smashflow.backend.service.RecurringBookingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,30 @@ import org.springframework.web.bind.annotation.*;
 public class RecurringBookingController {
 
     private final RecurringBookingService recurringBookingService;
+    private final RecurringBookingManagementService recurringBookingManagementService;
+
+    /**
+     * Danh sách gói lịch cố định của khách đang đăng nhập.
+     * GET /api/recurring-bookings/me
+     */
+    @GetMapping("/me")
+    public ResponseEntity<java.util.List<RecurringBookingDetailResponse>> getMyRecurringBookings(
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(
+                recurringBookingManagementService.getMyRecurringBookings(currentUser.getUserId()));
+    }
+
+    /**
+     * Chi tiết gói (kèm danh sách buổi) — khách chỉ xem được gói của mình.
+     * GET /api/recurring-bookings/{id}
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<RecurringBookingDetailResponse> getMyRecurringBookingDetail(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ResponseEntity.ok(
+                recurringBookingManagementService.getMyRecurringBookingDetail(id, currentUser.getUserId()));
+    }
 
     /**
      * SCRUM-19: Xem trước lịch đặt sân cố định — kiểm tra trùng lịch hàng loạt.

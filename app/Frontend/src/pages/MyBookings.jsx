@@ -12,7 +12,7 @@ import {
   CalendarDays,
   Repeat,
 } from 'lucide-react';
-import { bookingApi } from '../api/bookingApi';
+import { bookingApi, formatBookingDays, toDayNumbers } from '../api/bookingApi';
 
 // ==================== FORMAT DATA ====================
 const formatDate = (value) => {
@@ -254,9 +254,146 @@ const RecurringEmptyState = () => {
         thông tin sân, thứ trong tuần, khung giờ và thời hạn của lịch đặt.
       </p>
 
-      <div className="mt-5 px-4 py-2.5 rounded-lg bg-purple-50 text-purple-600 text-xs font-semibold">
-        Chức năng đang chờ tích hợp API
+      <Link
+        to="/recurring-bookings"
+        className="mt-5 px-4 py-2.5 rounded-lg bg-purple-50 text-purple-600 text-xs font-semibold hover:bg-purple-100 transition-colors"
+      >
+        Bạn chưa có gói nào, đặt lịch cố định ngay
+      </Link>
+    </div>
+  );
+};
+
+// ==================== RECURRING BOOKING LIST ====================
+// Tiền sân gói thanh toán trọn gói (BR-11).
+// Chưa thanh toán: hiện khung giữ chỗ + nút Thanh toán.
+// Đã thanh toán: khung được thay bằng "Kết toán theo buổi" (x/y buổi đã kết toán).
+const renderPackageStatusBadge = (pkg) => {
+  if (pkg.status === 'CANCELLED') {
+    return <span className="inline-block px-3 py-1 bg-red-50 text-red-500 font-semibold rounded-full text-[11px]">Đã hủy</span>;
+  }
+  if (pkg.status === 'COMPLETED') {
+    return <span className="inline-block px-3 py-1 bg-gray-100 text-gray-600 font-semibold rounded-full text-[11px]">Hoàn thành</span>;
+  }
+  if (pkg.paymentStatus !== 'PAID') {
+    return (
+      <span className="inline-block px-3 py-1 bg-amber-50 text-amber-700 font-semibold rounded-full text-[11px] leading-5">
+        Đang giữ chỗ, chờ thanh toán để xác nhận
+      </span>
+    );
+  }
+  return <span className="inline-block px-3 py-1 bg-emerald-50 text-emerald-600 font-semibold rounded-full text-[11px]">Đang hoạt động</span>;
+};
+
+const RecurringBookingList = () => {
+  const [packages, setPackages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    bookingApi.getMyRecurringBookings()
+      .then((data) => { if (!cancelled) { setPackages(Array.isArray(data) ? data : []); setError(''); } })
+      .catch((err) => {
+        if (!cancelled) setError(err.response?.data?.message || err.message || 'Không thể tải lịch cố định.');
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [reloadKey]);
+
+  if (loading) return <div className="text-center py-10 text-gray-500 text-sm">Đang tải lịch cố định...</div>;
+  if (error) {
+    return (
+      <div className="text-center py-10 text-sm text-red-500">
+        <p>{error}</p>
+        <button type="button" onClick={() => { setLoading(true); setReloadKey((key) => key + 1); }}
+          className="mt-3 px-4 py-2 rounded-lg bg-[#00C475] text-white">Thử lại</button>
       </div>
+    );
+  }
+  if (!packages.length) return <RecurringEmptyState />;
+
+  return (
+    <div className="space-y-4">
+      {packages.map((pkg) => {
+        const isUnpaid = pkg.status === 'ACTIVE' && pkg.paymentStatus !== 'PAID';
+        const isPaid = pkg.paymentStatus === 'PAID';
+        return (
+          <div key={pkg.recurringBookingId}
+            className="grid grid-cols-1 items-start gap-4 border border-gray-200 rounded-xl p-4 hover:border-[#00C475] hover:shadow-sm transition-all lg:grid-cols-[minmax(190px,1.35fr)_minmax(75px,0.55fr)_minmax(115px,0.8fr)_minmax(175px,1.25fr)_minmax(165px,1.15fr)_minmax(160px,1.1fr)] lg:gap-3">
+            <div className="flex min-w-0 items-start gap-4">
+              {pkg.courtImageUrl ? (
+                <img src={pkg.courtImageUrl} alt={pkg.courtName} className="w-[85px] h-[60px] rounded-lg object-cover"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              ) : (
+                <div className="w-[85px] h-[60px] rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 text-xs text-center">Chưa có ảnh</div>
+              )}
+              <div className="min-w-0">
+                <p className="text-[11px] text-gray-400 mb-0.5">Mã gói</p>
+                <p className="font-bold text-gray-800 text-[13px] break-all">{pkg.code}</p>
+                <span className="inline-block px-2 py-0.5 mt-1 rounded text-[10px] font-semibold bg-purple-50 text-purple-600">Lịch cố định</span>
+              </div>
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-[11px] text-gray-400 mb-0.5">Sân</p>
+              <p className="font-bold text-gray-800 text-[13px]">{pkg.courtName}</p>
+              <p className="text-[12px] text-gray-500">{getCourtTypeLabel(pkg.courtType)}</p>
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-[11px] text-gray-400 mb-0.5">Thời gian</p>
+              <div className="flex items-center gap-1.5 text-[12px] text-gray-600 mt-1">
+                <Calendar size={13} className="text-gray-400 shrink-0" />
+                <span>{formatDate(pkg.startDate)} - {formatDate(pkg.endDate)}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[12px] text-gray-600 mt-1">
+                <Clock size={13} className="text-gray-400 shrink-0" />
+                <span>{formatTime(pkg.startTime)} - {formatTime(pkg.endTime)}</span>
+              </div>
+              <p className="text-[11px] text-gray-500 mt-0.5">{formatBookingDays(toDayNumbers(pkg.daysOfWeek))} · {pkg.sessionCount} buổi</p>
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-[11px] text-gray-400 mb-2">Trạng thái gói</p>
+              {renderPackageStatusBadge(pkg)}
+            </div>
+
+            {isUnpaid ? (
+              <div className="flex h-[68px] w-full min-w-0 max-w-[180px] self-center flex-col justify-between rounded-xl border border-amber-200 bg-amber-50 p-2">
+                <div className="flex min-w-0 items-center gap-1 text-[10px] leading-4 text-amber-700">
+                  <Clock size={13} className="shrink-0" />
+                  <span className="min-w-0 break-words">Giữ chỗ: <span className="font-bold tabular-nums"><BookingCountdown expireAt={pkg.expireAt} /></span></span>
+                </div>
+                <button type="button" onClick={() => window.alert('Chức năng thanh toán sẽ được kết nối API sau.')}
+                  className="flex w-full items-center justify-center gap-1 rounded-lg bg-emerald-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-600 transition-colors">
+                  <CreditCard size={14} />
+                  Thanh toán
+                </button>
+              </div>
+            ) : isPaid ? (
+              <div className="min-w-0">
+                <p className="text-[11px] text-gray-400 mb-2">Kết toán theo buổi</p>
+                <span className={`inline-block px-3 py-1 border font-semibold rounded-full text-[11px] ${pkg.settledSessionCount === pkg.sessionCount ? 'border-emerald-500 text-emerald-600' : 'border-amber-500 text-amber-600'}`}>
+                  {pkg.settledSessionCount}/{pkg.sessionCount} buổi đã kết toán
+                </span>
+              </div>
+            ) : null}
+
+            <div className="flex h-full min-w-0 items-start justify-between gap-3 lg:col-start-6 lg:justify-end">
+              <div className="min-w-0 shrink-0 text-left md:text-right">
+                <p className="text-[11px] text-gray-400 mb-0.5">Tổng tiền gói</p>
+                <p className="font-bold text-gray-800 text-[14px]">{formatMoney(pkg.totalAmount)}</p>
+              </div>
+              <Link to={`/my-bookings/recurring-${pkg.recurringBookingId}`}
+                className="shrink-0 self-center px-3 py-2 border border-emerald-200 text-[#00C475] rounded-lg text-xs font-semibold hover:bg-emerald-50 transition-colors whitespace-nowrap">
+                Xem chi tiết
+              </Link>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -682,7 +819,7 @@ export default function MyBookings() {
 
           {/* ==================== RECURRING BOOKING TAB ==================== */}
           {activeTab === 'RECURRING' && (
-            <RecurringEmptyState />
+            <RecurringBookingList />
           )}
         </div>
       </div>

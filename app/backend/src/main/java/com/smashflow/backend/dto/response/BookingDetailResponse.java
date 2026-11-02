@@ -55,6 +55,10 @@ public class BookingDetailResponse {
 
     private String paidByStaffName;
 
+    // ===== Gói lịch cố định (null nếu là booking lẻ) =====
+    private Long recurringBookingId;
+    private BigDecimal discountPercent;
+
     // ===== Thông tin hủy booking =====
     private String cancelReason;
     private LocalDateTime cancelledAt;

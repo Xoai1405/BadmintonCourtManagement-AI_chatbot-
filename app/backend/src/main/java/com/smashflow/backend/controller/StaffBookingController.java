@@ -25,45 +25,45 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class StaffBookingController {
 
-    private final BookingService bookingService;
+        private final BookingService bookingService;
 
-    @GetMapping
-    public ResponseEntity<List<StaffBookingResponse>> getBookings() {
-        return ResponseEntity.ok(bookingService.getStaffBookings());
-    }
+        @GetMapping
+        public ResponseEntity<List<StaffBookingResponse>> getBookings() {
+                return ResponseEntity.ok(bookingService.getStaffBookings());
+        }
 
-    @GetMapping("/{bookingId}")
-    public ResponseEntity<StaffBookingResponse> getBookingDetail(
-            @PathVariable Long bookingId) {
-        return ResponseEntity.ok(bookingService.getStaffBookingDetail(bookingId));
-    }
+        @GetMapping("/{bookingId}")
+        public ResponseEntity<StaffBookingResponse> getBookingDetail(
+                        @PathVariable Long bookingId) {
+                return ResponseEntity.ok(bookingService.getStaffBookingDetail(bookingId));
+        }
 
-    @PatchMapping("/{bookingId}/confirm")
-    public ResponseEntity<StaffBookingResponse> confirmBooking(
-            @PathVariable Long bookingId,
-            @AuthenticationPrincipal CustomUserDetails currentUser) {
-        return ResponseEntity.ok(
-                bookingService.confirmBooking(bookingId, currentUser.getUserId()));
-    }
+        @PatchMapping("/{bookingId}/confirm")
+        public ResponseEntity<StaffBookingResponse> confirmBooking(
+                        @PathVariable Long bookingId,
+                        @AuthenticationPrincipal CustomUserDetails currentUser) {
+                return ResponseEntity.ok(
+                                bookingService.confirmBooking(bookingId, currentUser.getUserId()));
+        }
 
-    @PatchMapping("/{bookingId}/check-in")
-    public ResponseEntity<StaffBookingResponse> checkIn(@PathVariable Long bookingId) {
-        return ResponseEntity.ok(bookingService.checkInBooking(bookingId));
-    }
+        @PatchMapping("/{bookingId}/check-in")
+        public ResponseEntity<StaffBookingResponse> checkIn(@PathVariable Long bookingId) {
+                return ResponseEntity.ok(bookingService.checkInBooking(bookingId));
+        }
 
-    // Xác nhận thu đủ tiền (kết toán)
-    @PatchMapping("/{bookingId}/settle")
-    public ResponseEntity<StaffBookingResponse> settle(@PathVariable Long bookingId) {
-        return ResponseEntity.ok(bookingService.settleBooking(bookingId));
-    }
+        // Xác nhận thu đủ tiền (kết toán)
+        @PatchMapping("/{bookingId}/settle")
+        public ResponseEntity<StaffBookingResponse> settle(@PathVariable Long bookingId) {
+                return ResponseEntity.ok(bookingService.settleBooking(bookingId));
+        }
 
-    @PatchMapping("/{bookingId}/complete")
-    public ResponseEntity<StaffBookingResponse> complete(@PathVariable Long bookingId) {
-        return ResponseEntity.ok(bookingService.completeBooking(bookingId));
-    }
+        @PatchMapping("/{bookingId}/complete")
+        public ResponseEntity<StaffBookingResponse> complete(@PathVariable Long bookingId) {
+                return ResponseEntity.ok(bookingService.completeBooking(bookingId));
+        }
 
-    @PatchMapping("/{bookingId}/no-show")
-    public ResponseEntity<StaffBookingResponse> noShow(@PathVariable Long bookingId) {
-        return ResponseEntity.ok(bookingService.noShowBooking(bookingId));
-    }
+        @PatchMapping("/{bookingId}/no-show")
+        public ResponseEntity<StaffBookingResponse> noShow(@PathVariable Long bookingId) {
+                return ResponseEntity.ok(bookingService.noShowBooking(bookingId));
+        }
 }

@@ -35,7 +35,11 @@ public record StaffBookingResponse(
         String cancelReason,
         LocalDateTime cancelledAt,
         LocalDateTime expireAt,
-        LocalDateTime createdAt) {
+        LocalDateTime createdAt,
+        // Buổi thuộc gói lịch cố định (null nếu là booking lẻ)
+        Long recurringBookingId,
+        String packageStatus,
+        java.math.BigDecimal discountPercent) {
 
     public record CustomerInfo(
             Long userId,

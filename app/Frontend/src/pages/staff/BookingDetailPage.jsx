@@ -78,7 +78,8 @@ function BookingDetail({ id }) {
   if (!booking || String(booking.id) !== id) return <div className="staff-empty staff-card" role="status"><span className="staff-loading-dot" />Đang tải chi tiết booking…</div>;
 
   if (booking.type === "RECURRING") return <RecurringBookingDetail booking={booking} busy={busy} error={error} notice={notice}
-    onCancel={(reason) => mutate(() => bookingApi.cancelStaffRecurringBooking(id, { reason, staffName: user?.fullName || booking.staffName }), "Đã hủy các buổi còn lại trong gói.")} />;
+    onConfirm={() => mutate(() => bookingApi.confirmStaffRecurringBooking(id), "Đã xác nhận gói: tất cả các buổi đã được xác nhận và thanh toán tiền sân.")}
+    onCancel={(reason) => mutate(() => bookingApi.cancelStaffRecurringBooking(id, { reason }), "Đã hủy gói lịch cố định.")} />;
 
   const terminal = ["COMPLETED", "CANCELLED", "NO_SHOW"].includes(booking.status);
   // paid: đã thanh toán tiền sân (nhân viên đã xác nhận). settled: đã kết toán (thu đủ tiền / no-show).
@@ -89,7 +90,8 @@ function BookingDetail({ id }) {
   const packageActive = !isSession || booking.packageStatus === "ACTIVE";
   // BR-16: chỉ thêm dịch vụ khi đang chơi và chưa kết toán
   const canEditServices = booking.status === "CHECKED_IN" && !settled && packageActive;
-  const canCancel = ["PENDING", "CONFIRMED"].includes(booking.status) && !paid && packageActive;
+  // Buổi trong gói hủy theo cả gói ở trang gói
+  const canCancel = ["PENDING", "CONFIRMED"].includes(booking.status) && !paid && packageActive && !isSession;
   // Chỉ thu đủ tiền sau khi khách check-in
   const canCollect = booking.status === "CHECKED_IN" && !settled && packageActive;
   const duration = ((Number(booking.endTime.slice(0, 2)) * 60 + Number(booking.endTime.slice(3)))
@@ -121,11 +123,14 @@ function BookingDetail({ id }) {
           </dl>
           <div className="staff-workflow" role="group" aria-label="Xử lý booking">
             <div className="staff-actions">{actions.map(({ status, label, from }) => {
-              const enabled = packageActive && booking.status === from && (status !== "COMPLETED" || settled);
+              // Buổi trong gói được xác nhận 1 lần ở trang gói
+              const enabled = packageActive && booking.status === from && (status !== "COMPLETED" || settled)
+                && !(isSession && status === "CONFIRMED");
               return <button key={status} type="button" className={`staff-button staff-detail-action${enabled && status !== "NO_SHOW" ? " staff-button-primary" : ""}`} disabled={busy || !enabled}
                 title={!enabled ? "Thao tác chưa phù hợp với trạng thái hiện tại" : undefined}
                 onClick={() => status === "NO_SHOW" ? openConfirmation("status", status) : mutate(() => bookingApi.updateStaffBookingStatus(id, status, { staffName: user?.fullName || booking.staffName }), `Đã cập nhật booking: ${bookingStatusLabel(status).toLowerCase()}.`)}>{label}</button>;
             })}</div>
+            {isSession && booking.status === "PENDING" && <p className="staff-help">Buổi thuộc gói lịch cố định, hãy xác nhận tại trang gói {booking.packageCode}.</p>}
             {booking.status === "CHECKED_IN" && !settled && <p className="staff-help">Bấm “Xác nhận thu đủ tiền” để có thể hoàn thành booking.</p>}
           </div>
           {booking.status === "CANCELLED" ? <div className="staff-cancelled-note"><h3>Lý do hủy</h3><p>{booking.cancellationReason}</p></div>
@@ -135,6 +140,7 @@ function BookingDetail({ id }) {
                 <textarea id="staff-cancel-reason" ref={reasonRef} rows={5} maxLength={500} placeholder="Nhập lý do hủy booking…" value={reason} onChange={(event) => setReason(event.target.value)} disabled={busy} />
               </label><small className="staff-detail-reason-count">{reason.length}/500 ký tự</small>
             </div>
+              : isSession && !terminal && !paid ? <p className="staff-help staff-refund-note">Hủy buổi thuộc gói tại trang gói {booking.packageCode}.</p>
               : paid && !terminal ? <p className="staff-help staff-refund-note">Booking đã thu tiền. Cần xử lý hoàn tiền trước khi hủy.</p> : <p className="staff-help staff-refund-note">Booking đã kết thúc, các thao tác xử lý đã được khóa.</p>}
         </section>
 
@@ -157,7 +163,9 @@ function BookingDetail({ id }) {
 
           <div className="staff-bill"><h3 className="staff-sr-only">Tổng thanh toán</h3><dl>
             <div><dt>Tiền sân <span>({duration.toLocaleString("vi-VN")} giờ)</span></dt><dd>{formatBookingMoney(booking.courtFee)}</dd></div>
-            {isSession && <div><dt>Ưu đãi lịch cố định ({booking.discountPercent}%)</dt><dd>−{formatBookingMoney(booking.discountAmount)}</dd></div>}
+            {isSession && (booking.discountAmount > 0
+              ? <div><dt>Ưu đãi lịch cố định ({booking.discountPercent}%)</dt><dd>−{formatBookingMoney(booking.discountAmount)}</dd></div>
+              : booking.discountPercent > 0 && <div><dt>Ưu đãi lịch cố định</dt><dd>Đã trừ {booking.discountPercent}% vào tiền sân</dd></div>)}
             <div><dt>Dịch vụ đi kèm</dt><dd>{formatBookingMoney(booking.serviceFee)}</dd></div>
             <div className="staff-bill-total"><dt>TỔNG CỘNG</dt><dd>{formatBookingMoney(booking.amount)}</dd></div>
           </dl></div>

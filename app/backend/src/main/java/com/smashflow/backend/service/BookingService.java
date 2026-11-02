@@ -19,14 +19,17 @@ import com.smashflow.backend.exception.ResourceNotFoundException;
 import com.smashflow.backend.model.Booking;
 import com.smashflow.backend.model.BusinessHourConfig;
 import com.smashflow.backend.model.Court;
+import com.smashflow.backend.model.RecurringBooking;
 import com.smashflow.backend.model.User;
 import com.smashflow.backend.model.enums.BookingStatus;
 import com.smashflow.backend.model.enums.CourtStatus;
 import com.smashflow.backend.model.enums.PaymentStatus;
+import com.smashflow.backend.model.enums.RecurBookingStatus;
 import com.smashflow.backend.model.enums.UserStatus;
 import com.smashflow.backend.repository.BookingRepository;
 import com.smashflow.backend.repository.BusinessHourConfigRepository;
 import com.smashflow.backend.repository.CourtRepository;
+import com.smashflow.backend.repository.RecurringBookingRepository;
 import com.smashflow.backend.repository.UserRepository;
 
 import jakarta.transaction.Transactional;
@@ -41,13 +44,15 @@ public class BookingService {
         private final BookingRepository bookingRepo;
         private final BusinessHourConfigRepository businessHourConfigRepo;
         private final PricingService pricingService;
+        private final RecurringBookingRepository recurringBookingRepo;
 
         public List<BookingResponse> getBooking(Long customerId) {
                 userRepo.findById(customerId)
                                 .orElseThrow(() -> new ResourceNotFoundException(
                                                 "Không tìm thấy khách hàng"));
 
-                List<Booking> listBooking = bookingRepo.findAllBookingsByCustomerId(customerId);
+                // Chỉ lấy booking lẻ; buổi của gói cố định xem trong chi tiết gói
+                List<Booking> listBooking = bookingRepo.findByCustomer_IdAndRecurringBookingIsNull(customerId);
 
                 List<BookingResponse> res = new ArrayList<>();
 
@@ -125,6 +130,12 @@ public class BookingService {
                                 .paidByStaffName(booking.getPaidByStaff() == null
                                                 ? null
                                                 : booking.getPaidByStaff().getFullName())
+                                .recurringBookingId(booking.getRecurringBooking() == null
+                                                ? null
+                                                : booking.getRecurringBooking().getId())
+                                .discountPercent(booking.getRecurringBooking() == null
+                                                ? null
+                                                : booking.getRecurringBooking().getDiscountRate())
 
                                 .build();
         }
@@ -159,6 +170,12 @@ public class BookingService {
                 User staff = userRepo.findById(staffId)
                                 .orElseThrow(() -> new ResourceNotFoundException(
                                                 "Không tìm thấy nhân viên"));
+
+                // Buổi thuộc gói cố định được xác nhận 1 lần cho cả gói
+                if (booking.getRecurringBooking() != null) {
+                        throw new IllegalStateException(
+                                        "Buổi thuộc gói lịch cố định, vui lòng xác nhận tại trang chi tiết gói");
+                }
 
                 if (booking.getBookingStatus() != BookingStatus.PENDING) {
                         throw new IllegalStateException(
@@ -223,8 +240,7 @@ public class BookingService {
         /**
          * Xác nhận thu đủ tiền khi khách trả sân (kết toán).
          * Chỉ khi booking đang CHECKED_IN và tiền sân đã thanh toán (PAID).
-         * Chỉ đổi trạng thái sang SETTLED; giữ nguyên paidAt / paidByStaff /
-         * paymentMethod
+         * Chỉ đổi trạng thái sang SETTLED; giữ nguyên paidAt / paidByStaff / paymentMethod
          * (thông tin lúc nhân viên xác nhận tiền sân).
          */
         @Transactional
@@ -269,7 +285,9 @@ public class BookingService {
                 }
 
                 booking.setBookingStatus(BookingStatus.COMPLETED);
-                return toStaffResponse(bookingRepo.save(booking));
+                Booking saved = bookingRepo.save(booking);
+                updatePackageCompletion(saved);
+                return toStaffResponse(saved);
         }
 
         /**
@@ -299,7 +317,29 @@ public class BookingService {
                 // Giữ nguyên thông tin xác nhận tiền sân
                 booking.setPaymentStatus(PaymentStatus.SETTLED);
 
-                return toStaffResponse(bookingRepo.save(booking));
+                Booking saved = bookingRepo.save(booking);
+                updatePackageCompletion(saved);
+                return toStaffResponse(saved);
+        }
+
+        /**
+         * Gói cố định tự chuyển COMPLETED khi mọi buổi đã Hoàn thành / Bùng lịch / Hủy.
+         */
+        private void updatePackageCompletion(Booking booking) {
+                RecurringBooking recurring = booking.getRecurringBooking();
+                if (recurring == null || recurring.getStatus() != RecurBookingStatus.ACTIVE) {
+                        return;
+                }
+
+                boolean allFinished = recurring.getBookings().stream()
+                                .allMatch(b -> b.getBookingStatus() == BookingStatus.COMPLETED
+                                                || b.getBookingStatus() == BookingStatus.NO_SHOW
+                                                || b.getBookingStatus() == BookingStatus.CANCELLED);
+
+                if (allFinished) {
+                        recurring.setStatus(RecurBookingStatus.COMPLETED);
+                        recurringBookingRepo.save(recurring);
+                }
         }
 
         private Booking lockBooking(Long bookingId) {
@@ -336,7 +376,10 @@ public class BookingService {
                                 b.getCancelReason(),
                                 b.getCancelledAt(),
                                 b.getExpireAt(),
-                                b.getCreatedAt());
+                                b.getCreatedAt(),
+                                b.getRecurringBooking() == null ? null : b.getRecurringBooking().getId(),
+                                b.getRecurringBooking() == null ? null : b.getRecurringBooking().getStatus().name(),
+                                b.getRecurringBooking() == null ? null : b.getRecurringBooking().getDiscountRate());
         }
 
         @Transactional
