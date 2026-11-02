@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Check, CheckCheck, CircleAlert, CreditCard } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { bookingApi, bookingStatusLabel, formatBookingDate, formatBookingMoney } from "../../api/bookingApi.js";
+import { bookingApi, bookingStatusLabel, formatBookingDate, formatBookingMoney, settlementLabel, settlementStatus } from "../../api/bookingApi.js";
 import { useAuth } from "../../hooks/useAuth";
 import RecurringBookingDetail from "./RecurringBookingDetail.jsx";
 
@@ -28,7 +28,6 @@ function BookingDetail({ id }) {
   const [serviceId, setServiceId] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [reason, setReason] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("Tiền mặt");
   const [confirmation, setConfirmation] = useState(null);
   const dialogRef = useRef(null);
   const reasonRef = useRef(null);
@@ -67,11 +66,11 @@ function BookingDetail({ id }) {
     setError(""); openConfirmation("cancel", "CANCELLED");
   };
   const confirmAction = () => {
-    const input = { staffName: user?.fullName || booking.staffName, reason, paymentMethod };
+    const input = { staffName: user?.fullName || booking.staffName, reason };
     const payment = confirmation.type === "payment";
     const operation = payment ? () => bookingApi.collectStaffBookingPayment(id, input)
       : () => bookingApi.updateStaffBookingStatus(id, confirmation.status, input);
-    mutate(operation, payment ? "Đã xác nhận thu tiền thành công." : `Đã cập nhật booking: ${bookingStatusLabel(confirmation.status).toLowerCase()}.`);
+    mutate(operation, payment ? "Đã xác nhận thu đủ tiền, booking đã kết toán." : `Đã cập nhật booking: ${bookingStatusLabel(confirmation.status).toLowerCase()}.`);
     dialogRef.current.close();
   };
 
@@ -79,15 +78,22 @@ function BookingDetail({ id }) {
   if (!booking || String(booking.id) !== id) return <div className="staff-empty staff-card" role="status"><span className="staff-loading-dot" />Đang tải chi tiết booking…</div>;
 
   if (booking.type === "RECURRING") return <RecurringBookingDetail booking={booking} busy={busy} error={error} notice={notice}
-    onCancel={(reason) => mutate(() => bookingApi.cancelStaffRecurringBooking(id, { reason, staffName: user?.fullName || booking.staffName }), "Đã hủy các buổi còn lại trong gói.")} />;
+    onConfirm={() => mutate(() => bookingApi.confirmStaffRecurringBooking(id), "Đã xác nhận gói: tất cả các buổi đã được xác nhận và thanh toán tiền sân.")}
+    onCancel={(reason) => mutate(() => bookingApi.cancelStaffRecurringBooking(id, { reason }), "Đã hủy gói lịch cố định.")} />;
 
   const terminal = ["COMPLETED", "CANCELLED", "NO_SHOW"].includes(booking.status);
-  const paid = booking.paymentStatus === "PAID";
+  // paid: đã thanh toán tiền sân (nhân viên đã xác nhận). settled: đã kết toán (thu đủ tiền / no-show).
+  const paid = ["PAID", "SETTLED"].includes(booking.paymentStatus);
+  const settled = booking.paymentStatus === "SETTLED";
+  const settlement = settlementStatus(booking);
   const isSession = booking.type === "SESSION";
   const packageActive = !isSession || booking.packageStatus === "ACTIVE";
-  const canEditServices = !paid && !terminal && packageActive;
-  const canCancel = ["PENDING", "CONFIRMED"].includes(booking.status) && !paid && packageActive;
-  const canCollect = ["CONFIRMED", "CHECKED_IN"].includes(booking.status) && !paid && packageActive;
+  // BR-16: chỉ thêm dịch vụ khi đang chơi và chưa kết toán
+  const canEditServices = booking.status === "CHECKED_IN" && !settled && packageActive;
+  // Buổi trong gói hủy theo cả gói ở trang gói
+  const canCancel = ["PENDING", "CONFIRMED"].includes(booking.status) && !paid && packageActive && !isSession;
+  // Chỉ thu đủ tiền sau khi khách check-in
+  const canCollect = booking.status === "CHECKED_IN" && !settled && packageActive;
   const duration = ((Number(booking.endTime.slice(0, 2)) * 60 + Number(booking.endTime.slice(3)))
     - (Number(booking.startTime.slice(0, 2)) * 60 + Number(booking.startTime.slice(3)))) / 60;
 
@@ -106,17 +112,26 @@ function BookingDetail({ id }) {
           <dl className="staff-info-list staff-detail-info-list">
             <div><dt>Khách</dt><dd>{booking.customer.fullName} – {booking.customer.phone}{booking.customer.email && ` – ${booking.customer.email}`}</dd></div>
             <div><dt>Sân / Giờ</dt><dd>{booking.courtName} – {formatBookingDate(booking.startDate)} – {booking.startTime}–{booking.endTime}</dd></div>
-            <div><dt>Thanh toán</dt><dd><span className={`staff-payment-label ${paid ? "is-paid" : ""}`}>{paid ? "Đã thanh toán" : "Chưa thanh toán"}</span></dd></div>
+            <div><dt>Thanh toán</dt><dd style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <span className={`staff-payment-label ${paid ? "is-paid" : ""}`}>{paid ? "Đã thanh toán tiền sân" : "Chưa thanh toán tiền sân"}</span>
+              {paid && <span>Phương thức: <strong>{booking.paymentMethod || "–"}</strong></span>}
+            </dd></div>
+            <div><dt>Kết toán</dt><dd>{settlement
+              ? <span className={`staff-payment-label ${settlement === "SETTLED" ? "is-paid" : ""}`}>{settlementLabel(settlement)}</span>
+              : "–"}</dd></div>
             <div><dt>Nhân viên thực hiện</dt><dd>{booking.staffName}</dd></div>
           </dl>
           <div className="staff-workflow" role="group" aria-label="Xử lý booking">
             <div className="staff-actions">{actions.map(({ status, label, from }) => {
-              const enabled = packageActive && booking.status === from && (status !== "COMPLETED" || paid);
+              // Buổi trong gói được xác nhận 1 lần ở trang gói
+              const enabled = packageActive && booking.status === from && (status !== "COMPLETED" || settled)
+                && !(isSession && status === "CONFIRMED");
               return <button key={status} type="button" className={`staff-button staff-detail-action${enabled && status !== "NO_SHOW" ? " staff-button-primary" : ""}`} disabled={busy || !enabled}
                 title={!enabled ? "Thao tác chưa phù hợp với trạng thái hiện tại" : undefined}
                 onClick={() => status === "NO_SHOW" ? openConfirmation("status", status) : mutate(() => bookingApi.updateStaffBookingStatus(id, status, { staffName: user?.fullName || booking.staffName }), `Đã cập nhật booking: ${bookingStatusLabel(status).toLowerCase()}.`)}>{label}</button>;
             })}</div>
-            {booking.status === "CHECKED_IN" && !paid && <p className="staff-help">Xác nhận thu tiền để có thể hoàn thành booking.</p>}
+            {isSession && booking.status === "PENDING" && <p className="staff-help">Buổi thuộc gói lịch cố định, hãy xác nhận tại trang gói {booking.packageCode}.</p>}
+            {booking.status === "CHECKED_IN" && !settled && <p className="staff-help">Bấm “Xác nhận thu đủ tiền” để có thể hoàn thành booking.</p>}
           </div>
           {booking.status === "CANCELLED" ? <div className="staff-cancelled-note"><h3>Lý do hủy</h3><p>{booking.cancellationReason}</p></div>
             : canCancel ? <div className="staff-cancel-section">
@@ -125,6 +140,7 @@ function BookingDetail({ id }) {
                 <textarea id="staff-cancel-reason" ref={reasonRef} rows={5} maxLength={500} placeholder="Nhập lý do hủy booking…" value={reason} onChange={(event) => setReason(event.target.value)} disabled={busy} />
               </label><small className="staff-detail-reason-count">{reason.length}/500 ký tự</small>
             </div>
+              : isSession && !terminal && !paid ? <p className="staff-help staff-refund-note">Hủy buổi thuộc gói tại trang gói {booking.packageCode}.</p>
               : paid && !terminal ? <p className="staff-help staff-refund-note">Booking đã thu tiền. Cần xử lý hoàn tiền trước khi hủy.</p> : <p className="staff-help staff-refund-note">Booking đã kết thúc, các thao tác xử lý đã được khóa.</p>}
         </section>
 
@@ -143,27 +159,28 @@ function BookingDetail({ id }) {
               <td><button type="button" className="staff-button staff-detail-remove" aria-label={`Xóa ${service.name}`} disabled={!canEditServices || busy} onClick={() => mutate(() => bookingApi.removeStaffBookingService(id, service.serviceId), "Đã xóa dịch vụ khỏi booking.")}>Xóa</button></td>
             </tr>) : <tr><td colSpan={4}><div className="staff-service-empty">Chưa có dịch vụ đi kèm</div></td></tr>}
           </tbody></table></div>
-          {!canEditServices && <p className="staff-help">{paid ? "Dịch vụ đã chốt sau khi thanh toán." : "Booking đã kết thúc, không thể thay đổi dịch vụ."}</p>}
+          {!canEditServices && <p className="staff-help">{settled ? "Dịch vụ đã chốt sau khi kết toán." : terminal ? "Booking đã kết thúc, không thể thay đổi dịch vụ." : "Chỉ thêm dịch vụ khi khách đã check-in."}</p>}
 
           <div className="staff-bill"><h3 className="staff-sr-only">Tổng thanh toán</h3><dl>
             <div><dt>Tiền sân <span>({duration.toLocaleString("vi-VN")} giờ)</span></dt><dd>{formatBookingMoney(booking.courtFee)}</dd></div>
-            {isSession && <div><dt>Ưu đãi lịch cố định ({booking.discountPercent}%)</dt><dd>−{formatBookingMoney(booking.discountAmount)}</dd></div>}
+            {isSession && (booking.discountAmount > 0
+              ? <div><dt>Ưu đãi lịch cố định ({booking.discountPercent}%)</dt><dd>−{formatBookingMoney(booking.discountAmount)}</dd></div>
+              : booking.discountPercent > 0 && <div><dt>Ưu đãi lịch cố định</dt><dd>Đã trừ {booking.discountPercent}% vào tiền sân</dd></div>)}
             <div><dt>Dịch vụ đi kèm</dt><dd>{formatBookingMoney(booking.serviceFee)}</dd></div>
             <div className="staff-bill-total"><dt>TỔNG CỘNG</dt><dd>{formatBookingMoney(booking.amount)}</dd></div>
           </dl></div>
-          {paid ? <div className="staff-paid-receipt"><span><CheckCheck size={17} /><strong>Đã thu {formatBookingMoney(booking.amount)}</strong></span><p>{booking.paymentMethod} · {booking.paidBy}</p><small>{new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(booking.paidAt))}</small></div>
+          {settled ? <div className="staff-paid-receipt"><span><CheckCheck size={17} /><strong>{booking.status === "NO_SHOW" ? "Đã kết toán (bùng lịch)" : `Đã thu đủ ${formatBookingMoney(booking.amount)}`}</strong></span><p>{booking.paymentMethod} · {booking.paidBy}</p><small>{new Intl.DateTimeFormat("vi-VN", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(booking.paidAt))}</small></div>
             : <div className="staff-payment-section">
-              <label className="staff-field">Phương thức thanh toán<select value={paymentMethod} disabled={!canCollect || busy} onChange={(event) => setPaymentMethod(event.target.value)}><option>Tiền mặt</option><option>Chuyển khoản</option></select></label>
-              <button className="staff-button staff-button-primary staff-collect-button" type="button" disabled={!canCollect || busy} onClick={() => openConfirmation("payment")}>Xác nhận đã thu tiền</button>
-              {!canCollect && <p className="staff-help">{booking.status === "PENDING" ? "Xác nhận booking trước khi thu tiền." : "Booking này không thể thu tiền."}</p>}
+              <button className="staff-button staff-button-primary staff-collect-button" style={{ gridColumn: "1 / -1", justifySelf: "end" }} type="button" disabled={!canCollect || busy} onClick={() => openConfirmation("payment")}>Xác nhận thu đủ tiền</button>
+              {!canCollect && <p className="staff-help">{["PENDING", "CONFIRMED"].includes(booking.status) ? "Khách check-in rồi mới có thể thu tiền." : "Booking này không thể thu tiền."}</p>}
             </div>}
         </section>
       </div>
 
       <dialog ref={dialogRef} className="staff-dialog" aria-labelledby="staff-confirm-title" aria-describedby="staff-confirm-description" onCancel={() => setConfirmation(null)} onClick={(event) => { if (event.target === event.currentTarget) dialogRef.current.close(); }}>
         <div className={`staff-dialog-icon${confirmation?.type === "cancel" ? " is-danger" : ""}`}>{confirmation?.type === "payment" ? <CreditCard size={25} /> : <CircleAlert size={25} />}</div>
-        <h2 id="staff-confirm-title">{confirmation?.type === "payment" ? "Xác nhận đã thu tiền?" : confirmation?.type === "cancel" ? "Hủy booking này?" : "Đánh dấu khách không đến?"}</h2>
-        <p id="staff-confirm-description">{confirmation?.type === "payment" ? <>Xác nhận đã nhận đủ <strong>{formatBookingMoney(booking.amount)}</strong> qua {paymentMethod.toLowerCase()}. Dịch vụ sẽ được chốt sau khi thanh toán.</> : confirmation?.type === "cancel" ? <>Booking <strong>{booking.code}</strong> sẽ bị hủy với lý do: {reason.trim()}</> : <>Booking <strong>{booking.code}</strong> sẽ chuyển sang No-show. Chỉ xác nhận khi khách hàng không đến nhận sân.</>}</p>
+        <h2 id="staff-confirm-title">{confirmation?.type === "payment" ? "Xác nhận đã thu đủ tiền?" : confirmation?.type === "cancel" ? "Hủy booking này?" : "Đánh dấu khách không đến?"}</h2>
+        <p id="staff-confirm-description">{confirmation?.type === "payment" ? <>Xác nhận đã nhận đủ <strong>{formatBookingMoney(booking.amount)}</strong>. Booking sẽ chuyển sang Đã kết toán và dịch vụ được chốt.</> : confirmation?.type === "cancel" ? <>Booking <strong>{booking.code}</strong> sẽ bị hủy với lý do: {reason.trim()}</> : <>Booking <strong>{booking.code}</strong> sẽ chuyển sang No-show. Chỉ xác nhận khi khách hàng không đến nhận sân.</>}</p>
         <div className="staff-dialog-actions"><button type="button" className="staff-button" autoFocus onClick={() => dialogRef.current.close()}>Quay lại</button><button type="button" className={`staff-button ${confirmation?.type === "cancel" ? "staff-button-danger-solid" : "staff-button-primary"}`} disabled={busy} onClick={confirmAction}>{confirmation?.type === "cancel" ? "Xác nhận hủy" : "Xác nhận"}</button></div>
       </dialog>
     </section>

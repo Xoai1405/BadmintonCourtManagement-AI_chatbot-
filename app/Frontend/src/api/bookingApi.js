@@ -17,6 +17,14 @@ export const staffRecurringStatuses = [
 ];
 export const staffBookingTypes = [{ value: "ALL", label: "Tất cả" }, { value: "SINGLE", label: "Đặt sân lẻ" }, { value: "RECURRING", label: "Lịch cố định" }];
 export const bookingStatusLabel = (status) => [...staffBookingStatuses, ...staffRecurringStatuses].find((item) => item.value === status)?.label ?? status;
+// Kết toán theo buổi: chỉ có sau khi nhân viên xác nhận (tiền sân đã thanh toán).
+// SETTLED = Đã kết toán, PAID (chưa hủy) = Chưa kết toán, còn lại = null (hiển thị "–").
+export const settlementStatus = (booking) => {
+  if (booking.paymentStatus === "SETTLED") return "SETTLED";
+  if (booking.paymentStatus === "PAID" && booking.status !== "CANCELLED") return "UNSETTLED";
+  return null;
+};
+export const settlementLabel = (value) => ({ SETTLED: "Đã kết toán", UNSETTLED: "Chưa kết toán" }[value] ?? "–");
 export const formatBookingMoney = (amount) => `${new Intl.NumberFormat("vi-VN").format(amount)}đ`;
 export const formatBookingDate = (date) => date.split("-").reverse().join("/");
 export const formatBookingDays = (days) => days.map((day) => day === 7 ? "CN" : `T${day + 1}`).join(", ");
@@ -73,7 +81,7 @@ function updatePackageStatus(booking) {
 }
 function requireEditableServices(booking) {
   requireActivePackage(booking);
-  if (booking.paymentStatus === "PAID" || ["COMPLETED", "CANCELLED", "NO_SHOW"].includes(booking.bookingStatus)) {
+  if (booking.paymentStatus === "SETTLED" || ["COMPLETED", "CANCELLED", "NO_SHOW"].includes(booking.bookingStatus)) {
     fail(409, "BOOKING_INVALID_STATUS", "Không thể sửa dịch vụ sau khi thu tiền hoặc booking đã kết thúc.");
   }
 }
@@ -153,7 +161,7 @@ export const mockBookingContractRequest = ({ method, path, query = {}, body = nu
         booking.cancelReason = reason;
         booking.cancelledAt = new Date().toISOString();
       }
-      if (action === "complete" && booking.paymentStatus !== "PAID") fail(409, "BOOKING_INVALID_STATUS", "Vui lòng xác nhận thu tiền trước khi hoàn thành.");
+      if (action === "complete" && booking.paymentStatus !== "SETTLED") fail(409, "BOOKING_INVALID_STATUS", "Vui lòng xác nhận thu đủ tiền trước khi hoàn thành.");
       booking.bookingStatus = target;
       if (["CONFIRMED", "CANCELLED"].includes(target)) booking.expireAt = null;
       updatePackageStatus(booking);
@@ -195,16 +203,117 @@ function toStaffBooking(booking) {
       packageStatus: recurringBooking(link.packageId).status, discountPercent: link.discountPercent, discountAmount: link.discountAmount } : {}),
   };
 }
-function toStaffPackage(group, includeSessions = false) {
-  const sessions = packageSessions(group.id);
-  const customer = mockStaffCustomers.find((item) => item.userId === group.customerId);
-  return { ...group, id: `recurring-${group.id}`,
-    customer: { id: customer.userId, fullName: customer.fullName, phone: customer.phoneNumber, email: customer.email },
-    sessionCount: sessions.length, paidSessionCount: sessions.filter((item) => item.paymentStatus === "PAID").length,
-    completedSessionCount: sessions.filter((item) => item.bookingStatus === "COMPLETED").length,
-    ...(includeSessions ? { sessions: sessions.map(toStaffBooking) } : {}),
+// ===== Booking lẻ thật từ backend (/api/v1/staff/bookings) =====
+const hhmm = (value) => (value ? String(value).slice(0, 5) : "");
+// Mã phương thức thanh toán lưu trong DB -> nhãn tiếng Việt
+export const paymentMethodLabel = (method) => ({ CASH: "Tiền mặt", BANK_TRANSFER: "Chuyển khoản" }[method] ?? method);
+const staffApiError = (err, fallback) => new Error(
+  err.response?.data?.message
+  || (typeof err.response?.data === "string" ? err.response.data : "")
+  || fallback,
+  { cause: err },
+);
+function realToStaffBooking(booking) {
+  const packageId = booking.recurringBookingId;
+  return {
+    id: booking.bookingId, code: booking.bookingCode, type: packageId ? "SESSION" : "SINGLE", isReal: true,
+    // Buổi thuộc gói lịch cố định: tiền sân đã trừ ưu đãi, xác nhận / hủy ở trang gói
+    ...(packageId ? { packageId: `recurring-${packageId}`, packageCode: `#${packageId}`,
+      packageStatus: booking.packageStatus, discountPercent: Number(booking.discountPercent ?? 0), discountAmount: 0 } : {}),
+    customer: { id: booking.customer?.userId, fullName: booking.customer?.fullName ?? "",
+      phone: booking.customer?.phoneNumber ?? "", email: booking.customer?.email ?? "" },
+    courtId: booking.courtId, courtName: booking.courtName, courtType: booking.courtType,
+    startDate: booking.bookingDate, endDate: booking.bookingDate,
+    startTime: hhmm(booking.startTime), endTime: hhmm(booking.endTime),
+    status: booking.bookingStatus, paymentStatus: booking.paymentStatus,
+    paymentMethodCode: booking.paymentMethod,
+    courtFee: Number(booking.courtPrice ?? 0), serviceFee: Number(booking.servicePrice ?? 0), amount: Number(booking.totalAmount ?? 0),
+    // Dịch vụ đi kèm chưa có API, giữ danh sách rỗng
+    services: [],
+    cancellationReason: booking.cancelReason, cancelledAt: booking.cancelledAt, expireAt: booking.expireAt, createdAt: booking.createdAt,
+    staffName: booking.paidBy || booking.createdByStaffName || "–",
+    paymentMethod: paymentMethodLabel(booking.paymentMethod), paidAt: booking.paidAt, paidBy: booking.paidBy,
   };
 }
+// Thứ trong tuần backend (MON..SUN) -> số dùng ở UI (1 = Thứ 2 ... 7 = Chủ nhật)
+const DAY_NUMBERS = { MON: 1, TUE: 2, WES: 3, WED: 3, THU: 4, FRI: 5, SAT: 6, SUN: 7 };
+export const toDayNumbers = (days = []) => days.map((day) => DAY_NUMBERS[day] ?? day);
+// Gói lịch cố định thật từ backend -> model UI
+export function realToPackage(pkg) {
+  const sessions = (pkg.sessions ?? []).map((session) => ({
+    id: session.bookingId, code: session.bookingCode, type: "SESSION",
+    startDate: session.bookingDate, endDate: session.bookingDate,
+    startTime: hhmm(session.startTime), endTime: hhmm(session.endTime),
+    status: session.bookingStatus, paymentStatus: session.paymentStatus,
+    courtFee: Number(session.courtPrice ?? 0), serviceFee: Number(session.servicePrice ?? 0), amount: Number(session.totalAmount ?? 0),
+  }));
+  return {
+    id: `recurring-${pkg.recurringBookingId}`, packageId: pkg.recurringBookingId, code: pkg.code, type: "RECURRING", isReal: true,
+    customer: { id: pkg.customer?.userId, fullName: pkg.customer?.fullName ?? "",
+      phone: pkg.customer?.phoneNumber ?? "", email: pkg.customer?.email ?? "" },
+    courtId: pkg.courtId, courtName: pkg.courtName, courtType: pkg.courtType,
+    courtImageUrl: pkg.courtImageUrl, courtDescription: pkg.courtDescription,
+    startDate: pkg.startDate, endDate: pkg.endDate, startTime: hhmm(pkg.startTime), endTime: hhmm(pkg.endTime),
+    daysOfWeek: toDayNumbers(pkg.daysOfWeek),
+    status: pkg.status, paymentStatus: pkg.paymentStatus,
+    paymentMethod: paymentMethodLabel(pkg.paymentMethod), paidAt: pkg.paidAt, paidBy: pkg.paidByStaffName,
+    staffName: pkg.paidByStaffName || "–", expireAt: pkg.expireAt,
+    amount: Number(pkg.totalAmount ?? 0), discountPercent: Number(pkg.discountPercent ?? 0),
+    sessionCount: pkg.sessionCount, completedSessionCount: pkg.completedSessionCount,
+    settledSessionCount: pkg.settledSessionCount, paidSessionCount: pkg.settledSessionCount,
+    cancellationReason: pkg.cancelReason, cancelledAt: pkg.cancelledAt, createdAt: pkg.createdAt,
+    sessions,
+  };
+}
+export const staffRecurringRealApi = {
+  getAll: async () => {
+    try { return (await axiosClient.get("/api/v1/staff/recurring-bookings")).data; }
+    catch (err) { throw staffApiError(err, "Không tải được danh sách lịch cố định"); }
+  },
+  get: async (id) => {
+    try { return (await axiosClient.get(`/api/v1/staff/recurring-bookings/${id}`)).data; }
+    catch (err) { throw staffApiError(err, "Không tìm thấy gói lịch cố định."); }
+  },
+  confirm: async (id) => {
+    try { return (await axiosClient.patch(`/api/v1/staff/recurring-bookings/${id}/confirm`)).data; }
+    catch (err) { throw staffApiError(err, "Không thể xác nhận gói"); }
+  },
+  cancel: async (id, reason) => {
+    try { return (await axiosClient.patch(`/api/v1/staff/recurring-bookings/${id}/cancel`, { reason })).data; }
+    catch (err) { throw staffApiError(err, "Không thể hủy gói"); }
+  },
+};
+export const staffBookingRealApi = {
+  getBookings: async () => {
+    try { return (await axiosClient.get("/api/v1/staff/bookings")).data; }
+    catch (err) { throw staffApiError(err, "Không tải được danh sách booking"); }
+  },
+  getBooking: async (id) => {
+    try { return (await axiosClient.get(`/api/v1/staff/bookings/${id}`)).data; }
+    catch (err) { throw staffApiError(err, "Không tìm thấy booking. Vui lòng quay lại danh sách."); }
+  },
+  confirm: async (id) => {
+    try { return (await axiosClient.patch(`/api/v1/staff/bookings/${id}/confirm`)).data; }
+    catch (err) { throw staffApiError(err, "Không thể xác nhận booking"); }
+  },
+  checkIn: async (id) => {
+    try { return (await axiosClient.patch(`/api/v1/staff/bookings/${id}/check-in`)).data; }
+    catch (err) { throw staffApiError(err, "Không thể check-in booking"); }
+  },
+  // Xác nhận thu đủ tiền (kết toán)
+  settle: async (id) => {
+    try { return (await axiosClient.patch(`/api/v1/staff/bookings/${id}/settle`)).data; }
+    catch (err) { throw staffApiError(err, "Không thể xác nhận thu tiền"); }
+  },
+  complete: async (id) => {
+    try { return (await axiosClient.patch(`/api/v1/staff/bookings/${id}/complete`)).data; }
+    catch (err) { throw staffApiError(err, "Không thể hoàn thành booking"); }
+  },
+  noShow: async (id) => {
+    try { return (await axiosClient.patch(`/api/v1/staff/bookings/${id}/no-show`)).data; }
+    catch (err) { throw staffApiError(err, "Không thể đánh dấu bùng lịch"); }
+  },
+};
 
 // Thêm API xem trước lịch đặt cố định (Preview & Check conflict) //BaoDen Them
 export const previewRecurringBookingApi = async (payload) => { //BaoDen Them
@@ -223,9 +332,9 @@ export const bookingApi = {
     const query = { ...filters, courtIds: (filters.courtIds ?? (filters.courtId ? [filters.courtId] : [])).map(String) };
     if (query.fromDate && query.toDate && query.fromDate > query.toDate) throw new Error("Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.");
     // Contract danh sách không có phone/email hay liên kết gói. Ghép detail/catalog ở adapter, không giả thêm query params.
-    const summaries = await bookingContractApi.getBookings();
-    const singles = await Promise.all(summaries.filter((item) => !sessionLink(item.bookingId)).map((item) => bookingContractApi.getBooking(item.bookingId)));
-    const items = [...singles.map(toStaffBooking), ...staffRecurringStore.map((group) => toStaffPackage(group))];
+    // Booking lẻ và gói lịch cố định: dữ liệu thật từ backend
+    const [singles, packages] = await Promise.all([staffBookingRealApi.getBookings(), staffRecurringRealApi.getAll()]);
+    const items = [...singles.map(realToStaffBooking), ...packages.map(realToPackage)];
     return items.filter((booking) => normalize(booking.customer.fullName).includes(normalize(query.name))
       && normalizePhone(booking.customer.phone).includes(normalizePhone(query.phone))
       && normalize(booking.customer.email).includes(normalize(query.email))
@@ -235,23 +344,35 @@ export const bookingApi = {
   },
   getStaffBookingDetail: async (id) => {
     const groupId = String(id).match(/^recurring-(\d+)$/)?.[1];
-    if (groupId) return staffRequest(() => toStaffPackage(recurringBooking(groupId), true));
-    return toStaffBooking(await bookingContractApi.getBooking(id));
+    if (groupId) return realToPackage(await staffRecurringRealApi.get(groupId));
+    // Booking lẻ và buổi thuộc gói đều lấy từ backend
+    return realToStaffBooking(await staffBookingRealApi.getBooking(id));
   },
   getStaffBookingOptions: async () => {
-    const [courts, services] = await Promise.all([bookingContractApi.getCourts(), bookingContractApi.getServices()]);
-    return { courts: courts.map((court) => ({ ...court, id: court.courtId })),
+    // Sân và gợi ý khách lấy từ backend; danh mục dịch vụ chưa có API nên vẫn dùng mock.
+    const [courtsRes, bookings, services] = await Promise.all([
+      axiosClient.get("/api/v1/courts").then((res) => res.data).catch(() => []),
+      staffBookingRealApi.getBookings().catch(() => []),
+      bookingContractApi.getServices(),
+    ]);
+    const customers = new Map();
+    bookings.forEach((booking) => {
+      const customer = booking.customer;
+      if (customer?.userId && !customers.has(customer.userId)) {
+        customers.set(customer.userId, { id: customer.userId, fullName: customer.fullName ?? "", phone: customer.phoneNumber ?? "", email: customer.email ?? "" });
+      }
+    });
+    return { courts: courtsRes.map((court) => ({ ...court, id: court.id })),
       services: services.map((service) => ({ ...service, id: service.serviceId })),
-      customers: mockStaffCustomers.map((customer) => ({ id: customer.userId, fullName: customer.fullName, phone: customer.phoneNumber, email: customer.email })),
+      customers: [...customers.values()],
     };
   },
-  updateStaffBookingStatus: async (id, status, input = {}) => {
-    const actions = { CONFIRMED: () => bookingContractApi.confirm(id), CANCELLED: () => bookingContractApi.cancel(id, { reason: input.reason }),
-      CHECKED_IN: () => bookingContractApi.checkIn(id), NO_SHOW: () => bookingContractApi.noShow(id), COMPLETED: () => bookingContractApi.complete(id) };
-    if (!actions[status]) throw new Error("Không thể chuyển sang trạng thái này.");
-    const booking = await actions[status]();
-    if (input.staffName) staffNames.set(booking.bookingId, input.staffName);
-    return toStaffBooking(booking);
+  updateStaffBookingStatus: async (id, status) => {
+    // Booking lẻ và buổi trong gói (backend)
+    const realActions = { CONFIRMED: staffBookingRealApi.confirm, CHECKED_IN: staffBookingRealApi.checkIn,
+      NO_SHOW: staffBookingRealApi.noShow, COMPLETED: staffBookingRealApi.complete };
+    if (realActions[status]) return realToStaffBooking(await realActions[status](id));
+    throw new Error("Chức năng này đang được phát triển.");
   },
   addStaffBookingService: async (id, serviceId, quantity) => {
     // POST services chỉ trả phần tiền/dịch vụ; đọc lại detail trước khi cập nhật toàn bộ màn hình.
@@ -268,39 +389,18 @@ export const bookingApi = {
     recalculate(booking);
     return toStaffBooking(booking);
   }),
-  collectStaffBookingPayment: (id, input = {}) => {
-    const body = { ...input };
-    return staffRequest(() => {
-      const booking = staffBooking(id);
-      requireActivePackage(booking);
-      if (!["CONFIRMED", "CHECKED_IN"].includes(booking.bookingStatus)) throw new Error("Chỉ thu tiền booking đã xác nhận hoặc đã nhận sân.");
-      if (booking.paymentStatus === "PAID") throw new Error("Booking đã được thanh toán.");
-      if (!["Tiền mặt", "Chuyển khoản"].includes(body.paymentMethod)) throw new Error("Vui lòng chọn phương thức thanh toán.");
-      Object.assign(booking, { paymentStatus: "PAID", paymentMethod: body.paymentMethod, paidAt: new Date().toISOString(),
-        paidBy: body.staffName || staffNames.get(booking.bookingId) });
-      return toStaffBooking(booking);
-    });
+  collectStaffBookingPayment: async (id) => {
+    // Kết toán qua backend (booking lẻ và buổi trong gói)
+    return realToStaffBooking(await staffBookingRealApi.settle(id));
   },
-  cancelStaffRecurringBooking: (id, input = {}) => {
-    const body = { ...input };
-    return staffRequest(() => {
-      const group = recurringBooking(String(id).replace(/^recurring-/, ""));
-      if (group.status !== "ACTIVE") throw new Error("Chỉ hủy được gói đang hoạt động.");
-      const sessions = packageSessions(group.id);
-      const remaining = sessions.filter((item) => ["PENDING", "CONFIRMED"].includes(item.bookingStatus));
-      if (!remaining.length) throw new Error("Gói không còn buổi có thể hủy.");
-      if (sessions.some((item) => item.bookingStatus === "CHECKED_IN")) throw new Error("Cần xử lý buổi đang nhận sân trước khi hủy gói.");
-      if (remaining.some((item) => item.paymentStatus === "PAID")) throw new Error("Cần xử lý hoàn tiền các buổi đã thu trước khi hủy gói.");
-      const reason = body.reason?.trim();
-      if (!reason || reason.length > 500) throw new Error("Vui lòng nhập lý do hủy từ 1 đến 500 ký tự.");
-      remaining.forEach((item) => {
-        Object.assign(item, { bookingStatus: "CANCELLED", cancelReason: reason, cancelledAt: new Date().toISOString(), expireAt: null });
-        if (body.staffName) staffNames.set(item.bookingId, body.staffName);
-      });
-      Object.assign(group, { status: "CANCELLED", cancellationReason: reason });
-      return toStaffPackage(group, true);
-    });
+  cancelStaffRecurringBooking: async (id, input = {}) => {
+    const reason = input.reason?.trim();
+    if (!reason || reason.length > 500) throw new Error("Vui lòng nhập lý do hủy từ 1 đến 500 ký tự.");
+    return realToPackage(await staffRecurringRealApi.cancel(String(id).replace(/^recurring-/, ""), reason));
   },
+  // Xác nhận đã nhận tiền sân trọn gói: mọi buổi chuyển Đã xác nhận + Đã thanh toán
+  confirmStaffRecurringBooking: async (id) =>
+    realToPackage(await staffRecurringRealApi.confirm(String(id).replace(/^recurring-/, ""))),
   create: async (payload) => {
     try {
       const response = await axiosClient.post(
@@ -318,4 +418,17 @@ export const bookingApi = {
       throw new Error(message, { cause: err });
     }
   },
+  getMyBookingsApi: async () => {
+  const response = await axiosClient.get("/api/v1/bookings/me");
+  return response.data;
+},
+
+  // Gói lịch cố định của khách
+  getMyRecurringBookings: async () => (await axiosClient.get("/api/recurring-bookings/me")).data,
+  getMyRecurringBookingDetail: async (id) => (await axiosClient.get(`/api/recurring-bookings/${id}`)).data,
+
+  getBookingDetail: async(bookingId) => {
+    const response = await axiosClient.get(`/api/v1/bookings/detail/${bookingId}`);
+    return response.data;
+  }
 };

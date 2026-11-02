@@ -21,20 +21,20 @@ public class PricingService {
         private final PriceConfigRepository priceConfigRepo;
         private final BusinessHourConfigRepository businessHourConfigRepo;
 
-        public SlotPrice getSlotPrice(
-                        CourtType courtType,
-                        LocalTime startTime,
-                        LocalTime endTime) {
+        // public SlotPrice getSlotPrice(
+        // CourtType courtType,
+        // LocalTime startTime,
+        // LocalTime endTime) {
 
-                PriceConfig priceConfig = getPriceConfig(courtType);
-                BusinessHourConfig businessConfig = getBusinessHourConfig();
+        // PriceConfig priceConfig = getPriceConfig(courtType);
+        // BusinessHourConfig businessConfig = getBusinessHourConfig();
 
-                return calculateSlotPrice(
-                                priceConfig,
-                                businessConfig,
-                                startTime,
-                                endTime);
-        }
+        // return calculateSlotPrice(
+        // priceConfig,
+        // businessConfig,
+        // startTime,
+        // endTime);
+        // }
 
         public SlotPrice getSlotPrice(
                         PriceConfig priceConfig,

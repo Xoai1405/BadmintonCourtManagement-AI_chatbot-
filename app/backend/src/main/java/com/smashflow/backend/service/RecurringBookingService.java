@@ -315,7 +315,8 @@ public class RecurringBookingService {
             session.setBookingStatus(BookingStatus.PENDING);
             session.setPaymentStatus(PaymentStatus.UNPAID);
             session.setCreatedAt(now);
-            session.setExpireAt(now.plusMinutes(15));
+            // BR-07: 10 phút giữ chỗ để khách chuyển khoản
+            session.setExpireAt(now.plusMinutes(10));
 
             subBookings.add(session);
         }
