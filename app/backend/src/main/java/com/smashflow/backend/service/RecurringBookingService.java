@@ -1,6 +1,7 @@
 package com.smashflow.backend.service;
 
 import com.smashflow.backend.dto.request.recurringBooking.RecurringBookingPreviewRequest;
+import com.smashflow.backend.dto.request.recurringBooking.StaffCreateRecurringBookingRequest;
 import com.smashflow.backend.dto.response.recurringBooking.RecurringBookingPreviewResponse;
 import com.smashflow.backend.dto.response.recurringBooking.RecurringBookingResponse;
 import com.smashflow.backend.dto.response.recurringBooking.SingleConflictResponse;
@@ -332,6 +333,114 @@ public class RecurringBookingService {
         bookingRepository.saveAll(subBookings);
 
         // 5. Trả về ID gói vừa tạo
+        return new RecurringBookingResponse(
+                savedRecurringBooking.getId(),
+                court.getName(),
+                request.startTime(),
+                request.endTime(),
+                request.startDate(),
+                request.endDate(),
+                preview.totalSessions(),
+                preview.discountPercent(),
+                preview.totalPrice(),
+                savedRecurringBooking.getStatus().name()
+        );
+    }
+
+    /**
+     * Nhân viên tạo gói lịch cố định tại quầy cho khách.
+     * - Khách hàng lấy từ request.customerId(), nhân viên lấy từ token (staffId).
+     * - Khách trả tiền trọn gói tại quầy nên gói + các buổi con lưu luôn CONFIRMED + PAID.
+     * - Viết riêng, không sửa createRecurringBooking() của luồng khách tự đặt.
+     */
+    @Transactional
+    public RecurringBookingResponse createRecurringBookingByStaff(
+            StaffCreateRecurringBookingRequest request, Long staffId) {
+
+        User staff = userRepository.findById(staffId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy nhân viên"));
+
+        User customer = userRepository.findById(request.customerId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin khách hàng!"));
+
+        if (customer.getRole() != Role.CUSTOMER) {
+            throw new IllegalArgumentException("Tài khoản được chọn không phải khách hàng");
+        }
+
+        if (customer.getStatus() != UserStatus.ACTIVE) {
+            throw new IllegalArgumentException("Tài khoản khách hàng đang bị khóa, không thể đặt sân");
+        }
+
+        Court court = courtRepository.findById(request.courtId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sân với ID: " + request.courtId()));
+
+        if (court.getStatus() != CourtStatus.ACTIVE) {
+            throw new IllegalArgumentException("Sân hiện không hoạt động!");
+        }
+
+        // Dùng lại preview: vừa check trùng lịch vừa tính tiền + chiết khấu
+        RecurringBookingPreviewResponse preview = previewRecurringBooking(request.toPreviewRequest());
+
+        if (!preview.conflictingSlotList().isEmpty()) {
+            throw new BookingConflictException("Khung giờ này đã bị trùng lịch. Không thể hoàn tất đặt lịch!");
+        }
+
+        List<LocalDate> allSessionDates = generateSessionDates(
+                request.startDate(),
+                request.endDate(),
+                request.daysOfWeek()
+        );
+
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+
+        // 1. Lưu gói (cha)
+        RecurringBooking recurringBooking = new RecurringBooking();
+        recurringBooking.setCustomer(customer);
+        recurringBooking.setCreatedByStaff(staff);
+        recurringBooking.setCourt(court);
+        recurringBooking.setStartDate(request.startDate());
+        recurringBooking.setEndDate(request.endDate());
+        recurringBooking.setDaysOfWeek(request.daysOfWeek());
+        recurringBooking.setStartTime(request.startTime());
+        recurringBooking.setEndTime(request.endTime());
+        recurringBooking.setDiscountRate(preview.discountPercent());
+        recurringBooking.setTotalAmount(preview.totalPrice());
+        recurringBooking.setStatus(RecurBookingStatus.ACTIVE);
+        recurringBooking.setCreatedAt(now);
+
+        RecurringBooking savedRecurringBooking = recurringBookingRepository.save(recurringBooking);
+
+        // 2. Sinh các buổi con, đã thanh toán tại quầy
+        BigDecimal sessionDiscountedPrice = preview.totalPrice()
+                .divide(BigDecimal.valueOf(preview.totalSessions()), 2, RoundingMode.HALF_UP);
+
+        List<Booking> subBookings = new ArrayList<>();
+        for (LocalDate sessionDate : allSessionDates) {
+            Booking session = new Booking();
+            session.setBookingCode("BK" + UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase());
+            session.setCustomer(customer);
+            session.setCreatedByStaff(staff);
+            session.setCourt(court);
+            session.setRecurringBooking(savedRecurringBooking);
+            session.setBookingDate(sessionDate);
+            session.setStartTime(request.startTime());
+            session.setEndTime(request.endTime());
+            session.setCourtPrice(sessionDiscountedPrice);
+            session.setServicePrice(BigDecimal.ZERO);
+            session.setTotalAmount(sessionDiscountedPrice);
+            session.setBookingStatus(BookingStatus.CONFIRMED);
+            session.setPaymentStatus(PaymentStatus.PAID);
+            session.setPaymentMethod(request.paymentMethod());
+            session.setPaidAt(now);
+            session.setPaidByStaff(staff);
+            session.setExpireAt(null);
+            session.setCreatedAt(now);
+
+            subBookings.add(session);
+        }
+
+        bookingRepository.saveAll(subBookings);
+
         return new RecurringBookingResponse(
                 savedRecurringBooking.getId(),
                 court.getName(),

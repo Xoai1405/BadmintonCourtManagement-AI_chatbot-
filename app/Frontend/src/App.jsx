@@ -22,6 +22,7 @@ import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import StaffLayout from "./components/layout/StaffLayout.jsx";
 import BookingLookupPage from "./pages/staff/BookingLookupPage.jsx";
 import BookingDetailPage from "./pages/staff/BookingDetailPage.jsx";
+import StaffBookingCreate from "./pages/staff/StaffBookingCreate.jsx"; 
 import { Navigate, Route, Routes } from "react-router-dom";
 
 function App() {
@@ -33,7 +34,7 @@ function App() {
 
       {/* Panel nhân viên mở trực tiếp, không yêu cầu đăng nhập. */}
       <Route element={<StaffLayout />}>
-        <Route path="/staff/create-booking" element={null} />
+        <Route path="/staff/create-booking" element={<StaffBookingCreate />} /> 
         <Route path="/staff/bookings" element={<BookingLookupPage />} />
         <Route path="/staff/bookings/:id" element={<BookingDetailPage />} />
       </Route>

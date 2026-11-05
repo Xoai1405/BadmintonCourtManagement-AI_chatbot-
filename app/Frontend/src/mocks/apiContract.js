@@ -47,6 +47,13 @@ export const mockCustomers = [
   { id: 2, fullName: "Trần Thị B", phone: "0909 456 789", email: "PVD42@email.com", status: "LOCKED" },
 ];
 
+// Mốc chiết khấu lịch cố định minh họa cho màn quản lý; trạng thái INACTIVE tương ứng Locked.
+export const mockDiscountConfigs = [
+  { id: 1, minMonths: 1, discountPercent: 10, status: "ACTIVE" },
+  { id: 2, minMonths: 2, discountPercent: 15, status: "INACTIVE" },
+  { id: 3, minMonths: 3, discountPercent: 20, status: "INACTIVE" },
+];
+
 // Mỗi dòng là một lần đặt sân lẻ hoặc một gói lịch cố định.
 // courtId của booking tham chiếu id của sân trong mockCourts.
 // Lưu thông tin tại thời điểm tạo lịch sử để không đổi khi admin sửa/xóa sân.
