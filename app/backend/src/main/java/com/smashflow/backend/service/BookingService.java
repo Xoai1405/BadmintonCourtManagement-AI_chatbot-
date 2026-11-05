@@ -11,6 +11,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 import com.smashflow.backend.dto.request.CreateBookingRequest;
+import com.smashflow.backend.dto.request.StaffCreateBookingRequest;
 import com.smashflow.backend.dto.response.BookingDetailResponse;
 import com.smashflow.backend.dto.response.BookingResponse;
 import com.smashflow.backend.dto.response.StaffBookingResponse;
@@ -25,6 +26,7 @@ import com.smashflow.backend.model.enums.BookingStatus;
 import com.smashflow.backend.model.enums.CourtStatus;
 import com.smashflow.backend.model.enums.PaymentStatus;
 import com.smashflow.backend.model.enums.RecurBookingStatus;
+import com.smashflow.backend.model.enums.Role;
 import com.smashflow.backend.model.enums.UserStatus;
 import com.smashflow.backend.repository.BookingRepository;
 import com.smashflow.backend.repository.BusinessHourConfigRepository;
@@ -511,5 +513,107 @@ public class BookingService {
                                 .replace("-", "")
                                 .substring(0, 16)
                                 .toUpperCase();
+        }
+
+        /**
+         * Nhân viên tạo booking lẻ tại quầy cho khách.
+         * - Khách hàng lấy từ request.customerId(), nhân viên lấy từ token (staffId).
+         * - Khách trả tiền tại quầy nên booking lưu luôn CONFIRMED + PAID, không có hạn giữ chỗ.
+         * - Validate giờ dùng lại validateBookingRequest của luồng khách tự đặt.
+         */
+        @Transactional
+        public StaffBookingResponse createBookingByStaff(
+                        StaffCreateBookingRequest request,
+                        Long staffId) {
+
+                User staff = userRepo.findById(staffId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Không tìm thấy nhân viên"));
+
+                User customer = userRepo.findById(request.customerId())
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Không tìm thấy khách hàng"));
+
+                if (customer.getRole() != Role.CUSTOMER) {
+                        throw new IllegalArgumentException(
+                                        "Tài khoản được chọn không phải khách hàng");
+                }
+
+                if (customer.getStatus() != UserStatus.ACTIVE) {
+                        throw new IllegalArgumentException(
+                                        "Tài khoản khách hàng đang bị khóa, không thể đặt sân");
+                }
+
+                Court court = courtRepo.findById(request.courtId())
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Không tìm thấy sân"));
+
+                if (court.getStatus() != CourtStatus.ACTIVE) {
+                        throw new IllegalArgumentException(
+                                        "Sân hiện không hoạt động");
+                }
+
+                BusinessHourConfig businessConfig = businessHourConfigRepo.findById((short) 1)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Chưa có cấu hình giờ hoạt động"));
+
+                LocalDateTime now = LocalDateTime.now(
+                                ZoneId.of("Asia/Ho_Chi_Minh"));
+
+                validateBookingRequest(
+                                new CreateBookingRequest(
+                                                request.courtId(),
+                                                request.bookingDate(),
+                                                request.startTime(),
+                                                request.endTime()),
+                                LocalDateTime.of(request.bookingDate(), request.startTime()),
+                                businessConfig);
+
+                boolean hasConflict = bookingRepo.existsOverlap(
+                                court.getId(),
+                                request.bookingDate(),
+                                request.startTime(),
+                                request.endTime(),
+                                List.of(
+                                                BookingStatus.PENDING,
+                                                BookingStatus.CONFIRMED,
+                                                BookingStatus.CHECKED_IN));
+
+                if (hasConflict) {
+                        throw new BookingConflictException(
+                                        "Khung giờ này đã được đặt");
+                }
+
+                BigDecimal courtPrice = pricingService.calculateCourtPrice(
+                                court.getCourtType(),
+                                request.startTime(),
+                                request.endTime());
+
+                Booking booking = new Booking();
+
+                booking.setBookingCode(generateBookingCode());
+                booking.setCustomer(customer);
+                booking.setCreatedByStaff(staff);
+                booking.setCourt(court);
+
+                booking.setBookingDate(request.bookingDate());
+                booking.setStartTime(request.startTime());
+                booking.setEndTime(request.endTime());
+
+                booking.setCourtPrice(courtPrice);
+                booking.setServicePrice(BigDecimal.ZERO);
+                booking.setTotalAmount(courtPrice);
+
+                // Thanh toán tại quầy: xác nhận + đã thu tiền ngay
+                booking.setBookingStatus(BookingStatus.CONFIRMED);
+                booking.setPaymentStatus(PaymentStatus.PAID);
+                booking.setPaymentMethod(request.paymentMethod());
+                booking.setPaidAt(now);
+                booking.setPaidByStaff(staff);
+                booking.setExpireAt(null);
+
+                booking.setCreatedAt(now);
+
+                return toStaffResponse(bookingRepo.save(booking));
         }
 }

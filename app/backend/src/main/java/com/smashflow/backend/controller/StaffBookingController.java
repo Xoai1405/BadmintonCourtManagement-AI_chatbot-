@@ -2,18 +2,23 @@ package com.smashflow.backend.controller;
 
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.smashflow.backend.dto.request.StaffCreateBookingRequest;
 import com.smashflow.backend.dto.response.StaffBookingResponse;
 import com.smashflow.backend.service.BookingService;
 import com.smashflow.backend.service.CustomUserDetails;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -65,5 +70,14 @@ public class StaffBookingController {
         @PatchMapping("/{bookingId}/no-show")
         public ResponseEntity<StaffBookingResponse> noShow(@PathVariable Long bookingId) {
                 return ResponseEntity.ok(bookingService.noShowBooking(bookingId));
+        }
+
+        // Tạo booking lẻ tại quầy: khách lấy từ body, nhân viên lấy từ token
+        @PostMapping
+        public ResponseEntity<StaffBookingResponse> createBooking(
+                        @Valid @RequestBody StaffCreateBookingRequest request,
+                        @AuthenticationPrincipal CustomUserDetails currentUser) {
+                return ResponseEntity.status(HttpStatus.CREATED)
+                                .body(bookingService.createBookingByStaff(request, currentUser.getUserId()));
         }
 }
