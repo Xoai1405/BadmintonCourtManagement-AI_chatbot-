@@ -972,6 +972,15 @@
   line-height: 1.4;
 }
 
+.customer-filter-field > label {
+  cursor: text;
+}
+
+.customer-autocomplete {
+  position: relative;
+  min-width: 0;
+}
+
 .customer-filter-field input {
   width: 100%;
   height: 32px;
@@ -991,6 +1000,64 @@
   border-color: var(--admin-primary);
   outline: none;
   box-shadow: 0 0 0 3px rgb(27 125 96 / 12%);
+}
+
+/* Danh sách gợi ý nổi dưới ô nhập, không làm xê dịch bảng khách hàng. */
+.customer-suggestions {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  width: max(100%, 260px);
+  max-width: calc(100vw - 28px);
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  border: 1px solid #d7e5dc;
+  border-radius: 9px;
+  background: var(--admin-surface);
+  box-shadow: 0 8px 24px rgb(25 58 45 / 11%);
+}
+
+.customer-suggestions li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 6px;
+  color: #6d8578;
+  cursor: pointer;
+}
+
+.customer-suggestions li:hover,
+.customer-suggestions li.is-active {
+  background: #edf7f1;
+  color: #147d64;
+}
+
+.customer-suggestions li > svg {
+  flex-shrink: 0;
+}
+
+.customer-suggestions li > span {
+  min-width: 0;
+}
+
+.customer-suggestions strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #304b3b;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.customer-suggestions small {
+  display: block;
+  margin-top: 3px;
+  color: #7b887f;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 /* Nút tìm kiếm gọn hơn nút Thêm sân, vẫn dùng màu xanh chung của khu quản lý. */
@@ -1096,37 +1163,139 @@
 .customer-history-dialog {
   position: fixed;
   inset: 0;
-  width: min(1282px, calc(100vw - 64px));
-  height: min(934px, calc(100dvh - 72px));
+  width: min(1580px, calc(100vw - 64px));
+  height: min(900px, calc(100dvh - 56px));
   max-height: calc(100dvh - 32px);
   overflow-y: auto;
   overscroll-behavior: contain;
   margin: auto;
-  padding: 28px;
-  border: none;
-  border-radius: 28px;
+  padding: clamp(24px, 2vw, 34px);
+  border: 1px solid #e1e9e3;
+  border-radius: 26px;
   background: #ffffff;
   color: #101820;
+  box-shadow: 0 24px 72px rgb(15 35 25 / 22%);
 }
 
 .customer-history-dialog[open] {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 18px;
 }
 
 .customer-history-dialog::backdrop {
   background: rgb(0 0 0 / 52%);
 }
 
-.customer-history-dialog h2 {
-  flex-shrink: 0;
+/* Chỉ làm mới lớp viền xám ngoài danh sách; giữ nguyên thẻ trắng bên trong. */
+.customer-history-dialog .booking-history-shell {
+  position: relative;
   margin: 0;
-  color: #000000;
-  font-size: clamp(23px, 2.75vw, 40px);
+  min-height: min(610px, calc(100dvh - 320px));
+  max-height: none;
+  padding: 8px;
+  border: 0;
+  border-radius: 22px;
+  background: #f3f6f4;
+  box-shadow: none;
+}
+
+.customer-history-dialog .booking-history-shell::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border: 1px solid #d3dae7;
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+}
+
+/* Khung chi tiết dùng cùng nét viền với khung danh sách trong popup admin. */
+.customer-history-dialog .single-booking-detail {
+  margin: 0;
+  max-height: none;
+  border: 1px solid #d3dae7;
+  border-radius: 22px;
+  background: #f3f6f4;
+  box-shadow: none;
+}
+
+.customer-history-heading {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e7eee9;
+}
+
+.customer-history-title-wrap {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 13px;
+}
+
+.customer-history-title-icon {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 13px;
+  background: #e8f7ef;
+  color: #0a9b70;
+}
+
+.customer-history-eyebrow {
+  display: block;
+  margin-bottom: 3px;
+  color: #75877d;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.customer-history-dialog h2 {
+  margin: 0;
+  color: #17251e;
+  font-size: clamp(22px, 2vw, 28px);
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.25;
+}
+
+.customer-history-identity {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  column-gap: 16px;
+  row-gap: 6px;
+  color: #66766d;
+  font-size: 13px;
+}
+
+.customer-history-identity strong {
+  color: #263d31;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.customer-history-identity span {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
   overflow-wrap: anywhere;
+}
+
+.customer-history-identity svg {
+  flex-shrink: 0;
+  color: #0a9b70;
 }
 
 .customer-history-actions {
@@ -1134,24 +1303,38 @@
   flex-shrink: 0;
   justify-content: flex-end;
   margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid #e7eee9;
 }
 
 .customer-history-close {
-  min-width: 92px;
-  min-height: 38px;
-  padding: 4px 18px;
-  border: 1px solid #555555;
-  border-radius: 10px;
-  background: #ffffff;
-  color: #000000;
-  font-size: 18px;
+  display: inline-flex;
+  min-width: 104px;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 16px;
+  border: 1px solid #cfe3d6;
+  border-radius: 11px;
+  background: #f0f8f3;
+  color: #176b51;
+  font-size: 15px;
+  font-weight: 600;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
 }
 
-.customer-history-close:hover { background: #f3f5f3; }
+.customer-history-close:hover {
+  border-color: #a8d0b8;
+  background: #e5f4eb;
+}
+
+.customer-history-close:active { transform: translateY(1px); }
+.customer-history-close:focus-visible { outline: 3px solid rgb(21 155 114 / 30%); outline-offset: 2px; }
 
 /* Popup thuộc trang admin; nội dung booking có responsive riêng. */
 @media (max-width: 1199px) {
-  .customer-history-dialog[open] { gap: 28px; }
+  .customer-history-dialog[open] { gap: 18px; }
 }
 @media (max-width: 767px) {
   .customer-history-dialog {
@@ -1161,8 +1344,625 @@
     padding: 20px 14px;
     border-radius: 18px;
   }
-  .customer-history-dialog[open] { gap: 20px; }
+  .customer-history-dialog[open] { gap: 16px; }
+  .customer-history-heading { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .customer-history-identity { justify-content: flex-start; padding-left: 59px; }
   .customer-history-dialog h2 { font-size: 22px; }
+}
+
+/* Tinh chỉnh trang khách hàng: bộ lọc rõ ràng hơn, bảng thoáng và dễ quét. */
+.customer-page .customer-page-header {
+  margin-bottom: 20px;
+}
+
+.customer-page .admin-page-title {
+  letter-spacing: -0.035em;
+}
+
+.customer-page .customer-search-form {
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.customer-page .customer-filter-field {
+  width: 190px;
+  gap: 7px;
+  color: #40544a;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.customer-page .customer-filter-field input {
+  height: 42px;
+  padding: 8px 12px;
+  border-color: #d3dfd7;
+  border-radius: 9px;
+  background: #ffffff;
+  font-size: 14px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.customer-page .customer-filter-field input:hover {
+  border-color: #a9c2b2;
+}
+
+.customer-page .customer-search-button {
+  min-height: 42px;
+  margin-left: 0;
+  padding: 9px 16px;
+  border-radius: 9px;
+  box-shadow: 0 4px 12px rgb(27 125 96 / 14%);
+}
+
+.customer-page .admin-table-wrapper {
+  border-color: #d7e2da;
+  box-shadow: 0 8px 24px rgb(25 55 38 / 5%);
+}
+
+.customer-page .customer-table thead {
+  background-color: #f3f8f4;
+}
+
+.customer-page .customer-table th,
+.customer-page .customer-table td {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.customer-page .customer-table th {
+  color: #53645b;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.customer-page .customer-table tbody tr {
+  transition: background-color 140ms ease;
+}
+
+.customer-page .customer-table tbody tr:hover {
+  background-color: #f5faf6;
+}
+
+.customer-page .customer-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.customer-page .customer-status {
+  min-width: 92px;
+  min-height: 30px;
+  font-weight: 600;
+}
+
+.customer-page .customer-history-button {
+  min-height: 38px;
+  padding: 7px 11px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.customer-page .customer-empty {
+  padding: 32px 24px;
+  color: #68786f;
+  line-height: 1.6;
+}
+
+@media (max-width: 767px) {
+  .customer-page .customer-filter-field {
+    width: 100%;
+    flex: 1 1 170px;
+  }
+}
+
+/* Tinh chỉnh nhẹ riêng màn danh sách sân, không làm đổi tiêu đề của trang admin khác. */
+.court-management-page .admin-page-header {
+  margin-bottom: 22px;
+}
+
+.court-management-page .admin-page-title {
+  letter-spacing: -0.035em;
+}
+
+.court-management-page .admin-page-description {
+  max-width: 620px;
+  font-weight: 500;
+}
+
+.court-management-page .admin-primary-button {
+  padding: 13px 20px;
+  border-radius: 10px;
+  font-size: 17px;
+  line-height: 24px;
+  box-shadow: 0 5px 14px rgb(27 125 96 / 16%);
+}
+
+.court-management-page .admin-table-wrapper {
+  border-color: #d7e2da;
+  box-shadow: 0 8px 24px rgb(25 55 38 / 5%);
+}
+
+.court-management-page .court-table thead {
+  background-color: #f3f8f4;
+}
+
+.court-management-page .court-table th,
+.court-management-page .court-table td {
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+
+.court-management-page .court-table th {
+  color: #53645b;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.court-management-page .court-table tbody tr {
+  transition: background-color 140ms ease;
+}
+
+.court-management-page .court-table tbody tr:hover {
+  background-color: #f8fbf8;
+}
+
+.court-management-page .court-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.court-management-page .court-table th:nth-child(6),
+.court-management-page .court-table td:nth-child(6) {
+  width: 88px;
+  text-align: center;
+}
+
+.court-management-page .court-status {
+  box-shadow: inset 0 0 0 1px rgb(15 23 42 / 3%);
+}
+
+.court-management-page .court-table td[colspan="6"] {
+  padding: 34px 24px;
+  color: var(--admin-muted);
+  font-size: 15px;
+  text-align: center;
+  white-space: normal;
+}
+
+/* Cấu hình bảng giá: giữ bố cục hiện tại, làm hai khối chính rõ ràng hơn. */
+.price-page .price-page-header {
+  margin-bottom: 22px;
+}
+
+.price-page .admin-page-title {
+  letter-spacing: -0.035em;
+}
+
+.price-page .admin-page-description {
+  max-width: 760px;
+  font-weight: 500;
+}
+
+.price-page .business-hours-card {
+  margin-bottom: 24px;
+  border-color: #d7e7dd;
+  border-radius: 16px;
+  background: linear-gradient(120deg, #f5fbf7, #ffffff);
+  box-shadow: 0 8px 24px rgb(25 55 38 / 5%);
+}
+
+.price-page .business-hours-card h2 {
+  color: var(--admin-text);
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.price-page .business-hours-card p {
+  max-width: 560px;
+  line-height: 1.6;
+}
+
+.price-page .business-hours-values > div {
+  min-width: 150px;
+  gap: 6px;
+  padding-left: 18px;
+  border-left: 1px solid #dce8df;
+}
+
+.price-page .business-hours-values dt {
+  font-size: 13px;
+}
+
+.price-page .business-hours-values dd {
+  color: #173c30;
+  font-size: 16px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.price-page .price-edit-button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border-color: #cbd8ce;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #28654f;
+  font-weight: 600;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.price-page .price-edit-button:hover:not(:disabled) {
+  border-color: #91b5a1;
+  background: #eef7f1;
+}
+
+.price-page .admin-table-wrapper {
+  border-color: #d7e2da;
+  box-shadow: 0 8px 24px rgb(25 55 38 / 5%);
+}
+
+.price-page .price-table thead {
+  background-color: #f3f8f4;
+}
+
+.price-page .price-table th,
+.price-page .price-table td {
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+
+.price-page .price-table th {
+  color: #53645b;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.price-page .price-table th:last-child,
+.price-page .price-table td:last-child {
+  width: 116px;
+  text-align: center;
+}
+
+.price-page .price-table tbody tr {
+  transition: background-color 140ms ease;
+}
+
+.price-page .price-table tbody tr:hover {
+  background-color: #f8fbf8;
+}
+
+.price-page .price-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.price-page .price-table .price-empty {
+  padding: 32px 24px;
+}
+
+/* Chiết khấu lịch cố định giữ bảng quản lý quen thuộc, thêm phân cấp nhẹ cho dễ quét. */
+.discount-page {
+  color: #17231d;
+}
+
+.discount-page-header {
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.discount-page .admin-page-title {
+  color: #14231b;
+  letter-spacing: -0.035em;
+}
+
+.discount-page .admin-page-description {
+  margin-top: 7px;
+  color: #69796f;
+  font-weight: 500;
+}
+
+.discount-add-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 18px;
+  border-radius: 10px;
+  box-shadow: 0 5px 12px rgb(27 125 96 / 16%);
+  font-size: 17px;
+  line-height: 26px;
+}
+
+.discount-add-button > span {
+  font-size: 22px;
+  line-height: 20px;
+}
+
+.discount-alert {
+  margin: 0 0 12px;
+  color: #1b7d60;
+  font-size: 14px;
+}
+
+.discount-alert--error,
+.discount-form-error {
+  color: #b42318;
+}
+
+.discount-table-wrapper {
+  overflow-x: auto;
+  border-color: #d9e3dc;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgb(25 55 38 / 6%);
+}
+
+.discount-table {
+  min-width: 760px;
+}
+
+.discount-table thead {
+  background: #f3f8f4;
+}
+
+.discount-table th,
+.discount-table td {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.discount-table th {
+  color: #526359;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.discount-table th:nth-child(1),
+.discount-table td:nth-child(1) {
+  width: 34%;
+}
+
+.discount-table th:nth-child(2),
+.discount-table td:nth-child(2) {
+  width: 21%;
+}
+
+.discount-table th:nth-child(3),
+.discount-table td:nth-child(3) {
+  width: 20%;
+}
+
+.discount-table th:last-child,
+.discount-table td:last-child {
+  width: 25%;
+  padding-right: 22px;
+}
+
+.discount-table tbody tr {
+  transition: background-color 140ms ease;
+}
+
+.discount-table tbody tr:hover {
+  background: #fbfdfb;
+}
+
+.discount-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.discount-condition {
+  color: #1c2c22;
+  font-weight: 550;
+}
+
+.discount-percent-value {
+  color: #1b7d60;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.discount-status {
+  display: inline-flex;
+  min-width: 88px;
+  min-height: 27px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 19px;
+}
+
+.discount-status--active {
+  background: #e6f6ef;
+  color: #16805f;
+}
+
+.discount-status--locked {
+  background: #f0f2f0;
+  color: #737c76;
+}
+
+.discount-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.discount-actions {
+  display: grid;
+  grid-template-columns: 62px 60px 104px;
+  justify-content: end;
+  gap: 8px;
+}
+
+.discount-actions .admin-action-button {
+  width: 100%;
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 18px;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.discount-actions .admin-action-button:disabled,
+.discount-add-button:disabled,
+.discount-dialog-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.discount-actions .discount-edit-button {
+  border-color: #d3ddd5;
+  background: #fff;
+  color: #35473c;
+}
+
+.discount-actions .discount-edit-button:hover:not(:disabled) {
+  border-color: #a9c2b1;
+  background: #f1f7f2;
+}
+
+.discount-actions .discount-lock-button {
+  border-color: #efaaa6;
+  background: #fff0ef;
+  color: #b42318;
+  font-weight: 700;
+}
+
+.discount-actions .discount-lock-button:hover:not(:disabled) {
+  background: #ffe2e0;
+}
+
+.discount-actions .admin-action-button--activate {
+  background: #217e61;
+}
+
+.discount-actions .admin-action-button--activate:hover:not(:disabled) {
+  background: #17664d;
+}
+
+.discount-empty {
+  padding: 32px 24px !important;
+  color: #738078;
+  font-size: 15px;
+  text-align: center;
+}
+
+.discount-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: auto;
+  padding: 28px;
+  border: 1px solid #dce6e5;
+  border-radius: 16px;
+  background-color: #ffffff;
+  color: #17231d;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 20%);
+}
+
+.discount-dialog::backdrop {
+  background: rgb(0 0 0 / 52%);
+}
+
+.discount-form h2 {
+  margin: 0 0 22px;
+  font-size: 23px;
+  letter-spacing: -0.02em;
+}
+
+.discount-form-field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+  color: #34443a;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.discount-form-field input {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid #d6e0d9;
+  border-radius: 8px;
+  background: #fff;
+  color: #17231d;
+  font: inherit;
+  font-weight: 400;
+}
+
+.discount-form-field input:focus-visible {
+  border-color: #67a88d;
+  outline: 2px solid rgb(27 125 96 / 18%);
+  outline-offset: 1px;
+}
+
+.discount-percent-input {
+  position: relative;
+}
+
+.discount-percent-input input {
+  padding-right: 38px;
+}
+
+.discount-percent-input span {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  color: #718076;
+  font-weight: 400;
+  transform: translateY(-50%);
+}
+
+.discount-form-error {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.discount-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.discount-dialog-button {
+  min-width: 88px;
+  padding: 9px 14px;
+  border: 1px solid #d3ddd5;
+  border-radius: 8px;
+  background: #fff;
+  color: #35473c;
+  font: inherit;
+}
+
+.discount-dialog-button--primary {
+  border-color: #1b7d60;
+  background: #1b7d60;
+  color: #fff;
+  font-weight: 700;
+}
+
+.discount-dialog-button--primary:hover:not(:disabled) {
+  background: #14634c;
+}
+
+.discount-page button:focus-visible {
+  outline: 2px solid #246f56;
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .discount-page-header {
+    align-items: stretch;
+  }
+
+  .discount-add-button {
+    justify-content: center;
+  }
+
 }
 
 /* Desktop: tăng khoảng đệm nội dung và cỡ chữ tiêu đề trang. */
@@ -1177,5 +1977,320 @@
 
   .admin-page-description {
     font-size: 16px;
+  }
+}
+
+/* Quản lý tài khoản nhân viên: giữ bố cục bảng quen thuộc, làm rõ trạng thái và thao tác. */
+.staff-page-header {
+  margin-bottom: 24px;
+}
+
+.staff-heading-group {
+  display: grid;
+  gap: 7px;
+}
+
+.staff-page-description {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: #68776e;
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.staff-page-description svg {
+  color: var(--admin-primary);
+}
+
+.staff-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 13px 18px;
+  border-radius: 10px;
+  box-shadow: 0 5px 12px rgb(27 125 96 / 16%);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.staff-message {
+  margin: 0 0 14px;
+  padding: 11px 14px;
+  border: 1px solid #b8e3cf;
+  border-radius: 9px;
+  background: #effaf4;
+  color: #176344;
+  font-size: 13px;
+}
+
+.staff-message--error,
+.staff-form-error {
+  border-color: #fecaca;
+  background: #fff4f4;
+  color: #b42318;
+}
+
+.staff-table-wrapper {
+  border-color: #d6ddd6;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgb(25 55 39 / 4%);
+}
+
+.staff-table {
+  min-width: 850px;
+  font-size: 16px;
+}
+
+.staff-table thead {
+  background: #fbfcfa;
+}
+
+.staff-table th,
+.staff-table td {
+  padding: 15px 18px;
+}
+
+.staff-table th:first-child,
+.staff-table td:first-child {
+  padding-left: 24px;
+}
+
+.staff-table th:nth-child(1),
+.staff-table td:nth-child(1) { width: 18%; }
+
+.staff-table th:nth-child(2),
+.staff-table td:nth-child(2) { width: 20%; }
+
+.staff-table th:nth-child(3),
+.staff-table td:nth-child(3) { width: 24%; }
+
+.staff-table th:nth-child(4),
+.staff-table td:nth-child(4) { width: 14%; }
+
+.staff-table th:last-child,
+.staff-table td:last-child {
+  width: 24%;
+  padding-right: 20px;
+}
+
+.staff-table tbody tr {
+  border-bottom: 1px solid #edf0ed;
+  transition: background-color 140ms ease;
+}
+
+.staff-table tbody tr:hover {
+  background: #fbfdfb;
+}
+
+.staff-table tbody tr:last-child {
+  border-bottom: 0;
+}
+
+.staff-name-cell {
+  color: #172b20;
+  font-weight: 600;
+}
+
+.staff-status {
+  display: inline-flex;
+  min-width: 88px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 18px;
+}
+
+.staff-status--active {
+  background: #e7f7ef;
+  color: #16805f;
+}
+
+.staff-status--locked {
+  background: #eef0ef;
+  color: #737c76;
+}
+
+.staff-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.staff-add-button:disabled,
+.staff-dialog-button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.staff-empty {
+  padding: 28px 20px !important;
+  color: #68776e;
+  font-size: 14px;
+  text-align: center;
+}
+
+.staff-page button:focus-visible,
+.staff-page .staff-table-wrapper:focus-visible {
+  outline: 2px solid #246f56;
+  outline-offset: 3px;
+}
+
+.staff-dialog {
+  width: min(100% - 32px, 470px);
+  max-width: 470px;
+  padding: 0;
+  overflow: visible;
+  border: 1px solid #dce6df;
+  border-radius: 16px;
+  background: #fff;
+  color: var(--admin-form-text);
+  box-shadow: 0 24px 70px rgb(13 38 27 / 22%);
+}
+
+.staff-dialog[open] {
+  animation: staff-dialog-in 160ms ease-out;
+}
+
+.staff-dialog::backdrop {
+  background: rgb(16 35 25 / 42%);
+  backdrop-filter: blur(2px);
+}
+
+@keyframes staff-dialog-in {
+  from { opacity: 0; transform: translateY(7px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.staff-form {
+  display: grid;
+  gap: 15px;
+  padding: 25px;
+}
+
+.staff-dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin-bottom: 3px;
+}
+
+.staff-dialog-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 12px;
+  background: #eaf6ef;
+  color: #1b7d60;
+}
+
+.staff-dialog-heading h2 {
+  margin: 0;
+  color: #173126;
+  font-size: 19px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.staff-dialog-heading p {
+  margin: 4px 0 0;
+  color: #718096;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.staff-form-field {
+  display: grid;
+  gap: 7px;
+  color: #34483c;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.staff-form-field input {
+  width: 100%;
+  min-height: 43px;
+  padding: 10px 12px;
+  border: 1px solid #d5dfd8;
+  border-radius: 8px;
+  background: #fff;
+  color: #192a20;
+  font-size: 14px;
+  font-weight: 400;
+  outline: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.staff-form-field input::placeholder {
+  color: #a0aaa3;
+}
+
+.staff-form-field input:focus-visible {
+  border-color: #379576;
+  box-shadow: 0 0 0 3px rgb(27 125 96 / 13%);
+}
+
+.staff-form-error {
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.staff-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 5px;
+  padding-top: 16px;
+  border-top: 1px solid #edf0ed;
+}
+
+.staff-dialog-button {
+  min-width: 88px;
+  padding: 9px 14px;
+  border: 1px solid #d5dfd8;
+  border-radius: 8px;
+  background: #fff;
+  color: #34483c;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.staff-dialog-button:hover:not(:disabled) {
+  background: #f4f7f5;
+}
+
+.staff-dialog-button--primary {
+  border-color: #1b7d60;
+  background: #1b7d60;
+  color: #fff;
+}
+
+.staff-dialog-button--primary:hover:not(:disabled) {
+  background: #14634c;
+}
+
+@media (max-width: 760px) {
+  .staff-page-header {
+    align-items: stretch;
+  }
+
+  .staff-add-button {
+    width: 100%;
+  }
+
+  .staff-form {
+    padding: 21px;
   }
 }

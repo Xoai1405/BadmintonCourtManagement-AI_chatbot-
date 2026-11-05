@@ -83,7 +83,7 @@ export default function CourtManagementPage() {
   };
 
   return (
-    <>
+    <div className="court-management-page">
       <header className="admin-page-header">
         <div>
           <h1 className="admin-page-title">Quản lý sân</h1>
@@ -171,6 +171,6 @@ export default function CourtManagementPage() {
           </footer>
         </form>
       </dialog>
-    </>
+    </div>
   );
 }

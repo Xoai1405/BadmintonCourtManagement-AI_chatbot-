@@ -1,9 +1,16 @@
-import { mockBookings, mockCustomers, mockRecurringSessions } from "../mocks/apiContract.js";
+import { mockBookings, mockCustomers, mockDiscountConfigs, mockRecurringSessions } from "../mocks/apiContract.js";
 
 // Store chỉ nằm trong frontend: dữ liệu giữ khi chuyển menu và reset khi reload.
 // Clone để component không sửa trực tiếp dữ liệu gốc hoặc dữ liệu trong store.
 const bookingStore = structuredClone(mockBookings);
 const sessionStore = structuredClone(mockRecurringSessions);
+const discountConfigStore = structuredClone(mockDiscountConfigs);
+let nextDiscountConfigId = Math.max(0, ...discountConfigStore.map((item) => item.id)) + 1;
+const staffAccountStore = [
+  { id: 1, fullName: "Lê Thị C", phone: "0909 123 456", email: "c.le@email.com", status: "ACTIVE" },
+  { id: 2, fullName: "Phạm Văn D", phone: "0909 456 789", email: "PVD42@email.com", status: "LOCKED" },
+];
+let nextStaffAccountId = Math.max(0, ...staffAccountStore.map((item) => item.id)) + 1;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
 const normalizeName = (value) => value.trim().toLocaleLowerCase("vi-VN")
   .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
@@ -52,6 +59,63 @@ function cancellationReason(value) {
 }
 
 export const adminApi = {
+  getStaffAccounts: () => request(() => staffAccountStore),
+
+  createStaffAccount: (input) => {
+    const body = structuredClone(input);
+    return request(() => {
+      const fullName = body.fullName?.trim();
+      const phone = body.phone?.trim();
+      const email = body.email?.trim();
+      if (!fullName || !phone || !email) throw new Error("Vui lòng nhập đầy đủ họ tên, số điện thoại và email.");
+      if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("Email không hợp lệ.");
+      if (!/^\+?[\d\s().-]{9,16}$/.test(phone)) throw new Error("Số điện thoại không hợp lệ.");
+      if (staffAccountStore.some((item) => item.email.toLowerCase() === email.toLowerCase())) {
+        throw new Error("Email này đã được sử dụng.");
+      }
+      if (staffAccountStore.some((item) => item.phone.replace(/\D/g, "") === phone.replace(/\D/g, ""))) {
+        throw new Error("Số điện thoại này đã được sử dụng.");
+      }
+      const staff = { id: nextStaffAccountId++, fullName, phone, email, status: "ACTIVE" };
+      staffAccountStore.push(staff);
+      return staff;
+    });
+  },
+
+  updateStaffAccount: (id, input) => {
+    const body = structuredClone(input);
+    return request(() => {
+      const staff = findById(staffAccountStore, "id", id, "Tài khoản nhân viên");
+      const fullName = body.fullName?.trim();
+      const phone = body.phone?.trim();
+      const email = body.email?.trim();
+      if (!fullName || !phone || !email) throw new Error("Vui lòng nhập đầy đủ họ tên, số điện thoại và email.");
+      if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("Email không hợp lệ.");
+      if (!/^\+?[\d\s().-]{9,16}$/.test(phone)) throw new Error("Số điện thoại không hợp lệ.");
+      if (staffAccountStore.some((item) => item.id !== id && item.email.toLowerCase() === email.toLowerCase())) {
+        throw new Error("Email này đã được sử dụng.");
+      }
+      if (staffAccountStore.some((item) => item.id !== id && item.phone.replace(/\D/g, "") === phone.replace(/\D/g, ""))) {
+        throw new Error("Số điện thoại này đã được sử dụng.");
+      }
+      Object.assign(staff, { fullName, phone, email });
+      return staff;
+    });
+  },
+
+  deleteStaffAccount: (id) => request(() => {
+    const index = staffAccountStore.findIndex((item) => item.id === id);
+    if (index < 0) throw new Error("Tài khoản nhân viên không tồn tại.");
+    return staffAccountStore.splice(index, 1)[0];
+  }),
+
+  setStaffAccountStatus: (id, status) => request(() => {
+    const staff = findById(staffAccountStore, "id", id, "Tài khoản nhân viên");
+    if (!["ACTIVE", "LOCKED"].includes(status)) throw new Error("Trạng thái tài khoản không hợp lệ.");
+    Object.assign(staff, { status });
+    return staff;
+  }),
+
   getCustomers: (filters = {}) => {
     const query = { ...filters };
     return request(() => mockCustomers.filter((customer) =>
@@ -154,4 +218,52 @@ export const adminApi = {
       return { session: { ...session, customer: findById(mockCustomers, "id", customerId, "Khách hàng") }, package: bookingDetail(group) };
     });
   },
+
+  getDiscountConfigs: () => request(() => [...discountConfigStore].sort((a, b) => a.minMonths - b.minMonths)),
+
+  createDiscountConfig: (input) => {
+    const body = structuredClone(input);
+    return request(() => {
+      const minMonths = Number(body.minMonths);
+      const discountPercent = Number(body.discountPercent);
+      if (!Number.isInteger(minMonths) || minMonths < 1) throw new Error("Số tháng tối thiểu phải từ 1 trở lên.");
+      if (!Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100) {
+        throw new Error("Phần trăm chiết khấu phải từ 0% đến 100%.");
+      }
+      if (discountConfigStore.some((item) => item.minMonths === minMonths)) {
+        throw new Error("Đã có mức chiết khấu cho số tháng này.");
+      }
+      const config = {
+        id: nextDiscountConfigId++, minMonths, discountPercent,
+        status: body.status ?? "ACTIVE",
+      };
+      discountConfigStore.push(config);
+      return config;
+    });
+  },
+
+  updateDiscountConfig: (id, input) => {
+    const body = structuredClone(input);
+    return request(() => {
+      const config = findById(discountConfigStore, "id", id, "Mức chiết khấu");
+      const minMonths = Number(body.minMonths);
+      const discountPercent = Number(body.discountPercent);
+      if (!Number.isInteger(minMonths) || minMonths < 1) throw new Error("Số tháng tối thiểu phải từ 1 trở lên.");
+      if (!Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100) {
+        throw new Error("Phần trăm chiết khấu phải từ 0% đến 100%.");
+      }
+      if (discountConfigStore.some((item) => item.id !== id && item.minMonths === minMonths)) {
+        throw new Error("Đã có mức chiết khấu cho số tháng này.");
+      }
+      if (!["ACTIVE", "INACTIVE"].includes(body.status)) throw new Error("Trạng thái chiết khấu không hợp lệ.");
+      Object.assign(config, { minMonths, discountPercent, status: body.status });
+      return config;
+    });
+  },
+
+  deleteDiscountConfig: (id) => request(() => {
+    const index = discountConfigStore.findIndex((item) => item.id === id);
+    if (index < 0) throw new Error("Mức chiết khấu không tồn tại.");
+    return discountConfigStore.splice(index, 1)[0];
+  }),
 };
