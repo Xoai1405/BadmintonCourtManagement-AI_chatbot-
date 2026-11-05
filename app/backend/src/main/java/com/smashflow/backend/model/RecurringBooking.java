@@ -39,6 +39,10 @@ public class RecurringBooking {
     @JoinColumn (nullable=false, name="court_id")
     private Court court;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(nullable = true, name = "discount_config_id")
+    private DiscountConfig discountConfig;
+
     @Column (nullable=false, name ="start_date")
     private LocalDate startDate;
 

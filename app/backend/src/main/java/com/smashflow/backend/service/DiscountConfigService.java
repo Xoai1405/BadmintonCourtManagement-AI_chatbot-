@@ -2,10 +2,14 @@ package com.smashflow.backend.service;
 
 import com.smashflow.backend.dto.request.discountConfig.DiscountConfigRequest;
 import com.smashflow.backend.dto.response.discountConfig.DiscountConfigResponse;
+import com.smashflow.backend.exception.ResourceNotFoundException;
 import com.smashflow.backend.model.DiscountConfig;
 import com.smashflow.backend.repository.DiscountConfigRepository;
+import com.smashflow.backend.repository.RecurringBookingRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -13,17 +17,24 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class DiscountConfigService {
-    private final DiscountConfigRepository discountConfigRepository;
 
-    // 1. Lấy danh sách tất cả các mốc chiết khấu
+    private final DiscountConfigRepository discountConfigRepository;
+    private final RecurringBookingRepository recurringBookingRepository;
+
+    // 1. Lấy danh sách tất cả các mốc chiết khấu (tự động xếp tăng dần theo số tháng)
     public List<DiscountConfigResponse> getAllConfigs() {
-        return discountConfigRepository.findAll().stream()
+        return discountConfigRepository.findAll(Sort.by(Sort.Direction.ASC, "minMonths")).stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
     }
 
-    // 2. Thêm mới một mốc chiết khấu
+    // 2. Thêm mới một mốc chiết khấu (Kiểm tra không trùng số tháng)
+    @Transactional
     public DiscountConfigResponse createConfig(DiscountConfigRequest request) {
+        if (discountConfigRepository.existsByMinMonths(request.minMonths())) {
+            throw new IllegalArgumentException("Mốc chiết khấu cho " + request.minMonths() + " tháng đã tồn tại!");
+        }
+
         DiscountConfig config = new DiscountConfig();
         config.setMinMonths(request.minMonths());
         config.setDiscountPercent(request.discountPercent());
@@ -33,10 +44,17 @@ public class DiscountConfigService {
         return mapToResponse(savedConfig);
     }
 
-    // 3. Cập nhật mốc chiết khấu theo ID
+    // 3. Cập nhật mốc chiết khấu (Kiểm tra số tháng mới không trùng với mốc KHÁC)
+    @Transactional
     public DiscountConfigResponse updateConfig(Long id, DiscountConfigRequest request) {
         DiscountConfig config = discountConfigRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy cấu hình chiết khấu với ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cấu hình chiết khấu với ID: " + id));
+
+        discountConfigRepository.findByMinMonths(request.minMonths()).ifPresent(existing -> {
+            if (!existing.getId().equals(id)) {
+                throw new IllegalArgumentException("Mốc chiết khấu cho " + request.minMonths() + " tháng đã tồn tại ở cấu hình khác!");
+            }
+        });
 
         config.setMinMonths(request.minMonths());
         config.setDiscountPercent(request.discountPercent());
@@ -46,15 +64,23 @@ public class DiscountConfigService {
         return mapToResponse(updatedConfig);
     }
 
-    // 4. Xóa mốc chiết khấu theo ID
+    // 4. Xóa mốc chiết khấu theo ID (Chặn nếu đã có đơn đặt lịch áp dụng)
+    @Transactional
     public void deleteConfig(Long id) {
         if (!discountConfigRepository.existsById(id)) {
-            throw new RuntimeException("Không tìm thấy cấu hình chiết khấu để xóa với ID: " + id);
+            throw new ResourceNotFoundException("Không tìm thấy cấu hình chiết khấu để xóa với ID: " + id);
         }
+
+        // RÀNG BUỘC: Kiểm tra tham chiếu từ bảng recurring_bookings
+        boolean hasReference = recurringBookingRepository.existsByDiscountConfigId(id);
+        if (hasReference) {
+            throw new IllegalStateException("Không thể xóa mốc chiết khấu này vì đã có đơn đặt lịch cố định áp dụng!");
+        }
+
         discountConfigRepository.deleteById(id);
     }
 
-    // Hàm phụ trợ để chuyển đổi từ Entity sang Response DTO
+    // Hàm phụ trợ chuyển đổi sang DTO
     private DiscountConfigResponse mapToResponse(DiscountConfig config) {
         return new DiscountConfigResponse(
                 config.getId(),
