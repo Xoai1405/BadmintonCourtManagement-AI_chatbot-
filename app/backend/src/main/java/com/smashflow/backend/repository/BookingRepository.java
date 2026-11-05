@@ -76,4 +76,20 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
         @Query("select b from Booking b where b.id = :id")
         Optional<Booking> findByIdForUpdate(@Param("id") Long id);
 
+        // Đếm lượt đặt theo khách: mỗi booking lẻ = 1 lượt, mỗi gói lịch cố định = 1 lượt.
+        // Trả về [customerId, số lượt]; khách chưa có booking sẽ không có dòng.
+        @Query("""
+                        select b.customer.id,
+                               count(distinct case when r.id is null then b.id end)
+                                 + count(distinct r.id)
+                        from Booking b
+                        left join b.recurringBooking r
+                        where b.customer.id in :customerIds
+                          and b.bookingStatus <> :excludedStatus
+                        group by b.customer.id
+                        """)
+        List<Object[]> countBookingsByCustomerIds(
+                        @Param("customerIds") Collection<Long> customerIds,
+                        @Param("excludedStatus") BookingStatus excludedStatus);
+
 }
