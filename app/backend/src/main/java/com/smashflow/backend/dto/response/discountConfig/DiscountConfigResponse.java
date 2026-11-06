@@ -7,7 +7,7 @@ public record DiscountConfigResponse(
     Long id,
     Integer minMonths,
     BigDecimal discountPercent,
-    DiscountStatus discountStatus
+    DiscountStatus status
 ) {
 
 }

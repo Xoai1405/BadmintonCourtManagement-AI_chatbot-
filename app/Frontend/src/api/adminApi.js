@@ -1,11 +1,12 @@
-import { mockBookings, mockCustomers, mockDiscountConfigs, mockRecurringSessions } from "../mocks/apiContract.js";
+import axiosClient from "./axiosClient";
+import { mockBookings, mockCustomers, mockRecurringSessions } from "../mocks/apiContract.js";
 
 // Store chỉ nằm trong frontend: dữ liệu giữ khi chuyển menu và reset khi reload.
 // Clone để component không sửa trực tiếp dữ liệu gốc hoặc dữ liệu trong store.
 const bookingStore = structuredClone(mockBookings);
 const sessionStore = structuredClone(mockRecurringSessions);
-const discountConfigStore = structuredClone(mockDiscountConfigs);
-let nextDiscountConfigId = Math.max(0, ...discountConfigStore.map((item) => item.id)) + 1;
+// const discountConfigStore = structuredClone(mockDiscountConfigs);
+// let nextDiscountConfigId = Math.max(0, ...discountConfigStore.map((item) => item.id)) + 1;
 const staffAccountStore = [
   { id: 1, fullName: "Lê Thị C", phone: "0909 123 456", email: "c.le@email.com", status: "ACTIVE" },
   { id: 2, fullName: "Phạm Văn D", phone: "0909 456 789", email: "PVD42@email.com", status: "LOCKED" },
@@ -219,51 +220,37 @@ export const adminApi = {
     });
   },
 
-  getDiscountConfigs: () => request(() => [...discountConfigStore].sort((a, b) => a.minMonths - b.minMonths)),
-
-  createDiscountConfig: (input) => {
-    const body = structuredClone(input);
-    return request(() => {
-      const minMonths = Number(body.minMonths);
-      const discountPercent = Number(body.discountPercent);
-      if (!Number.isInteger(minMonths) || minMonths < 1) throw new Error("Số tháng tối thiểu phải từ 1 trở lên.");
-      if (!Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100) {
-        throw new Error("Phần trăm chiết khấu phải từ 0% đến 100%.");
-      }
-      if (discountConfigStore.some((item) => item.minMonths === minMonths)) {
-        throw new Error("Đã có mức chiết khấu cho số tháng này.");
-      }
-      const config = {
-        id: nextDiscountConfigId++, minMonths, discountPercent,
-        status: body.status ?? "ACTIVE",
-      };
-      discountConfigStore.push(config);
-      return config;
-    });
+  getDiscountConfigs: async () => {
+    const response = await axiosClient.get("/api/admin/discount_configs");
+    return response.data;
   },
 
-  updateDiscountConfig: (id, input) => {
-    const body = structuredClone(input);
-    return request(() => {
-      const config = findById(discountConfigStore, "id", id, "Mức chiết khấu");
-      const minMonths = Number(body.minMonths);
-      const discountPercent = Number(body.discountPercent);
-      if (!Number.isInteger(minMonths) || minMonths < 1) throw new Error("Số tháng tối thiểu phải từ 1 trở lên.");
-      if (!Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100) {
-        throw new Error("Phần trăm chiết khấu phải từ 0% đến 100%.");
-      }
-      if (discountConfigStore.some((item) => item.id !== id && item.minMonths === minMonths)) {
-        throw new Error("Đã có mức chiết khấu cho số tháng này.");
-      }
-      if (!["ACTIVE", "INACTIVE"].includes(body.status)) throw new Error("Trạng thái chiết khấu không hợp lệ.");
-      Object.assign(config, { minMonths, discountPercent, status: body.status });
-      return config;
-    });
+  createDiscountConfig: async (payload) => {
+    try {
+      const response = await axiosClient.post("/api/admin/discount_configs", payload);
+      return response.data;
+    } catch (err) {
+      const message = err.response?.data?.message || err.response?.data || "Không thể tạo mức chiết khấu";
+      throw new Error(message, { cause: err });
+    }
   },
 
-  deleteDiscountConfig: (id) => request(() => {
-    const index = discountConfigStore.findIndex((item) => item.id === id);
-    if (index < 0) throw new Error("Mức chiết khấu không tồn tại.");
-    return discountConfigStore.splice(index, 1)[0];
-  }),
+  updateDiscountConfig: async (id, payload) => {
+    try {
+      const response = await axiosClient.put(`/api/admin/discount_configs/${id}`, payload);
+      return response.data;
+    } catch (err) {
+      const message = err.response?.data?.message || err.response?.data || "Không thể cập nhật mức chiết khấu";
+      throw new Error(message, { cause: err });
+    }
+  },
+
+  deleteDiscountConfig: async (id) => {
+    try {
+      await axiosClient.delete(`/api/admin/discount_configs/${id}`);
+    } catch (err) {
+      const message = err.response?.data?.message || err.response?.data || "Không thể xóa mức chiết khấu";
+      throw new Error(message, { cause: err });
+    }
+  },
 };
