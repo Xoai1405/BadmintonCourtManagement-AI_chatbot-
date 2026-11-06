@@ -1,11 +1,13 @@
 package com.smashflow.backend.repository;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import com.smashflow.backend.model.enums.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -92,4 +94,21 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
                         @Param("customerIds") Collection<Long> customerIds,
                         @Param("excludedStatus") BookingStatus excludedStatus);
 
+
+
+
+
+        boolean existsByCreatedByStaff_IdOrPaidByStaff_Id(Long createdByStaffId, Long paidByStaffId);
+
+        @Query("""
+                select coalesce(sum(b.totalAmount), 0)
+                from Booking b
+                where b.customer.id = :customerId
+                  and b.paymentStatus in :paidStatuses
+                  and b.bookingStatus <> :cancelledStatus
+                """)
+        BigDecimal calculateTotalSpendingByCustomerId(
+                @Param("customerId") Long customerId,
+                @Param("paidStatuses") Collection<PaymentStatus> paidStatuses,
+                @Param("cancelledStatus") BookingStatus cancelledStatus);
 }

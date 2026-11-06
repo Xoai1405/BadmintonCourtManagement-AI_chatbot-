@@ -33,4 +33,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
             @Param("phone") String phone,
             @Param("email") String email,
             Pageable pageable);
+
+
+
+
+    List<User> findByRoleOrderByIdDesc(Role role);
+
+    Optional<User> findByEmail(String email);
+
+    Optional<User> findByPhoneNumber(String phoneNumber);
 }

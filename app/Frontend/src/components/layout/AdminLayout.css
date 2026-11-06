@@ -2131,6 +2131,7 @@
 }
 
 .staff-empty {
+  width: 100% !important;
   padding: 28px 20px !important;
   color: #68776e;
   font-size: 14px;
