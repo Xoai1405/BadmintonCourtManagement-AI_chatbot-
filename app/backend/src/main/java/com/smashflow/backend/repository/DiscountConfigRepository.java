@@ -21,4 +21,8 @@ public interface DiscountConfigRepository extends JpaRepository<DiscountConfig, 
             @Param("status") DiscountStatus status,
             @Param("months") Integer months
     );
+
+    // Kiểm tra trùng mốc tháng
+    boolean existsByMinMonths(int minMonths);
+    Optional<DiscountConfig> findByMinMonths(int minMonths);
 }

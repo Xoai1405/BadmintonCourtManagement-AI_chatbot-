@@ -2,6 +2,7 @@ package com.smashflow.backend.repository;
 
 import com.smashflow.backend.model.RecurringBooking;
 
+import com.smashflow.backend.model.enums.RecurBookingStatus;
 import jakarta.persistence.LockModeType;
 
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -28,4 +29,15 @@ public interface RecurringBookingRepository extends JpaRepository<RecurringBooki
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from RecurringBooking r where r.id = :id")
     Optional<RecurringBooking> findByIdForUpdate(@Param("id") Long id);
+
+    // Kiểm tra có đơn nào đang dùng mốc chiết khấu này không
+    boolean existsByDiscountConfigId(Long discountConfigId);
+
+
+
+
+
+    boolean existsByCreatedByStaff_Id(Long createdByStaffId);
+
+    long countByCustomer_IdAndStatusNot(Long customerId, RecurBookingStatus status);
 }
