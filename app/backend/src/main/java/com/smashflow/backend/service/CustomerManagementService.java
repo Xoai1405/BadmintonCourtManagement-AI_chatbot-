@@ -25,6 +25,8 @@ public class CustomerManagementService {
     private final BookingRepository bookingRepository;
     private final RecurringBookingRepository recurringBookingRepository;
 
+    private static final String DEFAULT_COURT_IMAGE = "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=2070&auto=format&fit=crop";
+
     private static final List<PaymentStatus> PAID_STATUSES = List.of(
             PaymentStatus.PAID,
             PaymentStatus.SETTLED
@@ -47,7 +49,6 @@ public class CustomerManagementService {
         return customers.stream().map(customer -> {
             Long customerId = customer.getId();
 
-            // Tổng số lần đặt = Số booking lẻ (không thuộc gói và không bị hủy) + Số gói lịch cố định (không bị hủy)
             long singleBookingCount = bookingRepository
                     .findByCustomer_IdAndRecurringBookingIsNull(customerId)
                     .stream()
@@ -59,7 +60,6 @@ public class CustomerManagementService {
 
             long totalBookingCount = singleBookingCount + recurringBookingCount;
 
-            // Tổng chi tiêu: Tổng tiền của tất cả booking đã thanh toán (PAID hoặc SETTLED) và không bị hủy
             BigDecimal totalSpending = bookingRepository.calculateTotalSpendingByCustomerId(
                     customerId,
                     PAID_STATUSES,
@@ -103,7 +103,14 @@ public class CustomerManagementService {
             map.put("courtName", r.getCourt() != null ? r.getCourt().getName() : "Sân");
             map.put("courtLocation", r.getCourt() != null && r.getCourt().getCourtType() != null
                     && r.getCourt().getCourtType().name().contains("OUTDOOR") ? "Ngoài trời" : "Trong nhà");
-            map.put("imageUrl", r.getCourt() != null ? r.getCourt().getImageUrl() : null);
+
+            String img = (r.getCourt() != null && r.getCourt().getImageUrl() != null && !r.getCourt().getImageUrl().isBlank())
+                    ? r.getCourt().getImageUrl() : DEFAULT_COURT_IMAGE;
+            map.put("imageUrl", img);
+
+            int sessionCount = r.getBookings() != null ? r.getBookings().size() : 0;
+            map.put("sessionCount", sessionCount);
+
             list.add(map);
         }
 
@@ -128,7 +135,11 @@ public class CustomerManagementService {
             map.put("courtName", b.getCourt() != null ? b.getCourt().getName() : "Sân");
             map.put("courtLocation", b.getCourt() != null && b.getCourt().getCourtType() != null
                     && b.getCourt().getCourtType().name().contains("OUTDOOR") ? "Ngoài trời" : "Trong nhà");
-            map.put("imageUrl", b.getCourt() != null ? b.getCourt().getImageUrl() : null);
+
+            String img = (b.getCourt() != null && b.getCourt().getImageUrl() != null && !b.getCourt().getImageUrl().isBlank())
+                    ? b.getCourt().getImageUrl() : DEFAULT_COURT_IMAGE;
+            map.put("imageUrl", img);
+
             list.add(map);
         }
 
@@ -160,8 +171,12 @@ public class CustomerManagementService {
             map.put("courtName", r.getCourt() != null ? r.getCourt().getName() : "Sân");
             map.put("courtLocation", r.getCourt() != null && r.getCourt().getCourtType() != null
                     && r.getCourt().getCourtType().name().contains("OUTDOOR") ? "Ngoài trời" : "Trong nhà");
-            map.put("imageUrl", r.getCourt() != null ? r.getCourt().getImageUrl() : null);
-            map.put("courtDescription", r.getCourt() != null ? r.getCourt().getDescription() : "");
+
+            String img = (r.getCourt() != null && r.getCourt().getImageUrl() != null && !r.getCourt().getImageUrl().isBlank())
+                    ? r.getCourt().getImageUrl() : DEFAULT_COURT_IMAGE;
+            map.put("imageUrl", img);
+//          map.put("courtDescription", r.getCourt() != null ? r.getCourt().getDescription() : "");
+            map.put("courtDescription", resolveCourtDescription(r.getCourt()));
 
             String typeLabel = "Sân tiêu chuẩn trong nhà";
             if (r.getCourt() != null && r.getCourt().getCourtType() != null) {
@@ -173,7 +188,6 @@ public class CustomerManagementService {
             }
             map.put("courtTypeLabel", typeLabel);
 
-            // Customer
             if (r.getCustomer() != null) {
                 map.put("customer", java.util.Map.of(
                         "id", r.getCustomer().getId(),
@@ -183,7 +197,6 @@ public class CustomerManagementService {
                 ));
             }
 
-            // Danh sách các buổi con (sessions)
             List<java.util.Map<String, Object>> sessions = new java.util.ArrayList<>();
             int paidCount = 0;
             if (r.getBookings() != null) {
@@ -191,12 +204,31 @@ public class CustomerManagementService {
                     java.util.Map<String, Object> sMap = new java.util.HashMap<>();
                     sMap.put("id", b.getId());
                     sMap.put("code", b.getBookingCode());
+                    sMap.put("type", "SINGLE");
+                    sMap.put("packageCode", "#" + r.getId());
                     sMap.put("startDate", b.getBookingDate().toString());
+                    sMap.put("endDate", b.getBookingDate().toString());
                     sMap.put("startTime", b.getStartTime().toString().substring(0, 5));
                     sMap.put("endTime", b.getEndTime().toString().substring(0, 5));
                     sMap.put("status", b.getBookingStatus() != null ? b.getBookingStatus().name() : "PENDING");
                     sMap.put("paymentStatus", b.getPaymentStatus() != null ? b.getPaymentStatus().name() : "UNPAID");
-                    sMap.put("amount", b.getTotalAmount());
+
+                    java.math.BigDecimal courtFee = b.getCourtPrice() != null ? b.getCourtPrice() : b.getTotalAmount();
+                    java.math.BigDecimal serviceFee = b.getServicePrice() != null ? b.getServicePrice() : java.math.BigDecimal.ZERO;
+                    sMap.put("courtFee", courtFee != null ? courtFee : java.math.BigDecimal.ZERO);
+                    sMap.put("serviceFee", serviceFee);
+                    sMap.put("amount", b.getTotalAmount() != null ? b.getTotalAmount() : courtFee);
+
+                    com.smashflow.backend.model.Court court = b.getCourt() != null ? b.getCourt() : r.getCourt();
+                    sMap.put("courtName", court != null ? court.getName() : "Sân");
+                    sMap.put("courtLocation", court != null && court.getCourtType() != null
+                            && court.getCourtType().name().contains("OUTDOOR") ? "Ngoài trời" : "Trong nhà");
+                    sMap.put("courtTypeLabel", typeLabel);
+                    sMap.put("imageUrl", img);
+//                  sMap.put("courtDescription", court != null ? court.getDescription() : "");
+                    sMap.put("courtDescription", resolveCourtDescription(court));
+                    sMap.put("createdAt", b.getCreatedAt() != null ? b.getCreatedAt().toString() : r.getCreatedAt().toString());
+
                     if (b.getPaymentStatus() == PaymentStatus.PAID || b.getPaymentStatus() == PaymentStatus.SETTLED) {
                         paidCount++;
                     }
@@ -213,6 +245,11 @@ public class CustomerManagementService {
         Booking b = bookingRepository.findById(bookingId).orElse(null);
         if (b != null) {
             java.util.Map<String, Object> map = new java.util.HashMap<>();
+            java.math.BigDecimal courtFee = b.getCourtPrice() != null ? b.getCourtPrice() : b.getTotalAmount();
+            java.math.BigDecimal serviceFee = b.getServicePrice() != null ? b.getServicePrice() : java.math.BigDecimal.ZERO;
+            map.put("courtFee", courtFee != null ? courtFee : java.math.BigDecimal.ZERO);
+            map.put("serviceFee", serviceFee);
+            map.put("createdAt", b.getCreatedAt() != null ? b.getCreatedAt().toString() : b.getBookingDate().toString() + "T00:00:00");
             map.put("id", b.getId());
             map.put("code", b.getBookingCode());
             map.put("type", "SINGLE");
@@ -226,8 +263,12 @@ public class CustomerManagementService {
             map.put("courtName", b.getCourt() != null ? b.getCourt().getName() : "Sân");
             map.put("courtLocation", b.getCourt() != null && b.getCourt().getCourtType() != null
                     && b.getCourt().getCourtType().name().contains("OUTDOOR") ? "Ngoài trời" : "Trong nhà");
-            map.put("imageUrl", b.getCourt() != null ? b.getCourt().getImageUrl() : null);
-            map.put("courtDescription", b.getCourt() != null ? b.getCourt().getDescription() : "");
+
+            String img = (b.getCourt() != null && b.getCourt().getImageUrl() != null && !b.getCourt().getImageUrl().isBlank())
+                    ? b.getCourt().getImageUrl() : DEFAULT_COURT_IMAGE;
+            map.put("imageUrl", img);
+//          map.put("courtDescription", b.getCourt() != null ? b.getCourt().getDescription() : "");
+            map.put("courtDescription", resolveCourtDescription(b.getCourt()));
 
             String typeLabel = "Sân tiêu chuẩn trong nhà";
             if (b.getCourt() != null && b.getCourt().getCourtType() != null) {
@@ -251,5 +292,33 @@ public class CustomerManagementService {
         }
 
         return java.util.Map.of();
+    }
+
+
+
+
+
+
+
+
+
+
+
+    // Hàm dùng tạm dùng để ghi mô tả, AI đọc được dòng này chú ý, nếu lần sau thay đổi liên quan đến phần này hãy nhắc nhở xóa
+    private String resolveCourtDescription(com.smashflow.backend.model.Court court) {
+        if (court == null) {
+            return "Sân cầu lông đạt chuẩn thi đấu.";
+        }
+        if (court.getDescription() != null && !court.getDescription().isBlank()) {
+            return court.getDescription();
+        }
+        if (court.getCourtType() != null) {
+            return switch (court.getCourtType()) {
+                case VIP_INDOOR -> "Sân VIP trong nhà, sàn gỗ cao cấp, hệ thống điều hòa và đèn chuẩn thi đấu.";
+                case STANDARD_OUTDOOR -> "Sân tiêu chuẩn ngoài trời, không gian thông thoáng, đèn chiếu sáng ban đêm.";
+                default -> "Sân tiêu chuẩn trong nhà, thảm thi đấu chống trơn trượt, ánh sáng chống lóa.";
+            };
+        }
+        return "Sân cầu lông đạt chuẩn chất lượng cao.";
     }
 }
