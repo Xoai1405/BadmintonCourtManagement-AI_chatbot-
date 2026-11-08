@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import com.smashflow.backend.model.EmailVerificationToken;
 import com.smashflow.backend.model.User;
 import com.smashflow.backend.repository.EmailVerificationTokenRepository;
+import com.smashflow.backend.repository.UserRepository;
 import com.smashflow.backend.util.TokenUtil;
 
 import jakarta.transaction.Transactional;
@@ -20,14 +21,18 @@ public class EmailVerificationService {
     private final EmailVerificationTokenRepository tokenRepo;
     private final EmailService emailService;
     private final String frontendUrl;
+    private final UserRepository userRepo;
     private static final String INVALID_TOKEN = "Link xác thực không hợp lệ hoặc đã hết hạn";
+    private static final long RESEND_COOLDOWN_SECONDS = 60;
+    private static final int MAX_EMAILS_PER_DAY = 5;
 
     public EmailVerificationService(EmailVerificationTokenRepository tokenRepo,
             EmailService emailService,
-            @Value("${app.frontend-url}") String frontendUrl) {
+            @Value("${app.frontend-url}") String frontendUrl, UserRepository userRepo) {
         this.tokenRepo = tokenRepo;
         this.emailService = emailService;
         this.frontendUrl = frontendUrl;
+        this.userRepo = userRepo;
     }
 
     public void sendVerificationEmail(User user) {
@@ -62,6 +67,38 @@ public class EmailVerificationService {
         // 3. Đánh dấu user đã xác thực và token đã dùng
         token.getUser().setEmailVerified(true);
         token.setUsedAt(LocalDateTime.now());
+    }
+
+    @Transactional
+    public void resend(String emailOrPhoneNumber) {
+        String id = emailOrPhoneNumber.trim();
+        User user = userRepo.findByEmailOrPhoneNumber(id, id).orElse(null);
+
+        // Không có tài khoản hoặc đã xác thực: im lặng bỏ qua
+        if (user == null || user.isEmailVerified()) {
+            return;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // Luật 1: mỗi 60 giây chỉ được gửi 1 thư
+        boolean inCooldown = tokenRepo.findTopByUserOrderByCreatedAtDesc(user)
+                .map(last -> last.getCreatedAt().isAfter(now.minusSeconds(RESEND_COOLDOWN_SECONDS)))
+                .orElse(false);
+        if (inCooldown) {
+            return;
+        }
+
+        // Luật 2: tối đa 5 thư trong 24 giờ
+        if (tokenRepo.countByUserAndCreatedAtAfter(user, now.minusDays(1)) >= MAX_EMAILS_PER_DAY) {
+            return;
+        }
+
+        // Luật 3: link cũ hết hiệu lực, chỉ link mới nhất dùng được
+        tokenRepo.findByUserAndUsedAtIsNull(user)
+                .forEach(old -> old.setExpiresAt(now));
+
+        sendVerificationEmail(user);
     }
 
 }

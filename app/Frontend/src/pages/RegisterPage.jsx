@@ -2,7 +2,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { useRef, useState } from "react";
 import LoginAndRegisterImage from "../assets/LoginAndRegisterImage.jpg";
 import SmashFlowLogo from "../assets/Logo.png";
-import { Link, useNavigate} from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { authApi } from "../api/authApi";
 export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
@@ -20,7 +20,7 @@ export default function RegisterPage() {
   const phoneNumberRef = useRef(null);
   const passwordRef = useRef(null);
   const repeatPasswordRef = useRef(null);
-  
+
   const navigate = useNavigate();
   // Xóa lỗi của một trường khi người dùng nhập lại
   const clearFieldError = (field) => {
@@ -144,18 +144,17 @@ export default function RegisterPage() {
     setServerError("");
 
     try {
-     await authApi.register({
-      fullName,
-      email,
-      phoneNumber,
-      password,
-    });
+      await authApi.register({
+        fullName,
+        email,
+        phoneNumber,
+        password,
+      });
 
-
-    navigate("/login", {
-      replace: true,
-      state: { registered: true },
-    });
+      navigate("/check-email", {
+        replace: true,
+        state: { email: email.trim(), justRegistered: true },
+      });
     } catch (err) {
       setServerError(err.message || "Đăng ký thất bại, vui lòng thử lại!");
     } finally {

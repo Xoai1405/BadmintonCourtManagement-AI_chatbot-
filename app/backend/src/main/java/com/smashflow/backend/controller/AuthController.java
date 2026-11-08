@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.smashflow.backend.dto.request.LoginRequest;
 import com.smashflow.backend.dto.request.RegisterRequest;
+import com.smashflow.backend.dto.request.ResendVerificationRequest;
 import com.smashflow.backend.dto.request.VerifyEmailRequest;
 import com.smashflow.backend.dto.response.LoginResponse;
 import com.smashflow.backend.dto.response.RegisterResponse;
@@ -49,6 +50,14 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
         emailVerificationService.verify(request.token());
         return ResponseEntity.ok(Map.of("message", "Xác thực email thành công"));
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<Map<String, String>> resendVerification(
+            @Valid @RequestBody ResendVerificationRequest request) {
+        emailVerificationService.resend(request.emailOrPhoneNumber());
+        return ResponseEntity.ok(Map.of("message",
+                "Nếu tài khoản tồn tại và chưa xác thực, chúng tôi đã gửi lại link. Vui lòng kiểm tra hộp thư."));
     }
 
 }

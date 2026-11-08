@@ -5,7 +5,7 @@ import SmashFlowLogo from "../assets/Logo.png";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-
+import { useLocation } from "react-router-dom";
 export default function LoginPage() {
   const [emailOrPhoneNumber, setEmailOrPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
@@ -13,6 +13,10 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  const [needsVerification, setNeedsVerification] = useState(false);
+
+  const location = useLocation();
 
   const emailOrPhoneNumberRef = useRef(null);
   const passwordRef = useRef(null);
@@ -91,13 +95,14 @@ export default function LoginPage() {
     try {
       // TODO: Tích hợp API đăng nhập Spring Boot
       await login({
-      emailOrPhoneNumber,
-      password,
-    });
+        emailOrPhoneNumber,
+        password,
+      });
 
-     navigate("/");
+      navigate("/");
     } catch (err) {
       setServerError(err.message || "Đăng nhập thất bại, vui lòng thử lại!");
+      setNeedsVerification(err.code === "EMAIL_NOT_VERIFIED");
     } finally {
       setLoading(false);
     }
@@ -142,13 +147,30 @@ export default function LoginPage() {
                 Chào mừng bạn quay trở lại SmashFlow
               </p>
             </header>
+            {/* { justRegistered && (
+            <p className="login-notice">
+              Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản
+              trước khi đăng nhập.
+            </p>
+          )} */}
 
             {/* Lỗi từ server */}
             {serverError && (
-              <div role="alert" className="login-server-error">
-                {serverError}
-              </div>
-            )}
+  <div className="login-server-error" role="alert">
+    <p className="login-server-error-text">{serverError}</p>
+
+    {needsVerification && (
+      <Link
+        to="/check-email"
+        state={{ email: emailOrPhoneNumber }}
+        className="login-server-error-action"
+      >
+        Gửi lại email xác thực →
+      </Link>
+    )}
+  </div>
+)}
+           
 
             {/* Email hoặc số điện thoại */}
             <div className="login-field">
