@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 
 public record DiscountConfigRequest(
     @NotNull(message = "Số tháng tối thiểu không được để trống")
-    @Min(value = 0, message = "Số tháng tối thiểu phải từ 1 trở lên")
+    @Min(value = 1, message = "Số tháng tối thiểu phải từ 1 trở lên")
     Integer minMonths,
 
     @NotNull(message = "Phần trăm chiết khấu không được để trống")

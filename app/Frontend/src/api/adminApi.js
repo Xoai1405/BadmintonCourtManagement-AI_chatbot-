@@ -1,20 +1,21 @@
-import { mockBookings, mockCustomers, mockDiscountConfigs, mockRecurringSessions } from "../mocks/apiContract.js";
+import axiosClient from "./axiosClient";
+import { mockBookings, mockCustomers, mockRecurringSessions } from "../mocks/apiContract.js";
 
 // Store chỉ nằm trong frontend: dữ liệu giữ khi chuyển menu và reset khi reload.
 // Clone để component không sửa trực tiếp dữ liệu gốc hoặc dữ liệu trong store.
 const bookingStore = structuredClone(mockBookings);
 const sessionStore = structuredClone(mockRecurringSessions);
-const discountConfigStore = structuredClone(mockDiscountConfigs);
-let nextDiscountConfigId = Math.max(0, ...discountConfigStore.map((item) => item.id)) + 1;
-const staffAccountStore = [
-  { id: 1, fullName: "Lê Thị C", phone: "0909 123 456", email: "c.le@email.com", status: "ACTIVE" },
-  { id: 2, fullName: "Phạm Văn D", phone: "0909 456 789", email: "PVD42@email.com", status: "LOCKED" },
-];
-let nextStaffAccountId = Math.max(0, ...staffAccountStore.map((item) => item.id)) + 1;
+// const discountConfigStore = structuredClone(mockDiscountConfigs);
+// let nextDiscountConfigId = Math.max(0, ...discountConfigStore.map((item) => item.id)) + 1;
+// const staffAccountStore = [
+//   { id: 1, fullName: "Lê Thị C", phone: "0909 123 456", email: "c.le@email.com", status: "ACTIVE" },
+//   { id: 2, fullName: "Phạm Văn D", phone: "0909 456 789", email: "PVD42@email.com", status: "LOCKED" },
+// ];
+// let nextStaffAccountId = Math.max(0, ...staffAccountStore.map((item) => item.id)) + 1;
 const timePattern = /^([01]\d|2[0-3]):[0-5]\d$/;
-const normalizeName = (value) => value.trim().toLocaleLowerCase("vi-VN")
-  .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
-const normalizePhone = (value) => value.replace(/[\s().+-]/g, "");
+// const normalizeName = (value) => value.trim().toLocaleLowerCase("vi-VN")
+//   .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
+// const normalizePhone = (value) => value.replace(/[\s().+-]/g, "");
 
 // Promise và độ trễ giả lập request; UI dùng await/try/catch như API thật.
 // Không fetch/axios và không lưu database.
@@ -59,89 +60,81 @@ function cancellationReason(value) {
 }
 
 export const adminApi = {
-  getStaffAccounts: () => request(() => staffAccountStore),
-
-  createStaffAccount: (input) => {
-    const body = structuredClone(input);
-    return request(() => {
-      const fullName = body.fullName?.trim();
-      const phone = body.phone?.trim();
-      const email = body.email?.trim();
-      if (!fullName || !phone || !email) throw new Error("Vui lòng nhập đầy đủ họ tên, số điện thoại và email.");
-      if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("Email không hợp lệ.");
-      if (!/^\+?[\d\s().-]{9,16}$/.test(phone)) throw new Error("Số điện thoại không hợp lệ.");
-      if (staffAccountStore.some((item) => item.email.toLowerCase() === email.toLowerCase())) {
-        throw new Error("Email này đã được sử dụng.");
-      }
-      if (staffAccountStore.some((item) => item.phone.replace(/\D/g, "") === phone.replace(/\D/g, ""))) {
-        throw new Error("Số điện thoại này đã được sử dụng.");
-      }
-      const staff = { id: nextStaffAccountId++, fullName, phone, email, status: "ACTIVE" };
-      staffAccountStore.push(staff);
-      return staff;
-    });
+  getStaffAccounts: async () => {
+    const response = await axiosClient.get("/api/admin/staffs");
+    return response.data;
   },
 
-  updateStaffAccount: (id, input) => {
-    const body = structuredClone(input);
-    return request(() => {
-      const staff = findById(staffAccountStore, "id", id, "Tài khoản nhân viên");
-      const fullName = body.fullName?.trim();
-      const phone = body.phone?.trim();
-      const email = body.email?.trim();
-      if (!fullName || !phone || !email) throw new Error("Vui lòng nhập đầy đủ họ tên, số điện thoại và email.");
-      if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("Email không hợp lệ.");
-      if (!/^\+?[\d\s().-]{9,16}$/.test(phone)) throw new Error("Số điện thoại không hợp lệ.");
-      if (staffAccountStore.some((item) => item.id !== id && item.email.toLowerCase() === email.toLowerCase())) {
-        throw new Error("Email này đã được sử dụng.");
-      }
-      if (staffAccountStore.some((item) => item.id !== id && item.phone.replace(/\D/g, "") === phone.replace(/\D/g, ""))) {
-        throw new Error("Số điện thoại này đã được sử dụng.");
-      }
-      Object.assign(staff, { fullName, phone, email });
-      return staff;
-    });
+  createStaffAccount: async (payload) => {
+    try {
+      const response = await axiosClient.post("/api/admin/staffs", payload);
+      return response.data;
+    } catch (err) {
+      const data = err.response?.data;
+      const message = (typeof data === "string" ? data : data?.message) || "Không thể tạo tài khoản nhân viên";
+      throw new Error(message, { cause: err });
+    }
   },
 
-  deleteStaffAccount: (id) => request(() => {
-    const index = staffAccountStore.findIndex((item) => item.id === id);
-    if (index < 0) throw new Error("Tài khoản nhân viên không tồn tại.");
-    return staffAccountStore.splice(index, 1)[0];
-  }),
-
-  setStaffAccountStatus: (id, status) => request(() => {
-    const staff = findById(staffAccountStore, "id", id, "Tài khoản nhân viên");
-    if (!["ACTIVE", "LOCKED"].includes(status)) throw new Error("Trạng thái tài khoản không hợp lệ.");
-    Object.assign(staff, { status });
-    return staff;
-  }),
-
-  getCustomers: (filters = {}) => {
-    const query = { ...filters };
-    return request(() => mockCustomers.filter((customer) =>
-      normalizeName(customer.fullName).includes(normalizeName(query.name ?? "")) &&
-      normalizePhone(customer.phone).includes(normalizePhone((query.phone ?? "").trim())) &&
-      customer.email.toLowerCase().includes((query.email ?? "").trim().toLowerCase())
-    ).map((customer) => {
-      const bookings = bookingStore.filter((booking) => booking.customerId === customer.id);
-      return { ...customer, bookingCount: bookings.length,
-        // Cộng khoản đã thanh toán của booking lẻ và từng buổi; không gán thanh toán cho gói.
-        totalSpending: bookings.reduce((total, booking) =>
-          total + (booking.type === "SINGLE" && booking.paymentStatus === "PAID" ? booking.amount : 0), 0)
-          + sessionStore.filter((session) => session.customerId === customer.id && session.paymentStatus === "PAID")
-            .reduce((total, session) => total + session.amount, 0) };
-    }));
+  updateStaffAccount: async (id, payload) => {
+    try {
+      const response = await axiosClient.put(`/api/admin/staffs/${id}`, payload);
+      return response.data;
+    } catch (err) {
+      const data = err.response?.data;
+      const message = (typeof data === "string" ? data : data?.message) || "Không thể cập nhật tài khoản nhân viên";
+      throw new Error(message, { cause: err });
+    }
   },
 
-  getCustomerBookings: (id) => request(() => {
-    findById(mockCustomers, "id", id, "Khách hàng");
-    // Trả cả đặt sân lẻ/lịch cố định; chỉ đặt sân lẻ có trạng thái thanh toán.
-    return bookingStore.filter((booking) => booking.customerId === id);
-  }),
+  deleteStaffAccount: async (id) => {
+    try {
+      await axiosClient.delete(`/api/admin/staffs/${id}`);
+    } catch (err) {
+      const data = err.response?.data;
+      const message = (typeof data === "string" ? data : data?.message) || "Không thể xóa tài khoản nhân viên";
+      throw new Error(message, { cause: err });
+    }
+  },
 
-  getCustomerBookingDetail: (customerId, bookingId) => request(() => {
-    return bookingDetail(customerBooking(customerId, bookingId));
-  }),
+  setStaffAccountStatus: async (id, status) => {
+    try {
+      const response = await axiosClient.patch(`/api/admin/staffs/${id}/status`, { status });
+      return response.data;
+    } catch (err) {
+      const data = err.response?.data;
+      const message = (typeof data === "string" ? data : data?.message) || "Không thể đổi trạng thái tài khoản";
+      throw new Error(message, { cause: err });
+    }
+  },
+
+  getCustomers: async (filters = {}) => {
+    const params = {};
+    if (filters.name?.trim()) params.name = filters.name.trim();
+    if (filters.phone?.trim()) params.phone = filters.phone.trim();
+    if (filters.email?.trim()) params.email = filters.email.trim();
+
+    const response = await axiosClient.get("/api/admin/customers", { params });
+    return response.data;
+  },
+
+  getCustomerBookings: async (id) => {
+    try {
+      const response = await axiosClient.get(`/api/admin/customers/${id}/bookings`);
+      return Array.isArray(response.data) ? response.data : [];
+    } catch {
+      return [];
+    }
+  },
+
+  getCustomerBookingDetail: async (customerId, bookingId) => {
+    try {
+      const response = await axiosClient.get(`/api/admin/customers/bookings/${bookingId}/detail`);
+      return response.data;
+    } catch {
+      return null;
+    }
+  },
 
   getCustomerRecurringSessionDetail: (customerId, packageId, sessionId) => request(() => {
     const { session } = recurringSession(customerId, packageId, sessionId);
@@ -219,51 +212,37 @@ export const adminApi = {
     });
   },
 
-  getDiscountConfigs: () => request(() => [...discountConfigStore].sort((a, b) => a.minMonths - b.minMonths)),
-
-  createDiscountConfig: (input) => {
-    const body = structuredClone(input);
-    return request(() => {
-      const minMonths = Number(body.minMonths);
-      const discountPercent = Number(body.discountPercent);
-      if (!Number.isInteger(minMonths) || minMonths < 1) throw new Error("Số tháng tối thiểu phải từ 1 trở lên.");
-      if (!Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100) {
-        throw new Error("Phần trăm chiết khấu phải từ 0% đến 100%.");
-      }
-      if (discountConfigStore.some((item) => item.minMonths === minMonths)) {
-        throw new Error("Đã có mức chiết khấu cho số tháng này.");
-      }
-      const config = {
-        id: nextDiscountConfigId++, minMonths, discountPercent,
-        status: body.status ?? "ACTIVE",
-      };
-      discountConfigStore.push(config);
-      return config;
-    });
+  getDiscountConfigs: async () => {
+    const response = await axiosClient.get("/api/admin/discount_configs");
+    return response.data;
   },
 
-  updateDiscountConfig: (id, input) => {
-    const body = structuredClone(input);
-    return request(() => {
-      const config = findById(discountConfigStore, "id", id, "Mức chiết khấu");
-      const minMonths = Number(body.minMonths);
-      const discountPercent = Number(body.discountPercent);
-      if (!Number.isInteger(minMonths) || minMonths < 1) throw new Error("Số tháng tối thiểu phải từ 1 trở lên.");
-      if (!Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100) {
-        throw new Error("Phần trăm chiết khấu phải từ 0% đến 100%.");
-      }
-      if (discountConfigStore.some((item) => item.id !== id && item.minMonths === minMonths)) {
-        throw new Error("Đã có mức chiết khấu cho số tháng này.");
-      }
-      if (!["ACTIVE", "INACTIVE"].includes(body.status)) throw new Error("Trạng thái chiết khấu không hợp lệ.");
-      Object.assign(config, { minMonths, discountPercent, status: body.status });
-      return config;
-    });
+  createDiscountConfig: async (payload) => {
+    try {
+      const response = await axiosClient.post("/api/admin/discount_configs", payload);
+      return response.data;
+    } catch (err) {
+      const message = err.response?.data?.message || err.response?.data || "Không thể tạo mức chiết khấu";
+      throw new Error(message, { cause: err });
+    }
   },
 
-  deleteDiscountConfig: (id) => request(() => {
-    const index = discountConfigStore.findIndex((item) => item.id === id);
-    if (index < 0) throw new Error("Mức chiết khấu không tồn tại.");
-    return discountConfigStore.splice(index, 1)[0];
-  }),
+  updateDiscountConfig: async (id, payload) => {
+    try {
+      const response = await axiosClient.put(`/api/admin/discount_configs/${id}`, payload);
+      return response.data;
+    } catch (err) {
+      const message = err.response?.data?.message || err.response?.data || "Không thể cập nhật mức chiết khấu";
+      throw new Error(message, { cause: err });
+    }
+  },
+
+  deleteDiscountConfig: async (id) => {
+    try {
+      await axiosClient.delete(`/api/admin/discount_configs/${id}`);
+    } catch (err) {
+      const message = err.response?.data?.message || err.response?.data || "Không thể xóa mức chiết khấu";
+      throw new Error(message, { cause: err });
+    }
+  },
 };

@@ -294,6 +294,14 @@ public class RecurringBookingService {
         recurringBooking.setStatus(RecurBookingStatus.ACTIVE);
         recurringBooking.setCreatedAt(now);
 
+        // Lưu tham chiếu đến mốc chiết khấu được áp dụng (nếu có)
+        long totalMonths = ChronoUnit.MONTHS.between(request.startDate(), request.endDate());
+        if (ChronoUnit.DAYS.between(request.startDate().plusMonths(totalMonths), request.endDate()) > 0) {
+            totalMonths++;
+        }
+        discountConfigRepository.findApplicableDiscount(DiscountStatus.ACTIVE, (int) totalMonths)
+                .ifPresent(recurringBooking::setDiscountConfig);
+
         RecurringBooking savedRecurringBooking = recurringBookingRepository.save(recurringBooking);
 
         // 4. Tự động sinh các buổi con (Booking)
