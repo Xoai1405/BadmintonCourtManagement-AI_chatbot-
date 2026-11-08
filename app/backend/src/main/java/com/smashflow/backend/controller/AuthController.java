@@ -15,6 +15,7 @@ import com.smashflow.backend.dto.request.ForgotPasswordRequest;
 import com.smashflow.backend.dto.request.LoginRequest;
 import com.smashflow.backend.dto.request.RegisterRequest;
 import com.smashflow.backend.dto.request.ResendVerificationRequest;
+import com.smashflow.backend.dto.request.ResetPasswordRequest;
 import com.smashflow.backend.dto.request.VerifyEmailRequest;
 import com.smashflow.backend.dto.response.LoginResponse;
 import com.smashflow.backend.dto.response.RegisterResponse;
@@ -70,5 +71,13 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message",
                 "Nếu email tồn tại trong hệ thống, chúng tôi đã gửi link đặt lại mật khẩu. "
                         + "Link có hiệu lực trong 30 phút."));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        passwordResetService.resetPassword(request.token(), request.newPassword());
+        return ResponseEntity.ok(Map.of("message",
+                "Đặt lại mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới."));
     }
 }

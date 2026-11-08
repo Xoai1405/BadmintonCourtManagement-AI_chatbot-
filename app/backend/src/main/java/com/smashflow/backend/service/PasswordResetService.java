@@ -17,6 +17,9 @@ import com.smashflow.backend.repository.PasswordResetTokenRepository;
 import com.smashflow.backend.repository.UserRepository;
 import com.smashflow.backend.util.TokenUtil;
 
+import java.time.temporal.ChronoUnit;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 @Service
 public class PasswordResetService {
 
@@ -25,20 +28,25 @@ public class PasswordResetService {
     private static final long TOKEN_TTL_MINUTES = 30;
     private static final long REQUEST_COOLDOWN_SECONDS = 60;
     private static final int MAX_EMAILS_PER_DAY = 5;
+    private static final String INVALID_TOKEN = "Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn";
+    private static final String SAME_PASSWORD = "Mật khẩu mới phải khác mật khẩu hiện tại";
 
     private final UserRepository userRepo;
     private final PasswordResetTokenRepository tokenRepo;
     private final EmailService emailService;
     private final String frontendUrl;
+    private final PasswordEncoder passwordEncoder;
 
     public PasswordResetService(UserRepository userRepo,
             PasswordResetTokenRepository tokenRepo,
             EmailService emailService,
-            @Value("${app.frontend-url}") String frontendUrl) {
+            @Value("${app.frontend-url}") String frontendUrl,
+            PasswordEncoder passwordEncoder) {
         this.userRepo = userRepo;
         this.tokenRepo = tokenRepo;
         this.emailService = emailService;
         this.frontendUrl = frontendUrl;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -91,6 +99,51 @@ public class PasswordResetService {
         } catch (MailException e) {
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             log.warn("Không gửi được email đặt lại mật khẩu cho user {}", user.getId(), e);
+        }
+    }
+
+    @Transactional
+    public void resetPassword(String rawToken, String newPassword) {
+        // KIỂM TRA
+        PasswordResetToken token = tokenRepo.findByTokenHash(TokenUtil.sha256(rawToken))
+                .orElseThrow(() -> new IllegalArgumentException(INVALID_TOKEN));
+
+        if (token.isExpired() || token.isUsed()) {
+            throw new IllegalArgumentException(INVALID_TOKEN);
+        }
+
+        User user = token.getUser();
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new IllegalArgumentException(INVALID_TOKEN);
+        }
+
+        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new IllegalArgumentException(SAME_PASSWORD);
+        }
+
+        // THAY ĐỔI (chỉ chạy khi đã qua bước kiểm tra)
+        LocalDateTime now = LocalDateTime.now();
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+
+        tokenRepo.findByUserAndUsedAtIsNull(user)
+                .forEach(t -> t.setUsedAt(now));
+
+        // Làm tròn về giây
+        user.setPasswordChangedAt(now.truncatedTo(ChronoUnit.SECONDS));
+
+        user.setEmailVerified(true);
+
+        try {
+            emailService.send(
+                    user.getEmail(),
+                    "Mật khẩu SmashFlow của bạn đã được thay đổi",
+                    "Chào " + user.getFullName() + ",\n\n"
+                            + "Mật khẩu tài khoản SmashFlow của bạn vừa được đặt lại.\n"
+                            + "Nếu không phải bạn thực hiện, hãy liên hệ ngay với quản lý sân để được hỗ trợ.");
+        } catch (MailException e) {
+
+            log.warn("Không gửi được email thông báo đổi mật khẩu cho user {}", user.getId(), e);
         }
     }
 }
