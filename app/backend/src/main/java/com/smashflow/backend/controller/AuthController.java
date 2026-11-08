@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.smashflow.backend.dto.request.LoginRequest;
@@ -13,25 +14,34 @@ import com.smashflow.backend.dto.request.RegisterRequest;
 import com.smashflow.backend.dto.response.LoginResponse;
 import com.smashflow.backend.dto.response.RegisterResponse;
 import com.smashflow.backend.service.AuthService;
+import com.smashflow.backend.service.EmailService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
 @CrossOrigin(origins = "*")
 @RestController
-@RequestMapping ("/api/v1/auth")
-@RequiredArgsConstructor 
+@RequestMapping("/api/v1/auth")
+@RequiredArgsConstructor
 public class AuthController {
     private final AuthService authSer;
+    private final EmailService emailService;
 
     @PostMapping("/register")
-    public ResponseEntity<RegisterResponse> register( @Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
         RegisterResponse res = authSer.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(res);
     }
 
-     @PostMapping("/login")
+    @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authSer.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/test-email")
+    public ResponseEntity<String> testEmail(@RequestParam String to) {
+        emailService.send(to, "Test SmashFlow", "Xin chào, đây là email thử nghiệm!");
+        return ResponseEntity.ok("Đã gửi");
     }
 }
