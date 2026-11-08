@@ -156,21 +156,20 @@ export default function LoginPage() {
 
             {/* Lỗi từ server */}
             {serverError && (
-  <div className="login-server-error" role="alert">
-    <p className="login-server-error-text">{serverError}</p>
+              <div className="login-server-error" role="alert">
+                <p className="login-server-error-text">{serverError}</p>
 
-    {needsVerification && (
-      <Link
-        to="/check-email"
-        state={{ email: emailOrPhoneNumber }}
-        className="login-server-error-action"
-      >
-        Gửi lại email xác thực →
-      </Link>
-    )}
-  </div>
-)}
-           
+                {needsVerification && (
+                  <Link
+                    to="/check-email"
+                    state={{ email: emailOrPhoneNumber }}
+                    className="login-server-error-action"
+                  >
+                    Gửi lại email xác thực →
+                  </Link>
+                )}
+              </div>
+            )}
 
             {/* Email hoặc số điện thoại */}
             <div className="login-field">

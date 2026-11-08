@@ -1,5 +1,6 @@
 package com.smashflow.backend.model;
 
+import java.security.Timestamp;
 import java.time.LocalDateTime;
 
 import com.smashflow.backend.model.enums.Role;
@@ -56,5 +57,8 @@ public class User {
 
     @Column(name = "email_verified", nullable = false)
     private boolean emailVerified;
+
+    @Column(name = "password_changed_at", nullable = true)
+    private LocalDateTime passwordChangedAt;
 
 }
