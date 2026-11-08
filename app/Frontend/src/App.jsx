@@ -26,6 +26,8 @@ import StaffBookingCreate from "./pages/staff/StaffBookingCreate.jsx";
 import { Navigate, Route, Routes } from "react-router-dom";
 import VerifyEmailPage from "./pages/VerifyEmailPage.jsx";
 import CheckEmailPage from "./pages/CheckEmailPage.jsx";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx";
+import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
 function App() {
   return (
     <Routes>
@@ -36,6 +38,8 @@ function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/check-email" element={<CheckEmailPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       {/* Panel nhân viên mở trực tiếp, không yêu cầu đăng nhập. */}
       <Route element={<StaffLayout />}>
         <Route path="/staff/create-booking" element={<StaffBookingCreate />} />
