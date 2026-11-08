@@ -17,6 +17,7 @@ import com.smashflow.backend.model.enums.Role;
 import com.smashflow.backend.model.enums.UserStatus;
 import com.smashflow.backend.repository.UserRepository;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -27,6 +28,7 @@ public class AuthService {
     private final JwtService jwtSer;
     private final EmailVerificationService emailVerificationService;
 
+    @Transactional
     public RegisterResponse register(RegisterRequest request) {
         if (userRepo.existsByEmail(request.email())) {
             throw new IllegalArgumentException("Email đã được sử dụng");
@@ -63,6 +65,9 @@ public class AuthService {
 
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new LockedException("Tài khoản đã bị khóa");
+        }
+        if (user.isEmailVerified()) {
+            throw new LockedException("Tài khoản chưa được xác thực email. Vui lòng vào hộp thư để xác thực");
         }
 
         String token = jwtSer.generateToken(request.emailOrPhoneNumber());
