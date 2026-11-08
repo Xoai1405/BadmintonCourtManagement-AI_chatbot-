@@ -39,9 +39,4 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/test-email")
-    public ResponseEntity<String> testEmail(@RequestParam String to) {
-        emailService.send(to, "Test SmashFlow", "Xin chào, đây là email thử nghiệm!");
-        return ResponseEntity.ok("Đã gửi");
-    }
 }

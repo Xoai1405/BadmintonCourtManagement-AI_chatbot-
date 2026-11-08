@@ -25,6 +25,7 @@ public class AuthService {
     private final UserRepository userRepo;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtSer;
+    private final EmailVerificationService emailVerificationService;
 
     public RegisterResponse register(RegisterRequest request) {
         if (userRepo.existsByEmail(request.email())) {
@@ -43,8 +44,11 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.password()));
         user.setStatus(UserStatus.ACTIVE);
         user.setCreatedAt(LocalDateTime.now());
+        user.setEmailVerified(false);
 
         user = userRepo.save(user);
+
+        emailVerificationService.sendVerificationEmail(user);
 
         return new RegisterResponse(user.getId(), user.getFullName(), user.getEmail(), user.getPhoneNumber());
 
