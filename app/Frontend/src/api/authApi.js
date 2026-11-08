@@ -53,4 +53,25 @@ export const authApi = {
       throw new Error(getErrorMessage(err, "Không thể gửi lại email"));
     }
   },
+
+  forgotPassword: async (email) => {
+    try {
+      const response = await axiosClient.post("/api/v1/auth/forgot-password", { email });
+      return response.data;
+    } catch (err) {
+      throw new Error(getErrorMessage(err, "Không thể gửi yêu cầu, vui lòng thử lại"));
+    }
+  },
+
+  resetPassword: async (token, newPassword) => {
+    try {
+      const response = await axiosClient.post("/api/v1/auth/reset-password", {
+        token,
+        newPassword,
+      });
+      return response.data;
+    } catch (err) {
+      throw new Error(getErrorMessage(err, "Đặt lại mật khẩu thất bại"));
+    }
+  },
 };

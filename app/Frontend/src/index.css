@@ -311,6 +311,44 @@ a {
   outline-offset: 2px;
 }
 
+
+.login-forgot-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -8px;
+}
+
+.login-forgot-link {
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  text-underline-offset: 3px;
+  transition: color 180ms ease;
+}
+
+.login-forgot-link:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+.login-forgot-link:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.login-success-notice {
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border: 1px solid #bfe8dc;
+  border-radius: 10px;
+  background: var(--color-primary-light);
+  color: var(--color-primary-hover);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 /* ========================================
    6. FORM FIELDS
 ======================================== */

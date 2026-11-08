@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [needsVerification, setNeedsVerification] = useState(false);
 
   const location = useLocation();
+  const passwordReset = location.state?.passwordReset === true;
 
   const emailOrPhoneNumberRef = useRef(null);
   const passwordRef = useRef(null);
@@ -154,6 +155,11 @@ export default function LoginPage() {
             </p>
           )} */}
 
+            {passwordReset && !serverError && (
+              <p className="login-success-notice" role="status">
+                Đặt lại mật khẩu thành công. Hãy đăng nhập bằng mật khẩu mới.
+              </p>
+            )}
             {/* Lỗi từ server */}
             {serverError && (
               <div className="login-server-error" role="alert">
@@ -241,6 +247,20 @@ export default function LoginPage() {
                   {errors.password}
                 </p>
               )}
+            </div>
+
+            <div className="login-forgot-row">
+              <Link
+                to="/forgot-password"
+                state={{
+                  email: emailOrPhoneNumber.includes("@")
+                    ? emailOrPhoneNumber.trim()
+                    : "",
+                }}
+                className="login-forgot-link"
+              >
+                Quên mật khẩu?
+              </Link>
             </div>
 
             {/* Nút đăng nhập */}
