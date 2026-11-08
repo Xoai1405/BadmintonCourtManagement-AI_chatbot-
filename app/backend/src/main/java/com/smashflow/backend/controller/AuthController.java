@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.smashflow.backend.dto.request.ForgotPasswordRequest;
 import com.smashflow.backend.dto.request.LoginRequest;
 import com.smashflow.backend.dto.request.RegisterRequest;
 import com.smashflow.backend.dto.request.ResendVerificationRequest;
@@ -20,6 +21,7 @@ import com.smashflow.backend.dto.response.RegisterResponse;
 import com.smashflow.backend.service.AuthService;
 import com.smashflow.backend.service.EmailService;
 import com.smashflow.backend.service.EmailVerificationService;
+import com.smashflow.backend.service.PasswordResetService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
     private final AuthService authSer;
     private final EmailService emailService;
+    private final PasswordResetService passwordResetService;
 
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
@@ -60,4 +63,12 @@ public class AuthController {
                 "Nếu tài khoản tồn tại và chưa xác thực, chúng tôi đã gửi lại link. Vui lòng kiểm tra hộp thư."));
     }
 
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.requestReset(request.email());
+        return ResponseEntity.ok(Map.of("message",
+                "Nếu email tồn tại trong hệ thống, chúng tôi đã gửi link đặt lại mật khẩu. "
+                        + "Link có hiệu lực trong 30 phút."));
+    }
 }
