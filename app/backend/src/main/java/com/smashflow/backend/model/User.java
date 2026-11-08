@@ -54,4 +54,7 @@ public class User {
     @Column(nullable = true, name = "created_at")
     private LocalDateTime createdAt;
 
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified;
+
 }

@@ -58,6 +58,7 @@ public class StaffManagementService {
         staff.setCreatedAt(LocalDateTime.now());
         // Mật khẩu mặc định khởi tạo là Staff@123
         staff.setPassword(passwordEncoder.encode("Staff@123"));
+        staff.setEmailVerified(true);
 
         User saved = userRepository.save(staff);
         return StaffResponse.fromUser(saved);
@@ -133,7 +134,8 @@ public class StaffManagementService {
         boolean hasRecurringBookings = recurringBookingRepository.existsByCreatedByStaff_Id(id);
 
         if (hasBookings || hasRecurringBookings) {
-            throw new IllegalArgumentException("Nhân viên này đã có lịch sử tạo/xử lý đơn đặt sân trên hệ thống, không thể xóa! Vui lòng dùng tính năng Khóa tài khoản.");
+            throw new IllegalArgumentException(
+                    "Nhân viên này đã có lịch sử tạo/xử lý đơn đặt sân trên hệ thống, không thể xóa! Vui lòng dùng tính năng Khóa tài khoản.");
         }
 
         userRepository.delete(staff);
