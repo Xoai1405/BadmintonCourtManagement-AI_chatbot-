@@ -21,6 +21,7 @@ public class CustomUserDetails extends User {
     private final Role role;
     private final UserStatus status;
     private final LocalDateTime createdAt;
+    private final LocalDateTime passwordChangedAt;
 
     public CustomUserDetails(
             Long userId,
@@ -31,7 +32,8 @@ public class CustomUserDetails extends User {
             String password,
             Role role,
             UserStatus status,
-            LocalDateTime createdAt) {
+            LocalDateTime createdAt,
+            LocalDateTime passwordChangedAt) {
 
         super(email, password, List.of(new SimpleGrantedAuthority("ROLE_" + role.name())));
 
@@ -43,5 +45,6 @@ public class CustomUserDetails extends User {
         this.role = role;
         this.status = status;
         this.createdAt = createdAt;
+        this.passwordChangedAt = passwordChangedAt;
     }
 }

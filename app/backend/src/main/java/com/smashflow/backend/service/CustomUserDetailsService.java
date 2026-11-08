@@ -19,6 +19,6 @@ public class CustomUserDetailsService implements UserDetailsService {
         User u = userRepo.findByEmailOrPhoneNumber(emailOrPhoneNumber, emailOrPhoneNumber)
                 .orElseThrow(() -> new UsernameNotFoundException("User không tồn tại"));
         return new CustomUserDetails(u.getId(), u.getFullName(), u.getAvatarUrl(), u.getPhoneNumber(), u.getEmail(),
-                u.getPassword(), u.getRole(), u.getStatus(), u.getCreatedAt());
+                u.getPassword(), u.getRole(), u.getStatus(), u.getCreatedAt(), u.getPasswordChangedAt());
     }
 }

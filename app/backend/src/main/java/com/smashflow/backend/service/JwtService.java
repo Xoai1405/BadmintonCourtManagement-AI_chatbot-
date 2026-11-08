@@ -1,7 +1,5 @@
 package com.smashflow.backend.service;
 
-
-
 import java.util.Date;
 
 import javax.crypto.SecretKey;
@@ -13,10 +11,12 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
-@Service 
+@Service
 public class JwtService {
-    @Value ("${app.jwt.secret}")
+    @Value("${app.jwt.secret}")
     private String secret;
 
     @Value("${app.jwt.expiration-ms}")
@@ -27,7 +27,7 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    //Tạo token
+    // Tạo token
     public String generateToken(String emailOrPhoneNumber) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
@@ -39,8 +39,8 @@ public class JwtService {
                 .signWith(getSigningKey())
                 .compact();
     }
-    
-    //Đọc token
+
+    // Đọc token
     private Claims parseClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
@@ -51,5 +51,10 @@ public class JwtService {
 
     public String extractEmailOrPhoneNumber(String token) {
         return parseClaims(token).getSubject();
+    }
+
+    public LocalDateTime extractIssuedAt(String token) {
+        Date issuedAt = parseClaims(token).getIssuedAt();
+        return LocalDateTime.ofInstant(issuedAt.toInstant(), ZoneId.systemDefault());
     }
 }

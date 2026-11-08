@@ -2,6 +2,7 @@
 package com.smashflow.backend.config;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -10,6 +11,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.smashflow.backend.service.CustomUserDetails;
 import com.smashflow.backend.service.JwtService;
 
 import jakarta.servlet.FilterChain;
@@ -43,15 +45,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (emailOrPhoneNumber != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(emailOrPhoneNumber);
 
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+                if (!isIssuedBeforePasswordChange(token, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails, null, userDetails.getAuthorities());
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
             }
         } catch (Exception e) {
             // Token sai hoặc hết hạn: không set Authentication, coi như chưa đăng nhập
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isIssuedBeforePasswordChange(String token, UserDetails userDetails) {
+        if (!(userDetails instanceof CustomUserDetails custom)) {
+            return false;
+        }
+        LocalDateTime changedAt = custom.getPasswordChangedAt();
+        if (changedAt == null) {
+            return false; // chưa đổi mật khẩu lần nào: mọi token hợp lệ như trước
+        }
+        return jwtService.extractIssuedAt(token).isBefore(changedAt);
     }
 }
