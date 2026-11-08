@@ -12,6 +12,7 @@ import com.smashflow.backend.dto.request.LoginRequest;
 import com.smashflow.backend.dto.request.RegisterRequest;
 import com.smashflow.backend.dto.response.LoginResponse;
 import com.smashflow.backend.dto.response.RegisterResponse;
+import com.smashflow.backend.exception.EmailNotVerifiedException;
 import com.smashflow.backend.model.User;
 import com.smashflow.backend.model.enums.Role;
 import com.smashflow.backend.model.enums.UserStatus;
@@ -66,8 +67,9 @@ public class AuthService {
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new LockedException("Tài khoản đã bị khóa");
         }
-        if (user.isEmailVerified()) {
-            throw new LockedException("Tài khoản chưa được xác thực email. Vui lòng vào hộp thư để xác thực");
+        if (!user.isEmailVerified()) {
+            throw new EmailNotVerifiedException(
+                    "Email chưa được xác thực. Vui lòng kiểm tra hộp thư của bạn.");
         }
 
         String token = jwtSer.generateToken(request.emailOrPhoneNumber());

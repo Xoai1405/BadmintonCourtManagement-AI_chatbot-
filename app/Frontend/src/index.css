@@ -286,6 +286,30 @@ a {
   font-size: 12px;
   line-height: 1.6;
 }
+.login-server-error-text {
+  margin: 0;
+}
+
+.login-server-error-action {
+  display: inline-block;
+  margin-top: 6px;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 180ms ease;
+}
+
+.login-server-error-action:hover {
+  color: #7f1d1d;
+}
+
+.login-server-error-action:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid var(--color-error);
+  outline-offset: 2px;
+}
 
 /* ========================================
    6. FORM FIELDS
@@ -596,6 +620,92 @@ a {
 
   .register-form .login-submit-button {
     margin-top: 18px;
+  }
+}
+/* ========================================
+   10. CHECK EMAIL / VERIFY EMAIL
+======================================== */
+
+.verify-card {
+  width: 100%;
+  max-width: 440px;
+  padding: 40px 36px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-white);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+}
+
+.verify-icon {
+  display: inline-flex;
+  width: 60px;
+  height: 60px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+  border-radius: 50%;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.verify-text {
+  margin-bottom: 26px;
+  font-size: 13px;
+}
+
+.verify-email {
+  color: var(--color-heading);
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.verify-form {
+  text-align: left;
+}
+
+.verify-form .login-submit-button {
+  margin-top: 8px;
+}
+
+.verify-message {
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: left;
+}
+
+.verify-message--success {
+  border-color: #bfe8dc;
+  background: var(--color-primary-light);
+  color: var(--color-primary-hover);
+}
+
+.verify-message--error {
+  border-color: #fecaca;
+  background: var(--color-error-bg);
+  color: #b91c1c;
+}
+
+.verify-note {
+  margin: 22px 0 0;
+  color: var(--color-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.verify-back-link {
+  display: inline-block;
+  margin-top: 18px;
+  font-size: 13px;
+}
+
+@media (max-width: 767px) {
+  .verify-card {
+    padding: 32px 22px;
   }
 }
 

@@ -22,23 +22,27 @@ import ProtectedRoute from "./components/auth/ProtectedRoute.jsx";
 import StaffLayout from "./components/layout/StaffLayout.jsx";
 import BookingLookupPage from "./pages/staff/BookingLookupPage.jsx";
 import BookingDetailPage from "./pages/staff/BookingDetailPage.jsx";
-import StaffBookingCreate from "./pages/staff/StaffBookingCreate.jsx"; 
+import StaffBookingCreate from "./pages/staff/StaffBookingCreate.jsx";
 import { Navigate, Route, Routes } from "react-router-dom";
-
+import VerifyEmailPage from "./pages/VerifyEmailPage.jsx";
+import CheckEmailPage from "./pages/CheckEmailPage.jsx";
 function App() {
   return (
     <Routes>
       {/* 1. Các trang public (Ai cũng xem được) */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/check-email" element={<CheckEmailPage />} />
       {/* Panel nhân viên mở trực tiếp, không yêu cầu đăng nhập. */}
       <Route element={<StaffLayout />}>
-        <Route path="/staff/create-booking" element={<StaffBookingCreate />} /> 
+        <Route path="/staff/create-booking" element={<StaffBookingCreate />} />
         <Route path="/staff/bookings" element={<BookingLookupPage />} />
         <Route path="/staff/bookings/:id" element={<BookingDetailPage />} />
       </Route>
-      
+
       {/* 2. Các trang cần đăng nhập (Protected Routes) */}
       <Route element={<ProtectedRoute />}>
         <Route path="/courts/:id" element={<CourtDetail />} />
@@ -46,11 +50,11 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/" element={<CourtList />} />
         <Route path="/recurring-bookings" element={<RecurringBooking />} />
-        
+
         {/* Quản lý Booking */}
         <Route path="/my-bookings" element={<MyBookings />} />
         <Route path="/my-bookings/:id" element={<SingleBookingDetail />} />
-        
+
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
 
