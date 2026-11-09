@@ -1,0 +1,80 @@
+package com.smashflow.backend.modules.identity.auth.service;
+
+import java.time.LocalDateTime;
+
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import com.smashflow.backend.modules.identity.auth.dto.request.LoginRequest;
+import com.smashflow.backend.modules.identity.auth.dto.request.RegisterRequest;
+import com.smashflow.backend.modules.identity.auth.dto.response.LoginResponse;
+import com.smashflow.backend.modules.identity.auth.dto.response.RegisterResponse;
+import com.smashflow.backend.modules.identity.auth.exception.EmailNotVerifiedException;
+import com.smashflow.backend.modules.identity.user.model.User;
+import com.smashflow.backend.modules.identity.user.model.enums.Role;
+import com.smashflow.backend.modules.identity.user.model.enums.UserStatus;
+import com.smashflow.backend.modules.identity.user.repository.UserRepository;
+
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class AuthService {
+    private final UserRepository userRepo;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtSer;
+    private final EmailVerificationService emailVerificationService;
+
+    @Transactional
+    public RegisterResponse register(RegisterRequest request) {
+        if (userRepo.existsByEmail(request.email())) {
+            throw new IllegalArgumentException("Email đã được sử dụng");
+        }
+
+        if (userRepo.existsByPhoneNumber(request.phoneNumber())) {
+            throw new IllegalArgumentException("Số điện thoại đã được sử dụng");
+        }
+
+        User user = new User();
+        user.setFullName(request.fullName());
+        user.setEmail(request.email());
+        user.setPhoneNumber(request.phoneNumber());
+        user.setRole(Role.CUSTOMER);
+        user.setPassword(passwordEncoder.encode(request.password()));
+        user.setStatus(UserStatus.ACTIVE);
+        user.setCreatedAt(LocalDateTime.now());
+        user.setEmailVerified(false);
+
+        user = userRepo.save(user);
+
+        emailVerificationService.sendVerificationEmail(user);
+
+        return new RegisterResponse(user.getId(), user.getFullName(), user.getEmail(), user.getPhoneNumber());
+
+    }
+
+    public LoginResponse login(LoginRequest request) {
+        String id = request.emailOrPhoneNumber();
+
+        User user = userRepo.findByEmailOrPhoneNumber(id, id)
+                .filter(u -> passwordEncoder.matches(request.password(), u.getPassword()))
+                .orElseThrow(() -> new BadCredentialsException("Sai tài khoản hoặc mật khẩu"));
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new LockedException("Tài khoản đã bị khóa");
+        }
+        if (!user.isEmailVerified()) {
+            throw new EmailNotVerifiedException(
+                    "Email chưa được xác thực. Vui lòng kiểm tra hộp thư của bạn.");
+        }
+
+        String token = jwtSer.generateToken(request.emailOrPhoneNumber());
+
+        return new LoginResponse(token, user.getId(), user.getFullName(), user.getEmail(), user.getPhoneNumber(),
+                user.getRole());
+    }
+}

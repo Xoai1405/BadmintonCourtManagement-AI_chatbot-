@@ -1,0 +1,41 @@
+package com.smashflow.backend.modules.pricing.model;
+
+import java.math.BigDecimal;
+
+import com.smashflow.backend.modules.court.model.enums.CourtType;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Entity
+@Table(name = "price_configs")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class PriceConfig {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "court_type", nullable = false, unique = true)
+    private CourtType courtType;
+
+    @Column(name = "price_normal_hour", nullable = false)
+    private BigDecimal priceNormalHour;
+
+    @Column(name = "price_peak_hour", nullable = false)
+    private BigDecimal pricePeakHour;
+}
