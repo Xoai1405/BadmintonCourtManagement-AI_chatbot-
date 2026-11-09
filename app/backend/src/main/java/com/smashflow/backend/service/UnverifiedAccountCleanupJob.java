@@ -8,7 +8,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.smashflow.backend.repository.UserRepository;
+import com.smashflow.backend.modules.identity.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
