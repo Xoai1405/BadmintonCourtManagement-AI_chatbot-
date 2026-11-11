@@ -143,6 +143,32 @@ public class BookingService {
                                 .build();
         }
 
+        /** Khách xác nhận đã chuyển khoản; nhân viên có 30 phút để kiểm tra. */
+        @Transactional
+        public BookingResponse markPaymentSubmitted(Long bookingId, Long customerId) {
+                Booking booking = bookingRepo.findByIdForUpdate(bookingId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin booking"));
+                if (!booking.getCustomer().getId().equals(customerId) || booking.getRecurringBooking() != null) {
+                        throw new ResourceNotFoundException("Không tìm thấy thông tin booking");
+                }
+                LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+                if (booking.getBookingStatus() != BookingStatus.PENDING || booking.getPaymentStatus() != PaymentStatus.UNPAID) {
+                        throw new IllegalStateException("Booking không còn ở trạng thái chờ thanh toán");
+                }
+                if (booking.getExpireAt() == null || !booking.getExpireAt().isAfter(now)) {
+                        throw new IllegalStateException("Booking đã hết hạn giữ chỗ");
+                }
+                booking.setPaymentStatus(PaymentStatus.PAID);
+                booking.setPaymentMethod("BANK_TRANSFER");
+                booking.setPaidAt(now);
+                // expireAt được tái sử dụng làm hạn nhân viên xác nhận sau khi khách báo đã trả tiền.
+                booking.setExpireAt(now.plusMinutes(30));
+                Booking saved = bookingRepo.save(booking);
+                return new BookingResponse(saved.getId(), saved.getBookingCode(), saved.getCourt().getId(), saved.getCourt().getName(),
+                                saved.getCourt().getCourtType(), saved.getCourt().getImageUrl(), saved.getBookingDate(), saved.getStartTime(),
+                                saved.getEndTime(), saved.getCourtPrice(), saved.getTotalAmount(), saved.getBookingStatus(), saved.getPaymentStatus(), saved.getExpireAt());
+        }
+
         // ===================== NHÂN VIÊN =====================
 
         // Danh sách booking lẻ cho trang tra cứu của nhân viên
@@ -185,9 +211,9 @@ public class BookingService {
                                         "Chỉ xác nhận được booking đang chờ xác nhận");
                 }
 
-                if (booking.getPaymentStatus() != PaymentStatus.UNPAID) {
+                if (booking.getPaymentStatus() != PaymentStatus.PAID) {
                         throw new IllegalStateException(
-                                        "Booking đã được thanh toán trước đó");
+                                        "Khách chưa xác nhận đã thanh toán");
                 }
 
                 // FR-14: kiểm tra lại trùng lịch khi xác nhận
@@ -206,17 +232,13 @@ public class BookingService {
                                         "Khung giờ này đã có booking khác được xác nhận");
                 }
 
-                LocalDateTime now = LocalDateTime.now(
-                                ZoneId.of("Asia/Ho_Chi_Minh"));
-
                 booking.setBookingStatus(BookingStatus.CONFIRMED);
-                booking.setPaymentStatus(PaymentStatus.PAID);
+                // Khách đã báo chuyển khoản; nhân viên chỉ xác nhận booking, không ghi đè thời điểm khách báo trả.
                 // Khách tự đặt thanh toán tiền sân bằng chuyển khoản / QR.
                 // DB chỉ cho phép 'CASH' hoặc 'BANK_TRANSFER' (chk_payment_method).
                 if (booking.getPaymentMethod() == null) {
                         booking.setPaymentMethod("BANK_TRANSFER");
                 }
-                booking.setPaidAt(now);
                 booking.setPaidByStaff(staff);
                 // Đã xác nhận thì không còn hạn giữ chỗ
                 booking.setExpireAt(null);

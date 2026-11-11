@@ -69,6 +69,31 @@ public class RecurringBookingManagementService {
                 return toResponse(recurring, true);
         }
 
+        /** Khách báo đã chuyển khoản tiền gói; nhân viên phải xác nhận trong 30 phút. */
+        @Transactional
+        public RecurringBookingDetailResponse markPaymentSubmitted(Long id, Long customerId) {
+                RecurringBooking recurring = recurringBookingRepo.findByIdForUpdate(id)
+                                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy gói lịch cố định"));
+                if (!recurring.getCustomer().getId().equals(customerId)) {
+                        throw new ResourceNotFoundException("Không tìm thấy gói lịch cố định");
+                }
+                LocalDateTime now = LocalDateTime.now(VN_ZONE);
+                List<Booking> sessions = recurring.getBookings();
+                if (recurring.getStatus() != RecurBookingStatus.ACTIVE
+                                || sessions.stream().anyMatch(b -> b.getPaymentStatus() != PaymentStatus.UNPAID)
+                                || sessions.stream().anyMatch(b -> b.getExpireAt() == null || !b.getExpireAt().isAfter(now))) {
+                        throw new IllegalStateException("Gói không còn ở trạng thái chờ thanh toán");
+                }
+                for (Booking session : sessions) {
+                        session.setPaymentStatus(PaymentStatus.PAID);
+                        session.setPaymentMethod("BANK_TRANSFER");
+                        session.setPaidAt(now);
+                        session.setExpireAt(now.plusMinutes(30));
+                }
+                bookingRepo.saveAll(sessions);
+                return toResponse(recurring, true);
+        }
+
         // ===================== NHÂN VIÊN =====================
 
         @Transactional(readOnly = true)
@@ -104,7 +129,7 @@ public class RecurringBookingManagementService {
 
                 List<Booking> sessions = recurring.getBookings();
 
-                if (sessions.stream().anyMatch(b -> b.getPaymentStatus() != PaymentStatus.UNPAID)) {
+                if (sessions.stream().anyMatch(b -> b.getPaymentStatus() != PaymentStatus.PAID)) {
                         throw new IllegalStateException("Gói đã được thanh toán trước đó");
                 }
 
@@ -137,12 +162,10 @@ public class RecurringBookingManagementService {
 
                 for (Booking session : pending) {
                         session.setBookingStatus(BookingStatus.CONFIRMED);
-                        session.setPaymentStatus(PaymentStatus.PAID);
                         // DB chỉ cho phép 'CASH' hoặc 'BANK_TRANSFER' (chk_payment_method)
                         if (session.getPaymentMethod() == null) {
                                 session.setPaymentMethod("BANK_TRANSFER");
                         }
-                        session.setPaidAt(now);
                         session.setPaidByStaff(staff);
                         session.setExpireAt(null);
                 }
@@ -214,7 +237,7 @@ public class RecurringBookingManagementService {
                                 .orElse(null);
 
                 // Hạn giữ chỗ của gói = hạn sớm nhất của các buổi đang chờ
-                LocalDateTime expireAt = paidSession != null || r.getStatus() != RecurBookingStatus.ACTIVE
+                LocalDateTime expireAt = r.getStatus() != RecurBookingStatus.ACTIVE
                                 ? null
                                 : sessions.stream()
                                                 .filter(b -> b.getBookingStatus() == BookingStatus.PENDING)

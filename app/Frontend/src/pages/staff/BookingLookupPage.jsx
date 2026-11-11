@@ -3,7 +3,7 @@ import { Check, ChevronDown, ClipboardList, Search } from "lucide-react";
 import BookingMultiSelect from "../../components/booking/BookingMultiSelect.jsx";
 import DateRangePicker from "../../components/booking/DateRangePicker.jsx";
 import { Link } from "react-router-dom";
-import { bookingApi, bookingStatusLabel, formatBookingDate, formatBookingDays, formatBookingMoney, settlementLabel, settlementStatus, staffBookingStatuses, staffBookingTypes, staffRecurringStatuses } from "../../api/bookingApi.js";
+import { bookingApi, bookingWorkflowLabel, bookingWorkflowState, formatBookingDate, formatBookingDays, formatBookingMoney, settlementLabel, settlementStatus, staffBookingStatuses, staffBookingTypes, staffRecurringStatuses } from "../../api/bookingApi.js";
 
 const emptyFilters = { name: "", phone: "", email: "", courtIds: [], fromDate: "", toDate: "" };
 const allStatusOptions = [
@@ -72,6 +72,19 @@ function CustomerSearchInput({ field, label, placeholder = label, value, custome
       </ul>}
     </div>
   );
+}
+
+function ConfirmationCountdown({ expireAt }) {
+  const [remaining, setRemaining] = useState(0);
+  useEffect(() => {
+    const update = () => setRemaining(Math.max(0, Math.floor((new Date(expireAt).getTime() - Date.now()) / 1000)));
+    update(); const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, [expireAt]);
+  if (remaining <= 0) return <small className="staff-confirmation-deadline">Đang chờ hệ thống tự hủy…</small>;
+  const minutes = String(Math.floor(remaining / 60)).padStart(2, "0");
+  const seconds = String(remaining % 60).padStart(2, "0");
+  return <small className="staff-confirmation-deadline">Tự hủy nếu không xác nhận sau {minutes}:{seconds}</small>;
 }
 
 export default function BookingLookupPage() {
@@ -200,14 +213,19 @@ export default function BookingLookupPage() {
                     : !visible.length ? <tr><td colSpan={8}><div className="staff-empty"><Search size={30} /><strong>Không tìm thấy booking</strong><span>Thử thay đổi thông tin tìm kiếm hoặc đặt lại bộ lọc.</span><button type="button" className="staff-button" onClick={reset}>Đặt lại bộ lọc</button></div></td></tr>
                       : visible.map((booking) => {
                         const isRecurring = booking.type === "RECURRING";
+                        const workflow = bookingWorkflowState(booking);
+                        const awaitingPayment = workflow === "AWAITING_PAYMENT";
+                        const awaitingConfirmation = workflow === "AWAITING_CONFIRMATION";
                         return <tr key={booking.id}>
-                        <td><Link className="staff-lookup-code" to={`/staff/bookings/${booking.id}`} title={booking.code} aria-label={booking.code}>{isRecurring ? `Gói ${booking.code}` : `BK…${String(booking.id).padStart(2, "0")}`}</Link>
+                        <td>{awaitingPayment ? <strong className="staff-lookup-code" title={booking.code}>{isRecurring ? `Gói ${booking.code}` : `BK…${String(booking.id).padStart(2, "0")}`}</strong>
+                          : <Link className="staff-lookup-code" to={`/staff/bookings/${booking.id}`} title={booking.code} aria-label={booking.code}>{isRecurring ? `Gói ${booking.code}` : `BK…${String(booking.id).padStart(2, "0")}`}</Link>}
                           <span className={`staff-booking-kind${isRecurring ? " is-recurring" : ""}`}>{isRecurring ? "Lịch cố định" : "Đặt sân lẻ"}</span></td>
                         <td title={`${booking.customer.fullName} - ${booking.customer.phone} - ${booking.customer.email}`}><strong className="staff-lookup-customer-name">{booking.customer.fullName}</strong><span className="staff-lookup-customer-contact">{booking.customer.phone} · {booking.customer.email}</span></td>
                         <td>{booking.courtName}</td>
                         <td><span className="staff-lookup-date"><time dateTime={booking.startDate}>{formatBookingDate(booking.startDate)}</time>{isRecurring && <> – <time dateTime={booking.endDate}>{formatBookingDate(booking.endDate)}</time></>}</span>
                           <span className="staff-lookup-time">{booking.startTime} – {booking.endTime}</span>{isRecurring && <span className="staff-lookup-repeat">{formatBookingDays(booking.daysOfWeek)} · {booking.sessionCount} buổi</span>}</td>
-                        <td><span className={`staff-badge staff-badge-${booking.status.toLowerCase()}`}>{bookingStatusLabel(booking.status)}</span></td>
+                        <td><span className={`staff-badge staff-badge-${booking.status.toLowerCase()}`}>{bookingWorkflowLabel(booking)}</span>
+                          {awaitingConfirmation && booking.expireAt && <ConfirmationCountdown expireAt={booking.expireAt} />}</td>
                         <td>{isRecurring ? booking.paymentStatus === "PAID"
                           ? <span className="staff-package-payment"><strong>{booking.settledSessionCount}/{booking.sessionCount} đã kết toán</strong><small>Theo từng buổi</small></span>
                           : <span className="staff-package-payment"><strong>{booking.status === "CANCELLED" ? "–" : "Chưa thanh toán gói"}</strong>{booking.status !== "CANCELLED" && <small>Chờ xác nhận</small>}</span>
@@ -215,7 +233,8 @@ export default function BookingLookupPage() {
                             ? <span className={`staff-payment-label ${settlementStatus(booking) === "SETTLED" ? "is-paid" : ""}`}>{settlementLabel(settlementStatus(booking))}</span>
                             : <span aria-label="Chưa có kết toán">–</span>}</td>
                         <td>{formatBookingMoney(booking.amount)}{isRecurring && <small className="staff-lookup-money-note">Tiền sân gói</small>}</td>
-                        <td><Link className="staff-lookup-detail-link" to={`/staff/bookings/${booking.id}`} aria-label={`Chi tiết ${isRecurring ? "gói" : "booking"} ${booking.code}`}>Chi tiết</Link></td>
+                        <td>{awaitingPayment ? <span className="staff-lookup-detail-disabled">Chờ thanh toán</span>
+                          : <Link className="staff-lookup-detail-link" to={`/staff/bookings/${booking.id}`} aria-label={`Chi tiết ${isRecurring ? "gói" : "booking"} ${booking.code}`}>Chi tiết</Link>}</td>
                       </tr>; })}
               </tbody>
             </table>
