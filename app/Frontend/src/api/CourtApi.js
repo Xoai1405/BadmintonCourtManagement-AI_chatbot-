@@ -40,4 +40,30 @@ export const courtApi = {
     () => axiosClient.get(`/api/v1/courts/${courtId}/availability`, { params: { date } }),
     "Không lấy được lịch trống của sân",
   ),
+
+uploadCourtImage: (courtId, imageFile) => {
+  const formData = new FormData();
+  formData.append("image", imageFile);
+
+  return request(
+    () => axiosClient.post(
+      `/api/v1/courts/${courtId}/image`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    ),
+    "Không thể upload ảnh sân",
+  );
+},
+
+deleteCourtImage: (courtId) => request(
+  () => axiosClient.delete(
+    `/api/v1/courts/${courtId}/image`
+  ),
+  "Không thể xóa ảnh sân",
+),
+
 };
