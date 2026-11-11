@@ -64,6 +64,14 @@ public class SecurityConfig {
                                                 .hasRole("MANAGER")
                                                 .requestMatchers(HttpMethod.PATCH, "/api/v1/courts/**")
                                                 .hasRole("MANAGER")
+                                                .requestMatchers(
+                                                                HttpMethod.POST,
+                                                                "/api/v1/courts/*/image")
+                                                .hasRole("MANAGER")
+                                                .requestMatchers(
+                                                                HttpMethod.DELETE,
+                                                                "/api/v1/courts/*/image")
+                                                .hasRole("MANAGER")
                                                 .anyRequest().authenticated())
                                 .exceptionHandling(ex -> ex.authenticationEntryPoint(
                                                 (req, res, e) -> {
