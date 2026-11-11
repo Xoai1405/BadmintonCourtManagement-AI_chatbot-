@@ -68,6 +68,10 @@ public class SecurityConfig {
                                                                 HttpMethod.POST,
                                                                 "/api/v1/courts/*/image")
                                                 .hasRole("MANAGER")
+                                                .requestMatchers(
+                                                                HttpMethod.DELETE,
+                                                                "/api/v1/courts/*/image")
+                                                .hasRole("MANAGER")
                                                 .anyRequest().authenticated())
                                 .exceptionHandling(ex -> ex.authenticationEntryPoint(
                                                 (req, res, e) -> {

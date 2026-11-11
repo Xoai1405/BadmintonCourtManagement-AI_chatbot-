@@ -28,6 +28,9 @@ import com.smashflow.backend.modules.pricing.model.PriceConfig;
 import com.smashflow.backend.modules.pricing.repository.PriceConfigRepository;
 import com.smashflow.backend.modules.pricing.service.PricingService;
 import com.smashflow.backend.modules.pricing.service.PricingService.SlotPrice;
+
+import jakarta.transaction.Transactional;
+
 import com.smashflow.backend.common.storage.SupabaseStorageService;
 
 import lombok.RequiredArgsConstructor;
@@ -200,21 +203,92 @@ public class CourtService {
                 return toCourtResponse(court, priceConfig);
         }
 
-        // upload image
+        // upload courtimage
 
-        public CourtResponse uploadCourtImage(Long courtId, MultipartFile image) {
+        public CourtResponse uploadCourtImage(
+                        Long courtId, MultipartFile image) {
 
                 Court court = courtRepo.findById(courtId)
                                 .orElseThrow(() -> new ResourceNotFoundException(
                                                 "Không tìm thấy sân"));
 
-                // Upload ảnh lên Supabase Storage
-                String imageUrl = supabaseStorageService.uploadCourtImage(
-                                courtId, image);
+                String oldImageUrl = court.getImageUrl();
 
-                // Cập nhật URL vào database
+                // 1. Upload ảnh mới
+                String newImageUrl = supabaseStorageService.uploadCourtImage(courtId, image);
+
+                Court updatedCourt;
+
+                try {
+                        // 2. Cập nhật Database bằng transaction riêng
+                        updatedCourt = updateCourtImageUrl(courtId, newImageUrl);
+
+                } catch (RuntimeException e) {
+
+                        // 3. Compensation nếu DB thất bại
+                        try {
+                                supabaseStorageService.deleteCourtImage(
+                                                courtId, newImageUrl);
+                        } catch (RuntimeException cleanupException) {
+                                e.addSuppressed(cleanupException);
+                        }
+
+                        throw e;
+                }
+
+                // 4. Commit DB thành công mới xóa ảnh cũ
+                if (oldImageUrl != null && !oldImageUrl.equals(newImageUrl)) {
+                        try {
+                                supabaseStorageService.deleteCourtImage(
+                                                courtId, oldImageUrl);
+                        } catch (RuntimeException e) {
+                                // TODO: Ghi log và đưa vào cơ chế retry
+                        }
+                }
+
+                PriceConfig priceConfig = getPriceConfig(updatedCourt);
+
+                return toCourtResponse(updatedCourt, priceConfig);
+        }
+
+        @Transactional
+        public Court updateCourtImageUrl(Long courtId, String imageUrl) {
+
+                Court court = courtRepo.findById(courtId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Không tìm thấy sân"));
+
                 court.setImageUrl(imageUrl);
+
+                return courtRepo.save(court);
+        }
+
+        public CourtResponse deleteCourtImage(Long courtId) {
+
+                Court court = courtRepo.findById(courtId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Không tìm thấy sân"));
+
+                String oldImageUrl = court.getImageUrl();
+
+                if (oldImageUrl == null || oldImageUrl.isBlank()) {
+                        throw new IllegalArgumentException(
+                                        "Sân hiện không có ảnh để xóa");
+                }
+
+                // Cập nhật database trước
+                court.setImageUrl(null);
                 court = courtRepo.save(court);
+
+                // Sau đó xóa ảnh trên Storage
+                try {
+                        supabaseStorageService.deleteCourtImage(
+                                        courtId, oldImageUrl);
+                } catch (RuntimeException e) {
+                        System.err.println(
+                                        "Không thể xóa ảnh Storage của sân "
+                                                        + courtId + ": " + e.getMessage());
+                }
 
                 PriceConfig priceConfig = getPriceConfig(court);
 

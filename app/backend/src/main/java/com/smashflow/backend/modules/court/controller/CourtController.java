@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 import com.smashflow.backend.modules.court.dto.request.CreateCourtRequest;
 import com.smashflow.backend.modules.court.dto.request.UpdateCourtRequest;
@@ -74,6 +75,14 @@ public class CourtController {
 
         return ResponseEntity.ok(
                 courtSer.uploadCourtImage(courtId, image));
+    }
+
+    @DeleteMapping("/{courtId}/image")
+    public ResponseEntity<CourtResponse> deleteCourtImage(
+            @PathVariable Long courtId) {
+
+        return ResponseEntity.ok(
+                courtSer.deleteCourtImage(courtId));
     }
 
 }

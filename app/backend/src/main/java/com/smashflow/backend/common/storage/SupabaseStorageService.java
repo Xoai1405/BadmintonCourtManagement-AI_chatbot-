@@ -2,10 +2,14 @@
 package com.smashflow.backend.common.storage;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.UUID;
+import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -87,4 +91,43 @@ public class SupabaseStorageService {
                 + "/storage/v1/object/public/"
                 + bucket + "/" + objectPath;
     }
+
+    public void deleteCourtImage(Long courtId, String imageUrl) {
+
+        if (imageUrl == null || imageUrl.isBlank()) {
+            return;
+        }
+
+        String publicPrefix = "/storage/v1/object/public/" + bucket + "/";
+
+        URI uri = URI.create(imageUrl);
+
+        String rawPath = uri.getRawPath();
+
+        if (rawPath == null || !rawPath.startsWith(publicPrefix)) {
+            throw new IllegalArgumentException(
+                    "URL ảnh không thuộc Supabase bucket hiện tại");
+        }
+
+        String objectPath = rawPath.substring(publicPrefix.length());
+
+        if (!objectPath.startsWith("courts/" + courtId + "/")) {
+            throw new IllegalArgumentException(
+                    "Ảnh không thuộc sân cần thao tác");
+        }
+
+        String deleteUrl = supabaseUrl
+                + "/storage/v1/object/"
+                + bucket;
+
+        restClient.method(HttpMethod.DELETE)
+                .uri(deleteUrl)
+                .header("apikey", secretKey)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + secretKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("prefixes", List.of(objectPath)))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
 }
