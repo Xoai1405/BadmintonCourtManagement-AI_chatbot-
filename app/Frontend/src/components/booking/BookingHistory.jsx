@@ -3,6 +3,7 @@ import { CalendarDays, ChevronDown, Clock3, Search } from "lucide-react";
 import DateRangePicker from "./DateRangePicker.jsx";
 import SingleBookingDetail from "./SingleBookingDetail.jsx";
 import RecurringBookingDetail from "./RecurringBookingDetail.jsx";
+import { CustomerBookingDetailLayout, CustomerRecurringBookingDetailLayout } from "../../pages/SingleBookingDetail.jsx";
 import "./booking.css";
 
 const moneyFormatter = new Intl.NumberFormat("vi-VN");
@@ -36,7 +37,6 @@ const historyStatusOptions = [
 ];
 // OR trong mỗi bộ lọc; sân và trạng thái kết hợp bằng AND. Mảng rỗng nghĩa là tất cả.
 const matchesHistoryStatus = (booking, values) => !values.length || values.includes(`${booking.type}:${booking.status}`);
-const weekDays = { 1: "T2", 2: "T3", 3: "T4", 4: "T5", 5: "T6", 6: "T7", 7: "CN" };
 const formatDate = (date) => date.split("-").reverse().join("/");
 const normalizeSearch = (value) => value.trim().toLocaleLowerCase("vi-VN")
   .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
@@ -318,18 +318,41 @@ export default function BookingHistory({ ref, bookings = [], loadBookingDetail, 
   }));
 
   return <div ref={historyRootRef} className={`booking-history booking-history--${variant}`}>
-        {selectedBooking?.type === "SINGLE" && <SingleBookingDetail id={`${instanceId}-single-detail`} booking={selectedBooking} detail={bookingDetail}
+        {selectedBooking?.type === "SINGLE" && bookingDetail && <CustomerBookingDetailLayout embedded onBack={resetDetails}
+          booking={{ ...selectedBooking, ...bookingDetail, imageUrl: bookingDetail.imageUrl || selectedBooking.imageUrl,
+            courtFee: Number(bookingDetail.courtFee ?? bookingDetail.courtPrice ?? selectedBooking.amount ?? 0),
+            serviceFee: Number(bookingDetail.serviceFee ?? bookingDetail.servicePrice ?? 0),
+            amount: Number(bookingDetail.amount ?? bookingDetail.totalAmount ?? selectedBooking.amount ?? 0),
+            createdTime: bookingDetail.createdTime || "", holdExpiresAt: bookingDetail.holdExpiresAt || bookingDetail.expireAt || "",
+            paymentMethod: bookingDetail.paymentMethod === "BANK_TRANSFER" ? "Chuyển khoản" : bookingDetail.paymentMethod,
+            confirmedBy: bookingDetail.confirmedBy || bookingDetail.paidByStaffName || "", courtDescription: bookingDetail.courtDescription || "" }} />}
+        {selectedBooking?.type === "SINGLE" && !bookingDetail && <SingleBookingDetail id={`${instanceId}-single-detail`} booking={selectedBooking} detail={bookingDetail}
           status={bookingStatuses[bookingDetail?.status || selectedBooking.status]} isLoading={detailLoadingId !== null} error={detailError}
           onRetry={() => openBookingDetail(selectedBooking)} onBack={resetDetails} customerView={customerView}
           backLabel={customerView ? "Quay lại booking của tôi" : "Quay lại Xem lịch sử"}
           onCancel={onCancelBooking ? input => changeBooking(onCancelBooking, input) : undefined} />}
-        {selectedSession && <SingleBookingDetail key={selectedSession.id} booking={selectedSession} detail={sessionDetail}
+        {selectedSession && sessionDetail && <CustomerBookingDetailLayout embedded onBack={backToPackage}
+          booking={{ ...selectedSession, ...sessionDetail, imageUrl: sessionDetail.imageUrl || selectedBooking.imageUrl,
+            courtFee: Number(sessionDetail.courtFee ?? sessionDetail.courtPrice ?? selectedSession.amount ?? 0),
+            serviceFee: Number(sessionDetail.serviceFee ?? sessionDetail.servicePrice ?? 0), amount: Number(sessionDetail.amount ?? sessionDetail.totalAmount ?? selectedSession.amount ?? 0),
+            createdTime: sessionDetail.createdTime || "", holdExpiresAt: sessionDetail.holdExpiresAt || sessionDetail.expireAt || "",
+            paymentMethod: sessionDetail.paymentMethod === "BANK_TRANSFER" ? "Chuyển khoản" : sessionDetail.paymentMethod,
+            confirmedBy: sessionDetail.confirmedBy || sessionDetail.paidByStaffName || "", courtDescription: sessionDetail.courtDescription || "" }} />}
+        {selectedSession && !sessionDetail && <SingleBookingDetail key={selectedSession.id} booking={selectedSession} detail={sessionDetail}
           status={bookingStatuses[sessionDetail?.status || selectedSession.status]} isLoading={detailLoadingId !== null} error={detailError}
           onRetry={() => openSessionDetail(selectedSession)} onBack={backToPackage} customerView={customerView}
           backLabel={`Quay lại chi tiết lịch cố định ${selectedBooking.code}`}
           onCancel={onCancelSession && bookingDetail?.status === "ACTIVE" ? input => changeSession(onCancelSession, input) : undefined}
           onReschedule={onRescheduleSession && bookingDetail?.status === "ACTIVE" ? input => changeSession(onRescheduleSession, input) : undefined} />}
-        {selectedBooking?.type === "RECURRING" && <RecurringBookingDetail id={`${instanceId}-recurring-detail`}
+        {selectedBooking?.type === "RECURRING" && bookingDetail && <CustomerRecurringBookingDetailLayout embedded onBack={resetDetails}
+          booking={{ ...selectedBooking, ...bookingDetail, imageUrl: bookingDetail.imageUrl || selectedBooking.imageUrl,
+            customerName: bookingDetail.customerName || selectedBooking.customer?.fullName || "", amount: Number(bookingDetail.amount ?? bookingDetail.totalAmount ?? selectedBooking.amount ?? 0),
+            paymentMethod: bookingDetail.paymentMethod === "BANK_TRANSFER" ? "Chuyển khoản" : bookingDetail.paymentMethod,
+            daysLabel: bookingDetail.daysLabel || (bookingDetail.daysOfWeek || selectedBooking.daysOfWeek || []).join(", "),
+            discountPercent: Number(bookingDetail.discountPercent ?? selectedBooking.discountPercent ?? 0), settledSessionCount: bookingDetail.settledSessionCount ?? selectedBooking.settledSessionCount ?? 0,
+            sessionCount: bookingDetail.sessionCount ?? selectedBooking.sessionCount ?? 0 }} sessions={bookingDetail.sessions || selectedBooking.sessions || []}
+          onViewSession={(session) => openSessionDetail(session)} />}
+        {selectedBooking?.type === "RECURRING" && !bookingDetail && <RecurringBookingDetail id={`${instanceId}-recurring-detail`}
           booking={selectedBooking} detail={bookingDetail} status={bookingStatuses[bookingDetail?.status || selectedBooking.status]}
           statuses={bookingStatuses} isLoading={detailLoadingId === selectedBooking.id} error={selectedSession ? "" : detailError}
           onRetry={() => openBookingDetail(selectedBooking)} onBack={resetDetails} onViewSession={openSessionDetail}
@@ -378,52 +401,44 @@ export default function BookingHistory({ ref, bookings = [], loadBookingDetail, 
             <div ref={historyListRef} id={`${instanceId}-panel`} role="tabpanel" tabIndex={0}
               aria-labelledby={`${instanceId}-tab-${historyTab}`} className="booking-history-list">
               {visibleBookings.map((booking) => {
-                const status = bookingStatuses[booking.status];
+                const awaitingPayment = (booking.type === "RECURRING" ? booking.status === "ACTIVE" : booking.status === "PENDING")
+                  && booking.paymentStatus === "UNPAID";
+                const awaitingConfirmation = booking.type === "RECURRING" && booking.status === "ACTIVE"
+                  && booking.paymentStatus === "PAID" && !booking.paidBy;
+                const status = awaitingPayment ? { label: "Chờ thanh toán", tone: "yellow" }
+                  : awaitingConfirmation ? { label: "Chờ xác nhận", tone: "yellow" } : bookingStatuses[booking.status];
                 const isRecurring = booking.type === "RECURRING";
+                const statusClass = {
+                  yellow: "bg-amber-50 text-amber-700", green: "bg-emerald-50 text-emerald-600",
+                  blue: "bg-blue-50 text-blue-600", gray: "bg-gray-100 text-gray-600",
+                  red: "bg-red-50 text-red-500", purple: "bg-red-50 text-red-500",
+                }[status.tone] || "bg-gray-100 text-gray-600";
+                const settlement = booking.paymentStatus === "SETTLED"
+                  ? { label: "Đã kết toán", className: "border-emerald-500 text-emerald-600" }
+                  : booking.paymentStatus === "PAID"
+                    ? { label: "Chưa kết toán", className: "border-amber-500 text-amber-600" }
+                    : { label: "Chưa thanh toán", className: "border-amber-500 text-amber-600" };
                 return (
-                  <article key={booking.id} className="booking-history-card" aria-label={`${isRecurring ? "Gói" : "Booking"} ${booking.code}`}>
-                    <div className="booking-history-row">
-                      <img className="booking-history-image" src={booking.imageUrl}
-                        alt={`Ảnh minh họa ${booking.courtName}`} style={{ objectPosition: booking.imagePosition }} />
-                      <div className="booking-history-cell">
-                        <span className="booking-history-label">{isRecurring ? "Mã gói" : "Mã booking"}</span>
-                        <strong className="booking-history-code">{booking.code}</strong>
-                        <span className={`booking-type booking-type--${booking.type.toLowerCase()}`}>
-                          {isRecurring ? "Lịch cố định" : "Đặt sân lẻ"}
-                        </span>
-                      </div>
-                      <div className="booking-history-cell">
-                        <span className="booking-history-label">Sân</span>
-                        <strong>{booking.courtName}</strong>
-                        <span className="booking-history-muted">({booking.courtLocation})</span>
-                      </div>
-                      <div className="booking-history-cell booking-history-schedule">
-                        <span className="booking-history-label">Ngày chơi</span>
-                        <span><CalendarDays size={13} aria-hidden="true" />{formatDate(booking.startDate)}{isRecurring && ` - ${formatDate(booking.endDate)}`}</span>
-                        <span><Clock3 size={13} aria-hidden="true" />{isRecurring && `${booking.daysOfWeek.map((day) => weekDays[day]).join(", ")} | `}{booking.startTime} - {booking.endTime}</span>
-                        <span className="booking-history-duration">({isRecurring ? `${booking.sessionCount} buổi` : `${getDuration(booking)} giờ`})</span>
-                      </div>
-                      <div className="booking-history-cell">
-                        <span className="booking-history-label">Trạng thái</span>
-                        <span className={`booking-badge booking-badge--${status.tone}`}>{status.label}</span>
-                        {!isRecurring && <span className={`booking-badge booking-badge--${booking.paymentStatus === "PAID" ? "green" : "yellow"}`}>
-                          {booking.paymentStatus === "PAID" ? "Đã thanh toán" : "Chưa thanh toán"}
-                        </span>}
-                      </div>
-                      <div className="booking-history-cell booking-history-total">
-                        <span className="booking-history-label">Tổng tiền</span>
-                        <strong>{formatMoney(booking.amount)}</strong>
-                      </div>
-                      <button type="button" className="booking-history-detail-button"
-                        aria-label={`Xem chi tiết ${isRecurring ? "gói" : "booking"} ${booking.code}`}
-                        aria-controls={isRecurring ? `${instanceId}-recurring-detail` : `${instanceId}-single-detail`}
-                        disabled={detailLoadingId !== null}
-                        onClick={(event) => openBookingDetail(booking, event.currentTarget)}>
-                        Xem chi tiết
-                      </button>
+                  <article key={booking.id} aria-label={`${isRecurring ? "Gói" : "Booking"} ${booking.code}`}
+                    className="grid grid-cols-1 items-start gap-4 rounded-xl border border-gray-200 p-4 transition-all hover:border-[#00C475] hover:shadow-sm lg:grid-cols-[minmax(190px,1.35fr)_minmax(75px,0.55fr)_minmax(115px,0.8fr)_minmax(175px,1.25fr)_minmax(165px,1.15fr)_minmax(160px,1.1fr)] lg:gap-3">
+                    <div className="flex min-w-0 items-start gap-4">
+                      {booking.imageUrl ? <img src={booking.imageUrl} alt={booking.courtName} className="h-[60px] w-[85px] rounded-lg object-cover" />
+                        : <div className="flex h-[60px] w-[85px] items-center justify-center rounded-lg bg-gray-100 text-center text-xs text-gray-400">Chưa có ảnh</div>}
+                      <div className="min-w-0"><p className="mb-0.5 text-[11px] text-gray-400">{isRecurring ? "Mã gói" : "Mã booking"}</p>
+                        <p className="break-all text-[13px] font-bold text-gray-800">{booking.code}</p>
+                        <span className={`mt-1 inline-block rounded px-2 py-0.5 text-[10px] font-semibold ${isRecurring ? "bg-purple-50 text-purple-600" : "bg-blue-50 text-blue-600"}`}>{isRecurring ? "Lịch cố định" : "Đặt sân lẻ"}</span></div>
                     </div>
-
-
+                    <div className="min-w-0"><p className="mb-0.5 text-[11px] text-gray-400">Sân</p><p className="text-[13px] font-bold text-gray-800">{booking.courtName}</p><p className="text-[12px] text-gray-500">({booking.courtLocation})</p></div>
+                    <div className="min-w-0"><p className="mb-0.5 text-[11px] text-gray-400">{isRecurring ? "Thời gian" : "Ngày chơi"}</p>
+                      <div className="mt-1 flex items-center gap-1.5 text-[12px] text-gray-600"><CalendarDays size={13} className="shrink-0 text-gray-400" />{formatDate(booking.startDate)}{isRecurring && ` - ${formatDate(booking.endDate)}`}</div>
+                      <div className="mt-1 flex items-center gap-1.5 text-[12px] text-gray-600"><Clock3 size={13} className="shrink-0 text-gray-400" />{booking.startTime} - {booking.endTime}</div>
+                      <p className="mt-0.5 text-[11px] text-gray-500">({isRecurring ? `${booking.sessionCount} buổi` : `${getDuration(booking)} giờ`})</p></div>
+                    <div className="min-w-0"><p className="mb-2 text-[11px] text-gray-400">Trạng thái booking</p><span className={`inline-block rounded-full px-3 py-1 text-[11px] font-semibold ${statusClass}`}>{status.label}</span></div>
+                    <div className="min-w-0"><p className="mb-2 text-[11px] text-gray-400">{isRecurring ? "Kết toán theo buổi" : "Trạng thái kết toán"}</p><span className={`inline-block rounded-full border px-3 py-1 text-[11px] font-semibold ${settlement.className}`}>{isRecurring ? `${booking.settledSessionCount ?? 0}/${booking.sessionCount ?? 0} buổi` : settlement.label}</span></div>
+                    <div className="flex h-full min-w-0 items-start justify-between gap-3 lg:col-start-6 lg:justify-end"><div className="min-w-0 shrink-0 text-left md:text-right"><p className="mb-0.5 text-[11px] text-gray-400">Tổng tiền</p><p className="text-[14px] font-bold text-gray-800">{formatMoney(booking.amount)}</p></div>
+                      <button type="button" className="shrink-0 self-center whitespace-nowrap rounded-lg border border-emerald-200 px-3 py-2 text-xs font-semibold text-[#00C475] transition-colors hover:bg-emerald-50"
+                        aria-label={`Xem chi tiết ${isRecurring ? "gói" : "booking"} ${booking.code}`} aria-controls={isRecurring ? `${instanceId}-recurring-detail` : `${instanceId}-single-detail`}
+                        disabled={detailLoadingId !== null} onClick={(event) => openBookingDetail(booking, event.currentTarget)}>Xem chi tiết</button></div>
                   </article>
                 );
               })}

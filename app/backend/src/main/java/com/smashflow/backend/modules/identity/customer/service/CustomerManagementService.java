@@ -111,6 +111,18 @@ public class CustomerManagementService {
 
                         int sessionCount = r.getBookings() != null ? r.getBookings().size() : 0;
                         map.put("sessionCount", sessionCount);
+                        // Trạng thái thanh toán của gói được suy ra từ các buổi con.
+                        Booking paidSession = r.getBookings() == null ? null : r.getBookings().stream()
+                                        .filter(b -> b.getPaymentStatus() != null
+                                                        && b.getPaymentStatus() != com.smashflow.backend.modules.booking.single.model.enums.PaymentStatus.UNPAID)
+                                        .findFirst().orElse(null);
+                        map.put("paymentStatus", paidSession == null ? "UNPAID" : "PAID");
+                        map.put("paidBy", paidSession != null && paidSession.getPaidByStaff() != null
+                                        ? paidSession.getPaidByStaff().getFullName() : null);
+                        map.put("expireAt", r.getBookings() == null ? null : r.getBookings().stream()
+                                        .filter(b -> b.getBookingStatus() == com.smashflow.backend.modules.booking.single.model.enums.BookingStatus.PENDING)
+                                        .map(Booking::getExpireAt).filter(java.util.Objects::nonNull).min(java.time.LocalDateTime::compareTo)
+                                        .orElse(null));
 
                         list.add(map);
                 }
@@ -225,6 +237,9 @@ public class CustomerManagementService {
                                         sMap.put("paymentStatus",
                                                         b.getPaymentStatus() != null ? b.getPaymentStatus().name()
                                                                         : "UNPAID");
+                                        sMap.put("paymentMethod", b.getPaymentMethod());
+                                        sMap.put("paidAt", b.getPaidAt() == null ? null : b.getPaidAt().toString());
+                                        sMap.put("confirmedBy", b.getPaidByStaff() == null ? null : b.getPaidByStaff().getFullName());
 
                                         java.math.BigDecimal courtFee = b.getCourtPrice() != null ? b.getCourtPrice()
                                                         : b.getTotalAmount();
@@ -263,6 +278,16 @@ public class CustomerManagementService {
                         map.put("sessions", sessions);
                         map.put("sessionCount", sessions.size());
                         map.put("paidSessionCount", paidCount);
+                        Booking paidSession = r.getBookings().stream()
+                                        .filter(item -> item.getPaymentStatus() == PaymentStatus.PAID
+                                                        || item.getPaymentStatus() == PaymentStatus.SETTLED)
+                                        .findFirst().orElse(null);
+                        map.put("paymentStatus", paidSession == null ? "UNPAID" : "PAID");
+                        map.put("paymentMethod", paidSession == null ? null : paidSession.getPaymentMethod());
+                        map.put("paidAt", paidSession == null || paidSession.getPaidAt() == null ? null : paidSession.getPaidAt().toString());
+                        map.put("confirmedBy", paidSession == null || paidSession.getPaidByStaff() == null ? null
+                                        : paidSession.getPaidByStaff().getFullName());
+                        map.put("customerName", r.getCustomer() == null ? null : r.getCustomer().getFullName());
                         return map;
                 }
 
@@ -283,6 +308,9 @@ public class CustomerManagementService {
                         map.put("type", "SINGLE");
                         map.put("status", b.getBookingStatus() != null ? b.getBookingStatus().name() : "PENDING");
                         map.put("paymentStatus", b.getPaymentStatus() != null ? b.getPaymentStatus().name() : "UNPAID");
+                        map.put("paymentMethod", b.getPaymentMethod());
+                        map.put("paidAt", b.getPaidAt() == null ? null : b.getPaidAt().toString());
+                        map.put("confirmedBy", b.getPaidByStaff() == null ? null : b.getPaidByStaff().getFullName());
                         map.put("startDate", b.getBookingDate().toString());
                         map.put("endDate", b.getBookingDate().toString());
                         map.put("startTime", b.getStartTime().toString().substring(0, 5));

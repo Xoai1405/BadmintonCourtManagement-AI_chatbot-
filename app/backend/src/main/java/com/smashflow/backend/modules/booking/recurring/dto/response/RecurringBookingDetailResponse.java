@@ -14,8 +14,8 @@ import com.smashflow.backend.modules.court.model.enums.CourtType;
  * Gói đặt lịch cố định (dùng chung cho khách hàng và nhân viên).
  *
  * paymentStatus của gói:
- * UNPAID = chưa thanh toán tiền sân gói (đang giữ chỗ, chờ nhân viên xác nhận)
- * PAID = nhân viên đã xác nhận đã nhận tiền sân trọn gói (BR-11)
+ * UNPAID = khách chưa báo đã thanh toán tiền sân gói (đang giữ chỗ)
+ * PAID = khách đã báo thanh toán; paidByStaffName khác null khi nhân viên đã xác nhận (BR-11)
  * Kết toán tính theo từng buổi: settledSessionCount / sessionCount.
  */
 public record RecurringBookingDetailResponse(

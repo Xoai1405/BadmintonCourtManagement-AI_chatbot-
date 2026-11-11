@@ -17,6 +17,21 @@ export const staffRecurringStatuses = [
 ];
 export const staffBookingTypes = [{ value: "ALL", label: "Tất cả" }, { value: "SINGLE", label: "Đặt sân lẻ" }, { value: "RECURRING", label: "Lịch cố định" }];
 export const bookingStatusLabel = (status) => [...staffBookingStatuses, ...staffRecurringStatuses].find((item) => item.value === status)?.label ?? status;
+// "Chờ thanh toán" là trạng thái giao diện, suy ra từ PENDING + UNPAID; không tạo thêm enum DB.
+export const bookingWorkflowState = (booking) => {
+  const isRecurring = booking.type === "RECURRING";
+  const pending = isRecurring ? booking.status === "ACTIVE" : booking.status === "PENDING";
+  if (pending && booking.paymentStatus === "UNPAID") return "AWAITING_PAYMENT";
+  // Với gói cố định, paidBy chỉ có sau khi nhân viên xác nhận.
+  if (pending && booking.paymentStatus === "PAID" && (!isRecurring || !booking.paidBy)) return "AWAITING_CONFIRMATION";
+  return "NORMAL";
+};
+export const bookingWorkflowLabel = (booking) => {
+  const state = bookingWorkflowState(booking);
+  if (state === "AWAITING_PAYMENT") return "Chờ thanh toán";
+  if (state === "AWAITING_CONFIRMATION") return "Chờ xác nhận";
+  return bookingStatusLabel(booking.status);
+};
 // Kết toán theo buổi: chỉ có sau khi nhân viên xác nhận (tiền sân đã thanh toán).
 // SETTLED = Đã kết toán, PAID (chưa hủy) = Chưa kết toán, còn lại = null (hiển thị "–").
 export const settlementStatus = (booking) => {
@@ -256,8 +271,8 @@ export function realToPackage(pkg) {
     startDate: pkg.startDate, endDate: pkg.endDate, startTime: hhmm(pkg.startTime), endTime: hhmm(pkg.endTime),
     daysOfWeek: toDayNumbers(pkg.daysOfWeek),
     status: pkg.status, paymentStatus: pkg.paymentStatus,
-    paymentMethod: paymentMethodLabel(pkg.paymentMethod), paidAt: pkg.paidAt, paidBy: pkg.paidByStaffName,
-    staffName: pkg.paidByStaffName || "–", expireAt: pkg.expireAt,
+    paymentMethod: paymentMethodLabel(pkg.paymentMethod), paidAt: pkg.paidAt,
+    staffName: pkg.paidByStaffName || "–", paidBy: pkg.paidByStaffName || null, expireAt: pkg.expireAt,
     amount: Number(pkg.totalAmount ?? 0), discountPercent: Number(pkg.discountPercent ?? 0),
     sessionCount: pkg.sessionCount, completedSessionCount: pkg.completedSessionCount,
     settledSessionCount: pkg.settledSessionCount, paidSessionCount: pkg.settledSessionCount,
@@ -422,10 +437,14 @@ export const bookingApi = {
   const response = await axiosClient.get("/api/v1/bookings/me");
   return response.data;
 },
+  markMyBookingPaymentSubmitted: async (bookingId) =>
+    (await axiosClient.patch(`/api/v1/bookings/${bookingId}/payment-submitted`)).data,
 
   // Gói lịch cố định của khách
   getMyRecurringBookings: async () => (await axiosClient.get("/api/recurring-bookings/me")).data,
   getMyRecurringBookingDetail: async (id) => (await axiosClient.get(`/api/recurring-bookings/${id}`)).data,
+  markMyRecurringPaymentSubmitted: async (id) =>
+    (await axiosClient.patch(`/api/recurring-bookings/${id}/payment-submitted`)).data,
 
   getBookingDetail: async(bookingId) => {
     const response = await axiosClient.get(`/api/v1/bookings/detail/${bookingId}`);

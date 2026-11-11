@@ -6,7 +6,7 @@ import Navbar from '../components/Navbar';
 import { bookingApi, formatBookingDays, paymentMethodLabel, toDayNumbers } from '../api/bookingApi';
 
 import {
-  ArrowLeft, MessageCircle, Crown, CheckCircle2, Clock,
+  ArrowLeft, Crown, CheckCircle2, Clock,
   Wallet, FileText, CalendarDays, MapPin, Grid,
   CalendarClock, CircleDollarSign, Info, Trash2, User,
   Repeat, ListOrdered, Calendar as CalendarIcon, X, XCircle,
@@ -208,6 +208,8 @@ export default function SingleBookingDetail() {
   }, [id]);
 
   useEffect(() => {
+    // Lần tải đầu tiên của trang cần đồng bộ state từ API theo id trên URL.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchBookingDetail();
   }, [fetchBookingDetail]);
 
@@ -250,14 +252,14 @@ export default function SingleBookingDetail() {
   return (
     <>
       {booking.type === 'SINGLE' || booking.type === 'SESSION' ? (
-        <SingleLayout
+        <CustomerBookingDetailLayout
           booking={booking}
           navigate={navigate}
           onOpenCancel={() => setIsCancelModalOpen(true)}
           onOpenReschedule={() => setIsRescheduleModalOpen(true)}
         />
       ) : (
-        <RecurringLayout
+        <CustomerRecurringBookingDetailLayout
           booking={booking}
           sessions={sessions}
           navigate={navigate}
@@ -515,7 +517,7 @@ const CancelModal = ({ booking, onClose }) => {
 };
 
 // ================= LAYOUT 1: SÂN LẺ & CHI TIẾT BUỔI =================
-const SingleLayout = ({ booking, navigate, onOpenCancel, onOpenReschedule }) => {
+export const CustomerBookingDetailLayout = ({ booking, navigate, onOpenCancel, onOpenReschedule, embedded = false, onBack }) => {
   const isConfirmed = booking.status === 'CONFIRMED';
   const isCompleted = booking.status === 'COMPLETED';
   // Đã thanh toán tiền sân (PAID) hoặc đã kết toán (SETTLED)
@@ -544,9 +546,9 @@ const SingleLayout = ({ booking, navigate, onOpenCancel, onOpenReschedule }) => 
 
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20">
-      <Navbar />
+      {!embedded && <Navbar />}
       <div className="max-w-[1100px] mx-auto px-4 mt-8">
-        <button onClick={() => navigate(isSession ? `/my-bookings/${booking.packageId}` : '/my-bookings')} className="flex items-center gap-1 text-[13px] text-[#00C475] font-medium mb-4 hover:underline w-fit">
+        <button onClick={onBack || (() => navigate(isSession ? `/my-bookings/${booking.packageId}` : '/my-bookings'))} className={`${embedded ? "hidden" : "flex"} items-center gap-1 text-[13px] text-[#00C475] font-medium mb-4 hover:underline w-fit`}>
           <ArrowLeft size={14} /> {isSession ? `Quay lại chi tiết lịch cố định ${booking.packageCode}` : 'Quay lại booking của tôi'}
         </button>
 
@@ -639,10 +641,10 @@ const SingleLayout = ({ booking, navigate, onOpenCancel, onOpenReschedule }) => 
                 ) : null}
 
                 <div className="flex flex-wrap items-center gap-3">
-                  <button onClick={() => navigate(isSession ? `/my-bookings/${booking.packageId}` : '/my-bookings')} className="px-6 py-2.5 bg-white border border-gray-200 text-[#00C475] rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors">
+                  <button onClick={onBack || (() => navigate(isSession ? `/my-bookings/${booking.packageId}` : '/my-bookings'))} className="px-6 py-2.5 bg-white border border-gray-200 text-[#00C475] rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors">
                     <ArrowLeft size={16} /> Quay lại
                   </button>
-                  {booking.status === 'PENDING' && !isPaid && (
+                  {!embedded && booking.status === 'PENDING' && !isPaid && (
                     <>
                       {/* [THÊM MỚI] Gắn sự kiện Mở Modal Dời lịch */}
                       {isSession && (
@@ -710,7 +712,7 @@ const HoldCountdown = ({ expireAt }) => {
   return <span>{mm}:{ss}</span>;
 };
 
-const RecurringLayout = ({ booking, sessions, navigate, onOpenCancel }) => {
+export const CustomerRecurringBookingDetailLayout = ({ booking, sessions, navigate, onOpenCancel, embedded = false, onBack, onViewSession }) => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [page, setPage] = useState(1);
 
@@ -739,9 +741,9 @@ const RecurringLayout = ({ booking, sessions, navigate, onOpenCancel }) => {
 
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20">
-      <Navbar />
+      {!embedded && <Navbar />}
       <div className="max-w-[1100px] mx-auto px-4 mt-8">
-        <button onClick={() => navigate('/my-bookings')} className="flex items-center gap-1 text-[13px] text-[#00C475] font-medium mb-4 hover:underline w-fit">
+        <button onClick={onBack || (() => navigate('/my-bookings'))} className={`${embedded ? "hidden" : "flex"} items-center gap-1 text-[13px] text-[#00C475] font-medium mb-4 hover:underline w-fit`}>
           <ArrowLeft size={14} /> Quay lại booking của tôi
         </button>
 
@@ -784,7 +786,7 @@ const RecurringLayout = ({ booking, sessions, navigate, onOpenCancel }) => {
               </div>
 
               {/* Chưa thanh toán: khung giữ chỗ + Thanh toán. Đã xác nhận thì khung biến mất. */}
-              {isUnpaidActive && (
+              {!embedded && isUnpaidActive && (
                 <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
                   <div className="flex items-center gap-1.5 text-[12px] text-amber-700 mb-2">
                     <Clock size={14} className="shrink-0" />
@@ -865,9 +867,9 @@ const RecurringLayout = ({ booking, sessions, navigate, onOpenCancel }) => {
                             <td className="py-2.5 px-2">{session.startTime} - {session.endTime}</td>
                             <td className="py-2.5 px-2"><span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${ui.cls}`}>{ui.text}</span></td>
                             <td className="py-2.5 px-2">{renderSettlement(session)}</td>
-                            <td className="py-2.5 px-2">
-                              <Link to={`/my-bookings/${session.id}`} className="inline-block px-2.5 py-1 border border-emerald-300 rounded text-[12px] text-[#00C475] font-semibold hover:bg-emerald-50">Xem chi tiết</Link>
-                            </td>
+                            <td className="py-2.5 px-2">{embedded
+                              ? <button type="button" onClick={() => onViewSession?.(session)} className="inline-block px-2.5 py-1 border border-emerald-300 rounded text-[12px] text-[#00C475] font-semibold hover:bg-emerald-50">Xem chi tiết</button>
+                              : <Link to={`/my-bookings/${session.id}`} className="inline-block px-2.5 py-1 border border-emerald-300 rounded text-[12px] text-[#00C475] font-semibold hover:bg-emerald-50">Xem chi tiết</Link>}</td>
                           </tr>
                         );
                       })}
@@ -897,11 +899,11 @@ const RecurringLayout = ({ booking, sessions, navigate, onOpenCancel }) => {
               )}
 
               <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-6">
-                <button onClick={() => navigate('/my-bookings')} className="px-6 py-2.5 bg-white border border-gray-200 text-[#00C475] rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors">
+                <button onClick={onBack || (() => navigate('/my-bookings'))} className="px-6 py-2.5 bg-white border border-gray-200 text-[#00C475] rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors">
                   <ArrowLeft size={16} /> Quay lại
                 </button>
                 {/* BR-14: chỉ hủy được khi gói chưa thanh toán */}
-                {isUnpaidActive && (
+                {!embedded && isUnpaidActive && (
                   <button onClick={onOpenCancel} className="px-6 py-2 bg-red-50 border border-red-200 text-red-500 rounded-lg text-sm font-semibold flex flex-col items-center justify-center hover:bg-red-100 transition-colors">
                     <span className="flex items-center gap-2"><Trash2 size={16} /> Hủy lịch cố định</span>
                     <span className="text-[11px] font-normal">(hủy toàn bộ các buổi còn lại)</span>

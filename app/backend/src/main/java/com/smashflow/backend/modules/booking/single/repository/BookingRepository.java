@@ -2,6 +2,7 @@ package com.smashflow.backend.modules.booking.single.repository;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
@@ -77,6 +78,9 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from Booking b where b.id = :id")
     Optional<Booking> findByIdForUpdate(@Param("id") Long id);
+
+    @Query("select b from Booking b left join fetch b.recurringBooking where b.bookingStatus = :status and b.expireAt is not null and b.expireAt <= :now")
+    List<Booking> findExpiredBookings(@Param("status") BookingStatus status, @Param("now") LocalDateTime now);
 
     // Đếm lượt đặt theo khách: mỗi booking lẻ = 1 lượt, mỗi gói lịch cố định = 1
     // lượt.

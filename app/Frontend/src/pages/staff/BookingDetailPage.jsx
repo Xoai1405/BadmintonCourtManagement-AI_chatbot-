@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Check, CheckCheck, CircleAlert, CreditCard } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
-import { bookingApi, bookingStatusLabel, formatBookingDate, formatBookingMoney, settlementLabel, settlementStatus } from "../../api/bookingApi.js";
+import { bookingApi, bookingStatusLabel, bookingWorkflowLabel, formatBookingDate, formatBookingMoney, settlementLabel, settlementStatus } from "../../api/bookingApi.js";
 import { useAuth } from "../../hooks/useAuth";
 import RecurringBookingDetail from "./RecurringBookingDetail.jsx";
 
@@ -102,7 +102,7 @@ function BookingDetail({ id }) {
       <Link to={isSession ? `/staff/bookings/${booking.packageId}` : "/staff/bookings"} className="staff-back-link"><ArrowLeft size={15} />{isSession ? `Quay lại gói ${booking.packageCode}` : "Quay lại danh sách"}</Link>
       <header className="staff-page-heading staff-detail-heading">
         <div><h1 id="staff-detail-title">{isSession ? "Buổi" : "Booking"} <span className="staff-detail-code">{booking.code}</span></h1>{isSession && <p className="staff-detail-context">Thuộc gói lịch cố định {booking.packageCode}</p>}</div>
-        <span className={`staff-badge staff-badge-${booking.status.toLowerCase()}`}>{bookingStatusLabel(booking.status)}</span>
+        <span className={`staff-badge staff-badge-${booking.status.toLowerCase()}`}>{bookingWorkflowLabel(booking)}</span>
       </header>
       <div className="staff-feedback" aria-live="polite">{notice && <p className="staff-alert staff-alert-success" role="status"><Check size={17} />{notice}</p>}{error && <p className="staff-alert staff-alert-error" role="alert"><CircleAlert size={17} />{error}</p>}</div>
 

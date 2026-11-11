@@ -1,5 +1,5 @@
 
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import {
@@ -237,6 +237,37 @@ const BookingCountdown = ({ expireAt }) => {
   return <span>{`${hours}:${minutes}:${seconds}`}</span>;
 };
 
+const PaymentModal = ({ booking, onClose, onConfirm }) => {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  if (!booking) return null;
+  const submit = async () => {
+    try {
+      setSubmitting(true); setError('');
+      await onConfirm(booking);
+      onClose();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Không thể ghi nhận thanh toán.');
+    } finally { setSubmitting(false); }
+  };
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+        <h2 id="payment-modal-title" className="text-xl font-bold text-gray-800">Thanh toán chuyển khoản</h2>
+        <p className="mt-2 text-sm text-gray-500">Quét mã QR để thanh toán {booking.label || 'booking'} <strong>{booking.code}</strong>.</p>
+        <img src="/qr-placeholder.svg" alt="Mã QR thanh toán minh họa" className="mx-auto my-5 h-48 w-48 rounded-lg border border-gray-200 p-2" />
+        <p className="mb-4 text-center text-lg font-bold text-emerald-600">{booking.total}</p>
+        <p className="mb-4 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-700">Sau khi bạn xác nhận đã thanh toán, nhân viên có 30 phút để kiểm tra. Quá thời hạn, booking sẽ tự động bị hủy.</p>
+        {error && <p className="mb-3 text-sm text-red-600" role="alert">{error}</p>}
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={onClose} disabled={submitting} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600">Đóng</button>
+          <button type="button" onClick={submit} disabled={submitting} className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-60">{submitting ? 'Đang xử lý...' : 'Tôi đã thanh toán'}</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ==================== RECURRING EMPTY STATE ====================
 const RecurringEmptyState = () => {
   return (
@@ -290,6 +321,7 @@ const RecurringBookingList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+  const [payingPackage, setPayingPackage] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -315,6 +347,7 @@ const RecurringBookingList = () => {
   if (!packages.length) return <RecurringEmptyState />;
 
   return (
+    <>
     <div className="space-y-4">
       {packages.map((pkg) => {
         const isUnpaid = pkg.status === 'ACTIVE' && pkg.paymentStatus !== 'PAID';
@@ -366,7 +399,7 @@ const RecurringBookingList = () => {
                   <Clock size={13} className="shrink-0" />
                   <span className="min-w-0 break-words">Giữ chỗ: <span className="font-bold tabular-nums"><BookingCountdown expireAt={pkg.expireAt} /></span></span>
                 </div>
-                <button type="button" onClick={() => window.alert('Chức năng thanh toán sẽ được kết nối API sau.')}
+                <button type="button" onClick={() => setPayingPackage({ id: pkg.recurringBookingId, code: pkg.code, total: formatMoney(pkg.totalAmount), label: 'gói lịch cố định' })}
                   className="flex w-full items-center justify-center gap-1 rounded-lg bg-emerald-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-600 transition-colors">
                   <CreditCard size={14} />
                   Thanh toán
@@ -395,6 +428,11 @@ const RecurringBookingList = () => {
         );
       })}
     </div>
+    <PaymentModal booking={payingPackage} onClose={() => setPayingPackage(null)} onConfirm={async (pkg) => {
+      await bookingApi.markMyRecurringPaymentSubmitted(pkg.id);
+      setLoading(true); setReloadKey((key) => key + 1);
+    }} />
+    </>
   );
 };
 
@@ -411,6 +449,8 @@ export default function MyBookings() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
+  const [payingBooking, setPayingBooking] = useState(null);
 
   // ==================== FETCH SINGLE BOOKINGS ====================
   useEffect(() => {
@@ -450,7 +490,7 @@ export default function MyBookings() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadKey]);
 
   // ==================== FILTER OPTIONS ====================
   const courtOptions = useMemo(() => {
@@ -787,7 +827,7 @@ export default function MyBookings() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => window.alert('Chức năng thanh toán sẽ được kết nối API sau.')}
+                          onClick={() => setPayingBooking({ id: booking.id, code: booking.code, total: booking.total, label: 'booking' })}
                           className="flex w-full items-center justify-center gap-1 rounded-lg bg-emerald-500 px-2 py-1 text-[11px] font-semibold text-white hover:bg-emerald-600 transition-colors"
                         >
                           <CreditCard size={14} />
@@ -823,6 +863,10 @@ export default function MyBookings() {
           )}
         </div>
       </div>
+      <PaymentModal booking={payingBooking} onClose={() => setPayingBooking(null)} onConfirm={async (booking) => {
+        await bookingApi.markMyBookingPaymentSubmitted(booking.id);
+        setLoading(true); setReloadKey((key) => key + 1);
+      }} />
     </div>
   );
 }

@@ -47,6 +47,13 @@ public class RecurringBookingController {
                                                 currentUser.getUserId()));
         }
 
+        @PatchMapping("/{id}/payment-submitted")
+        public ResponseEntity<RecurringBookingDetailResponse> markPaymentSubmitted(
+                        @PathVariable Long id,
+                        @AuthenticationPrincipal CustomUserDetails currentUser) {
+                return ResponseEntity.ok(recurringBookingManagementService.markPaymentSubmitted(id, currentUser.getUserId()));
+        }
+
         /**
          * SCRUM-19: Xem trước lịch đặt sân cố định — kiểm tra trùng lịch hàng loạt.
          * POST /api/recurring-bookings/preview
