@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.smashflow.backend.common.exception.ResourceNotFoundException;
 import com.smashflow.backend.modules.booking.single.model.Booking;
@@ -27,6 +28,7 @@ import com.smashflow.backend.modules.pricing.model.PriceConfig;
 import com.smashflow.backend.modules.pricing.repository.PriceConfigRepository;
 import com.smashflow.backend.modules.pricing.service.PricingService;
 import com.smashflow.backend.modules.pricing.service.PricingService.SlotPrice;
+import com.smashflow.backend.common.storage.SupabaseStorageService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -39,6 +41,7 @@ public class CourtService {
         private final BusinessHourConfigRepository businessHourConfigRepo;
         private final BookingRepository bookingRepo;
         private final PricingService pricingService;
+        private final SupabaseStorageService supabaseStorageService;
 
         public List<CourtResponse> getAllCourts() {
                 List<Court> courts = courtRepo.findAll();
@@ -196,4 +199,26 @@ public class CourtService {
                 PriceConfig priceConfig = getPriceConfig(court);
                 return toCourtResponse(court, priceConfig);
         }
+
+        // upload image
+
+        public CourtResponse uploadCourtImage(Long courtId, MultipartFile image) {
+
+                Court court = courtRepo.findById(courtId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                "Không tìm thấy sân"));
+
+                // Upload ảnh lên Supabase Storage
+                String imageUrl = supabaseStorageService.uploadCourtImage(
+                                courtId, image);
+
+                // Cập nhật URL vào database
+                court.setImageUrl(imageUrl);
+                court = courtRepo.save(court);
+
+                PriceConfig priceConfig = getPriceConfig(court);
+
+                return toCourtResponse(court, priceConfig);
+        }
+
 }

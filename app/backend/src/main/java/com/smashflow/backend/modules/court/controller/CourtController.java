@@ -22,6 +22,9 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 
 import lombok.RequiredArgsConstructor;
 
@@ -63,4 +66,14 @@ public class CourtController {
     public ResponseEntity<CourtResponse> createCourt(@RequestBody CreateCourtRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(courtSer.createCourt(request));
     }
+
+    @PostMapping(value = "/{courtId}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CourtResponse> uploadCourtImage(
+            @PathVariable Long courtId,
+            @RequestPart("image") MultipartFile image) {
+
+        return ResponseEntity.ok(
+                courtSer.uploadCourtImage(courtId, image));
+    }
+
 }
