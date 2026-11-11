@@ -10,7 +10,7 @@ import {
 import ChatbotButton from "../components/ChatbotButton";
 import { courtApi } from "../api/CourtApi";
 import Navbar from "../components/Navbar";
-import { getCourtImageById } from "../utils/CourtImageById";
+//import { getCourtImageById } from "../utils/CourtImageById";
 import { getCourtTypeLabel } from "../utils/CourtUtils";
 //Helper trả chuỗi ngày-tháng-năm
 function toDateInputValue(date) {
@@ -210,7 +210,7 @@ export default function CourtDetail() {
           <div className="w-full lg:w-1/3">
             <div className="bg-white rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] overflow-hidden sticky top-24">
               <img
-                src={getCourtImageById(court)}
+                src={court.imageUrl || "/images/default-court.webp"}
                 alt={court.name}
                 className="w-full h-56 object-cover"
               />

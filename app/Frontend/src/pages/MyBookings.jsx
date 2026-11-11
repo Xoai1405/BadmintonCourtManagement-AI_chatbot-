@@ -769,9 +769,12 @@ export default function MyBookings() {
                           onError={(e) => { e.currentTarget.style.display = 'none'; }}
                         />
                       ) : (
-                        <div className="w-[85px] h-[60px] rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 text-xs text-center">
-                          Chưa có ảnh
-                        </div>
+                         <img
+                          src={"/images/default-court.webp"}
+                          alt={booking.courtName}
+                          className="w-[85px] h-[60px] rounded-lg object-cover"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
                       )}
                       <div className="min-w-0">
                         <p className="text-[11px] text-gray-400 mb-0.5">Mã booking</p>
