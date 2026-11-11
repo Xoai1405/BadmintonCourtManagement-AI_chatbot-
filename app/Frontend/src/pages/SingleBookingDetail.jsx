@@ -1352,15 +1352,15 @@ export const CustomerRecurringBookingDetailLayout = ({
           <div className="w-full lg:w-1/3 space-y-6">
             <div className="bg-white rounded-2xl shadow-[0_2px_20px_-5px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden p-6">
               {booking.imageUrl ? (
-               <img
-  src={booking.imageUrl || "/images/default-court.webp"}
-  alt={booking.courtName}
-  className="w-full h-48 object-cover rounded-xl mb-6"
-  onError={(e) => {
-    e.currentTarget.onerror = null;
-    e.currentTarget.src = "/images/default-court.webp";
-  }}
-/>
+                <img
+                  src={booking.imageUrl || "/images/default-court.webp"}
+                  alt={booking.courtName}
+                  className="w-full h-48 object-cover rounded-xl mb-6"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = "/images/default-court.webp";
+                  }}
+                />
               ) : (
                 <div className="w-full h-48 rounded-xl mb-6 bg-gray-100 flex items-center justify-center text-gray-400 text-sm">
                   Chưa có ảnh
