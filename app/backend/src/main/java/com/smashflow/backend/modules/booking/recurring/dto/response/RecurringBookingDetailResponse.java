@@ -65,6 +65,8 @@ public record RecurringBookingDetailResponse(
                         PaymentStatus paymentStatus,
                         BigDecimal courtPrice,
                         BigDecimal servicePrice,
-                        BigDecimal totalAmount) {
+                        BigDecimal totalAmount,
+                        String cancelReason,
+                        LocalDateTime cancelledAt) {
         }
 }

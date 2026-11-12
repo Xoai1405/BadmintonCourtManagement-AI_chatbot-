@@ -19,6 +19,7 @@ import com.smashflow.backend.modules.booking.single.model.Booking;
 import com.smashflow.backend.modules.booking.single.model.enums.BookingStatus;
 import com.smashflow.backend.modules.booking.single.model.enums.PaymentStatus;
 import com.smashflow.backend.modules.booking.single.repository.BookingRepository;
+import com.smashflow.backend.modules.booking.single.service.BookingCancellationRules;
 import com.smashflow.backend.modules.identity.user.model.User;
 import com.smashflow.backend.modules.identity.user.repository.UserRepository;
 
@@ -78,8 +79,11 @@ public class RecurringBookingManagementService {
                         throw new ResourceNotFoundException("Không tìm thấy gói lịch cố định");
                 }
                 LocalDateTime now = LocalDateTime.now(VN_ZONE);
-                List<Booking> sessions = recurring.getBookings();
+                List<Booking> sessions = recurring.getBookings().stream()
+                                .filter(b -> b.getBookingStatus() != BookingStatus.CANCELLED)
+                                .toList();
                 if (recurring.getStatus() != RecurBookingStatus.ACTIVE
+                                || sessions.isEmpty()
                                 || sessions.stream().anyMatch(b -> b.getPaymentStatus() != PaymentStatus.UNPAID)
                                 || sessions.stream().anyMatch(b -> b.getExpireAt() == null || !b.getExpireAt().isAfter(now))) {
                         throw new IllegalStateException("Gói không còn ở trạng thái chờ thanh toán");
@@ -127,9 +131,11 @@ public class RecurringBookingManagementService {
                         throw new IllegalStateException("Chỉ xác nhận được gói đang hoạt động");
                 }
 
-                List<Booking> sessions = recurring.getBookings();
+                List<Booking> sessions = recurring.getBookings().stream()
+                                .filter(b -> b.getBookingStatus() != BookingStatus.CANCELLED)
+                                .toList();
 
-                if (sessions.stream().anyMatch(b -> b.getPaymentStatus() != PaymentStatus.PAID)) {
+                if (sessions.isEmpty() || sessions.stream().anyMatch(b -> b.getPaymentStatus() != PaymentStatus.PAID)) {
                         throw new IllegalStateException("Gói đã được thanh toán trước đó");
                 }
 
@@ -222,6 +228,46 @@ public class RecurringBookingManagementService {
                 return toResponse(recurring, true);
         }
 
+        @Transactional
+        public RecurringBookingDetailResponse cancelSessionForCustomer(Long packageId, Long bookingId, Long customerId, String reason) {
+                return cancelSession(packageId, bookingId, customerId, reason, true);
+        }
+
+        @Transactional
+        public RecurringBookingDetailResponse cancelSessionForStaff(Long packageId, Long bookingId, String reason) {
+                return cancelSession(packageId, bookingId, null, reason, false);
+        }
+
+        private RecurringBookingDetailResponse cancelSession(Long packageId, Long bookingId, Long customerId, String reason,
+                        boolean customerAction) {
+                RecurringBooking recurring = recurringBookingRepo.findByIdForUpdate(packageId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy gói lịch cố định"));
+                if (customerAction && !recurring.getCustomer().getId().equals(customerId)) {
+                        throw new ResourceNotFoundException("Không tìm thấy gói lịch cố định");
+                }
+                Booking session = bookingRepo.findByIdForUpdate(bookingId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy buổi đặt sân"));
+                if (session.getRecurringBooking() == null
+                                || !session.getRecurringBooking().getId().equals(packageId)) {
+                        throw new ResourceNotFoundException("Không tìm thấy buổi đặt sân trong gói");
+                }
+                if (recurring.getStatus() != RecurBookingStatus.ACTIVE) {
+                        throw new IllegalStateException("Gói lịch cố định không còn hoạt động");
+                }
+                LocalDateTime now = LocalDateTime.now(VN_ZONE);
+                BookingCancellationRules.validateCancellable(session, now, customerAction);
+                BookingCancellationRules.cancel(session, BookingCancellationRules.validateReason(reason), now);
+                bookingRepo.save(session);
+
+                if (recurring.getBookings().stream().allMatch(b -> b.getBookingStatus() == BookingStatus.COMPLETED
+                                || b.getBookingStatus() == BookingStatus.NO_SHOW
+                                || b.getBookingStatus() == BookingStatus.CANCELLED)) {
+                        recurring.setStatus(RecurBookingStatus.COMPLETED);
+                        recurringBookingRepo.save(recurring);
+                }
+                return toResponse(recurring, true);
+        }
+
         // ===================== MAPPING =====================
 
         private RecurringBookingDetailResponse toResponse(RecurringBooking r, boolean includeSessions) {
@@ -267,7 +313,9 @@ public class RecurringBookingManagementService {
                                                                 b.getPaymentStatus(),
                                                                 b.getCourtPrice(),
                                                                 b.getServicePrice(),
-                                                                b.getTotalAmount()))
+                                                                b.getTotalAmount(),
+                                                                b.getCancelReason(),
+                                                                b.getCancelledAt()))
                                                 .toList()
                                 : List.of();
 

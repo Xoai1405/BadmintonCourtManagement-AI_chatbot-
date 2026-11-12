@@ -34,20 +34,34 @@ public class BookingExpiryJob {
     @Transactional
     public void cancelExpiredPendingBookings() {
         LocalDateTime now = LocalDateTime.now(VN_ZONE);
-        List<Booking> expired = bookingRepo.findExpiredBookings(BookingStatus.PENDING, now);
+        List<Object[]> expiredRefs = bookingRepo.findExpiredBookingRefs(BookingStatus.PENDING, now);
         Set<Long> recurringIds = new HashSet<>();
-        for (Booking booking : expired) {
-            if (booking.getRecurringBooking() == null) cancel(booking, now);
-            else recurringIds.add(booking.getRecurringBooking().getId());
+        for (Object[] ref : expiredRefs) {
+            Long bookingId = (Long) ref[0];
+            Long recurringId = (Long) ref[1];
+            if (recurringId != null) {
+                recurringIds.add(recurringId);
+            } else {
+                bookingRepo.findByIdForUpdate(bookingId)
+                        .filter(b -> isExpired(b, now))
+                        .ifPresent(b -> cancel(b, now));
+            }
         }
         for (Long recurringId : recurringIds) {
             RecurringBooking recurring = recurringRepo.findByIdForUpdate(recurringId).orElse(null);
             if (recurring == null || recurring.getStatus() != RecurBookingStatus.ACTIVE) continue;
+            if (recurring.getBookings().stream().noneMatch(b -> isExpired(b, now))) continue;
             recurring.getBookings().stream().filter(b -> b.getBookingStatus() == BookingStatus.PENDING).forEach(b -> cancel(b, now));
             recurring.setStatus(RecurBookingStatus.CANCELLED);
             recurring.setCancelReason(EXPIRED_REASON);
             recurring.setCancelledAt(now);
         }
+    }
+
+    private boolean isExpired(Booking booking, LocalDateTime now) {
+        return booking.getBookingStatus() == BookingStatus.PENDING
+                && booking.getExpireAt() != null
+                && !booking.getExpireAt().isAfter(now);
     }
 
     private void cancel(Booking booking, LocalDateTime now) {

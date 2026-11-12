@@ -95,6 +95,10 @@ public class BookingService {
                                         "Không tìm thấy thông tin booking");
                 }
 
+                return toBookingDetailResponse(booking);
+        }
+
+        private BookingDetailResponse toBookingDetailResponse(Booking booking) {
                 return BookingDetailResponse.builder()
                                 // Thông tin booking
                                 .id(booking.getId())
@@ -141,6 +145,32 @@ public class BookingService {
                                                 : booking.getRecurringBooking().getDiscountRate())
 
                                 .build();
+        }
+
+        @Transactional
+        public BookingDetailResponse cancelSingleBookingForCustomer(Long bookingId, Long customerId, String reason) {
+                Booking booking = bookingRepo.findByIdForUpdate(bookingId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin booking"));
+                if (!booking.getCustomer().getId().equals(customerId) || booking.getRecurringBooking() != null) {
+                        throw new ResourceNotFoundException("Không tìm thấy thông tin booking");
+                }
+                LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+                BookingCancellationRules.validateCancellable(booking, now, true);
+                BookingCancellationRules.cancel(booking, BookingCancellationRules.validateReason(reason), now);
+                return toBookingDetailResponse(bookingRepo.save(booking));
+        }
+
+        @Transactional
+        public StaffBookingResponse cancelSingleBookingForStaff(Long bookingId, String reason) {
+                Booking booking = bookingRepo.findByIdForUpdate(bookingId)
+                                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy booking"));
+                if (booking.getRecurringBooking() != null) {
+                        throw new IllegalStateException("Buổi thuộc gói lịch cố định, vui lòng hủy tại trang chi tiết gói");
+                }
+                LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+                BookingCancellationRules.validateCancellable(booking, now, false);
+                BookingCancellationRules.cancel(booking, BookingCancellationRules.validateReason(reason), now);
+                return toStaffResponse(bookingRepo.save(booking));
         }
 
         /** Khách xác nhận đã chuyển khoản; nhân viên có 30 phút để kiểm tra. */

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.smashflow.backend.modules.booking.single.service.BookingService;
+import com.smashflow.backend.modules.booking.single.dto.request.CancelBookingRequest;
 import com.smashflow.backend.modules.booking.staff.dto.request.StaffCreateBookingRequest;
 import com.smashflow.backend.modules.booking.staff.dto.response.StaffBookingResponse;
 import com.smashflow.backend.modules.identity.security.userdetails.CustomUserDetails;
@@ -70,6 +71,13 @@ public class StaffBookingController {
         @PatchMapping("/{bookingId}/no-show")
         public ResponseEntity<StaffBookingResponse> noShow(@PathVariable Long bookingId) {
                 return ResponseEntity.ok(bookingService.noShowBooking(bookingId));
+        }
+
+        @PatchMapping("/{bookingId}/cancel")
+        public ResponseEntity<StaffBookingResponse> cancelBooking(
+                        @PathVariable Long bookingId,
+                        @Valid @RequestBody CancelBookingRequest request) {
+                return ResponseEntity.ok(bookingService.cancelSingleBookingForStaff(bookingId, request.reason()));
         }
 
         // Tạo booking lẻ tại quầy: khách lấy từ body, nhân viên lấy từ token

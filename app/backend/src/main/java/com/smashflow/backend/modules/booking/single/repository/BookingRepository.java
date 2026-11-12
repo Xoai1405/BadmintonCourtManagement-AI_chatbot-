@@ -79,8 +79,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @Query("select b from Booking b where b.id = :id")
     Optional<Booking> findByIdForUpdate(@Param("id") Long id);
 
-    @Query("select b from Booking b left join fetch b.recurringBooking where b.bookingStatus = :status and b.expireAt is not null and b.expireAt <= :now")
-    List<Booking> findExpiredBookings(@Param("status") BookingStatus status, @Param("now") LocalDateTime now);
+    @Query("select b.id, r.id from Booking b left join b.recurringBooking r where b.bookingStatus = :status and b.expireAt is not null and b.expireAt <= :now")
+    List<Object[]> findExpiredBookingRefs(@Param("status") BookingStatus status, @Param("now") LocalDateTime now);
 
     // Đếm lượt đặt theo khách: mỗi booking lẻ = 1 lượt, mỗi gói lịch cố định = 1
     // lượt.

@@ -6,6 +6,7 @@ import com.smashflow.backend.modules.booking.recurring.dto.response.RecurringBoo
 import com.smashflow.backend.modules.booking.recurring.dto.response.RecurringBookingResponse;
 import com.smashflow.backend.modules.booking.recurring.service.RecurringBookingManagementService;
 import com.smashflow.backend.modules.booking.recurring.service.RecurringBookingService;
+import com.smashflow.backend.modules.booking.single.dto.request.CancelBookingRequest;
 import com.smashflow.backend.modules.identity.security.userdetails.CustomUserDetails;
 
 import jakarta.validation.Valid;
@@ -52,6 +53,16 @@ public class RecurringBookingController {
                         @PathVariable Long id,
                         @AuthenticationPrincipal CustomUserDetails currentUser) {
                 return ResponseEntity.ok(recurringBookingManagementService.markPaymentSubmitted(id, currentUser.getUserId()));
+        }
+
+        @PatchMapping("/{id}/sessions/{bookingId}/cancel")
+        public ResponseEntity<RecurringBookingDetailResponse> cancelSession(
+                        @PathVariable Long id,
+                        @PathVariable Long bookingId,
+                        @Valid @RequestBody CancelBookingRequest request,
+                        @AuthenticationPrincipal CustomUserDetails currentUser) {
+                return ResponseEntity.ok(recurringBookingManagementService.cancelSessionForCustomer(
+                                id, bookingId, currentUser.getUserId(), request.reason()));
         }
 
         /**

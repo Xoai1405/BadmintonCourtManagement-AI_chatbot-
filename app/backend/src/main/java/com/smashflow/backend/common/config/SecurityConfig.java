@@ -60,6 +60,9 @@ public class SecurityConfig {
                                                 .hasRole("MANAGER")
                                                 .requestMatchers("/api/v1/staff/**")
                                                 .hasAnyRole("STAFF", "MANAGER")
+                                                .requestMatchers(HttpMethod.PATCH, "/api/v1/bookings/*/cancel",
+                                                                "/api/recurring-bookings/*/sessions/*/cancel")
+                                                .hasRole("CUSTOMER")
                                                 .requestMatchers(HttpMethod.POST, "/api/v1/courts")
                                                 .hasRole("MANAGER")
                                                 .requestMatchers(HttpMethod.PATCH, "/api/v1/courts/**")

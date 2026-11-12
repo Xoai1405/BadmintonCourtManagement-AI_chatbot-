@@ -18,6 +18,7 @@ import com.smashflow.backend.modules.booking.recurring.dto.response.RecurringBoo
 import com.smashflow.backend.modules.booking.recurring.dto.response.RecurringBookingResponse;
 import com.smashflow.backend.modules.booking.recurring.service.RecurringBookingManagementService;
 import com.smashflow.backend.modules.booking.recurring.service.RecurringBookingService;
+import com.smashflow.backend.modules.booking.single.dto.request.CancelBookingRequest;
 import com.smashflow.backend.modules.booking.staff.dto.request.StaffCreateRecurringBookingRequest;
 import com.smashflow.backend.modules.identity.security.userdetails.CustomUserDetails;
 
@@ -62,6 +63,14 @@ public class StaffRecurringBookingController {
             @PathVariable Long id,
             @Valid @RequestBody CancelRecurringBookingRequest request) {
         return ResponseEntity.ok(recurringService.cancelRecurringBooking(id, request.reason()));
+    }
+
+    @PatchMapping("/{id}/sessions/{bookingId}/cancel")
+    public ResponseEntity<RecurringBookingDetailResponse> cancelSession(
+            @PathVariable Long id,
+            @PathVariable Long bookingId,
+            @Valid @RequestBody CancelBookingRequest request) {
+        return ResponseEntity.ok(recurringService.cancelSessionForStaff(id, bookingId, request.reason()));
     }
 
     // Tạo gói lịch cố định tại quầy: khách lấy từ body, nhân viên lấy từ token
