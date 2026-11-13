@@ -12,6 +12,7 @@ const menuItems = [
   { icon: "🗄️", label: "Danh sách sân", path: "/courts" },
   { icon: "💸", label: "Bảng giá", path: "/prices" },
   { icon: "🏷️", label: "Chiết khấu", path: "/discounts" },
+  { icon: "🧃", label: "Quản lý dịch vụ", path: "/services" },
   { icon: "👨‍💼", label: "Nhân viên", path: "/staff" },
   { icon: "👥", label: "Khách hàng", path: "/customers" },
   { icon: "📊", label: "Báo cáo", path: "/reports" },

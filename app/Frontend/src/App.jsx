@@ -12,6 +12,7 @@ import StaffManagementPage from "./pages/admin/StaffManagementPage.jsx";
 import CustomerManagementPage from "./pages/admin/CustomerManagementPage.jsx";
 import ReportsPage from "./pages/admin/ReportsPage.jsx";
 import FaqChatbotPage from "./pages/admin/FaqChatbotPage.jsx";
+import ServiceManagementPage from "./pages/admin/ServiceManagementPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import RecurringBooking from "./pages/RecurringBooking.jsx";
 import MyBookings from "./pages/MyBookings.jsx";
@@ -72,6 +73,7 @@ function App() {
           <Route path="/customers" element={<CustomerManagementPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/faq-chatbot" element={<FaqChatbotPage />} />
+          <Route path="/services" element={<ServiceManagementPage />} />
         </Route>
       </Route>
 
