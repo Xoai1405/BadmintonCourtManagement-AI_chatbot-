@@ -3,7 +3,6 @@ import { CalendarDays, ChevronDown, Clock3, Search } from "lucide-react";
 import DateRangePicker from "./DateRangePicker.jsx";
 import SingleBookingDetail from "./SingleBookingDetail.jsx";
 import RecurringBookingDetail from "./RecurringBookingDetail.jsx";
-import { CustomerBookingDetailLayout, CustomerRecurringBookingDetailLayout } from "../../pages/SingleBookingDetail.jsx";
 import "./booking.css";
 
 const moneyFormatter = new Intl.NumberFormat("vi-VN");
@@ -318,47 +317,57 @@ export default function BookingHistory({ ref, bookings = [], loadBookingDetail, 
   }));
 
   return <div ref={historyRootRef} className={`booking-history booking-history--${variant}`}>
-        {selectedBooking?.type === "SINGLE" && bookingDetail && <CustomerBookingDetailLayout embedded onBack={resetDetails}
-          booking={{ ...selectedBooking, ...bookingDetail, imageUrl: bookingDetail.imageUrl || selectedBooking.imageUrl,
-            courtFee: Number(bookingDetail.courtFee ?? bookingDetail.courtPrice ?? selectedBooking.amount ?? 0),
-            serviceFee: Number(bookingDetail.serviceFee ?? bookingDetail.servicePrice ?? 0),
-            amount: Number(bookingDetail.amount ?? bookingDetail.totalAmount ?? selectedBooking.amount ?? 0),
-            createdTime: bookingDetail.createdTime || "", holdExpiresAt: bookingDetail.holdExpiresAt || bookingDetail.expireAt || "",
-            paymentMethod: bookingDetail.paymentMethod === "BANK_TRANSFER" ? "Chuyển khoản" : bookingDetail.paymentMethod,
-            confirmedBy: bookingDetail.confirmedBy || bookingDetail.paidByStaffName || "", courtDescription: bookingDetail.courtDescription || "" }} />}
-        {selectedBooking?.type === "SINGLE" && !bookingDetail && <SingleBookingDetail id={`${instanceId}-single-detail`} booking={selectedBooking} detail={bookingDetail}
-          status={bookingStatuses[bookingDetail?.status || selectedBooking.status]} isLoading={detailLoadingId !== null} error={detailError}
-          onRetry={() => openBookingDetail(selectedBooking)} onBack={resetDetails} customerView={customerView}
-          backLabel={customerView ? "Quay lại booking của tôi" : "Quay lại Xem lịch sử"}
-          onCancel={onCancelBooking ? input => changeBooking(onCancelBooking, input) : undefined} />}
-        {selectedSession && sessionDetail && <CustomerBookingDetailLayout embedded onBack={backToPackage}
-          booking={{ ...selectedSession, ...sessionDetail, imageUrl: sessionDetail.imageUrl || selectedBooking.imageUrl,
-            courtFee: Number(sessionDetail.courtFee ?? sessionDetail.courtPrice ?? selectedSession.amount ?? 0),
-            serviceFee: Number(sessionDetail.serviceFee ?? sessionDetail.servicePrice ?? 0), amount: Number(sessionDetail.amount ?? sessionDetail.totalAmount ?? selectedSession.amount ?? 0),
-            createdTime: sessionDetail.createdTime || "", holdExpiresAt: sessionDetail.holdExpiresAt || sessionDetail.expireAt || "",
-            paymentMethod: sessionDetail.paymentMethod === "BANK_TRANSFER" ? "Chuyển khoản" : sessionDetail.paymentMethod,
-            confirmedBy: sessionDetail.confirmedBy || sessionDetail.paidByStaffName || "", courtDescription: sessionDetail.courtDescription || "" }} />}
-        {selectedSession && !sessionDetail && <SingleBookingDetail key={selectedSession.id} booking={selectedSession} detail={sessionDetail}
-          status={bookingStatuses[sessionDetail?.status || selectedSession.status]} isLoading={detailLoadingId !== null} error={detailError}
-          onRetry={() => openSessionDetail(selectedSession)} onBack={backToPackage} customerView={customerView}
-          backLabel={`Quay lại chi tiết lịch cố định ${selectedBooking.code}`}
-          onCancel={onCancelSession && bookingDetail?.status === "ACTIVE" ? input => changeSession(onCancelSession, input) : undefined}
-          onReschedule={onRescheduleSession && bookingDetail?.status === "ACTIVE" ? input => changeSession(onRescheduleSession, input) : undefined} />}
-        {selectedBooking?.type === "RECURRING" && bookingDetail && <CustomerRecurringBookingDetailLayout embedded onBack={resetDetails}
-          booking={{ ...selectedBooking, ...bookingDetail, imageUrl: bookingDetail.imageUrl || selectedBooking.imageUrl,
-            customerName: bookingDetail.customerName || selectedBooking.customer?.fullName || "", amount: Number(bookingDetail.amount ?? bookingDetail.totalAmount ?? selectedBooking.amount ?? 0),
-            paymentMethod: bookingDetail.paymentMethod === "BANK_TRANSFER" ? "Chuyển khoản" : bookingDetail.paymentMethod,
-            daysLabel: bookingDetail.daysLabel || (bookingDetail.daysOfWeek || selectedBooking.daysOfWeek || []).join(", "),
-            discountPercent: Number(bookingDetail.discountPercent ?? selectedBooking.discountPercent ?? 0), settledSessionCount: bookingDetail.settledSessionCount ?? selectedBooking.settledSessionCount ?? 0,
-            sessionCount: bookingDetail.sessionCount ?? selectedBooking.sessionCount ?? 0 }} sessions={bookingDetail.sessions || selectedBooking.sessions || []}
-          onViewSession={(session) => openSessionDetail(session)} />}
-        {selectedBooking?.type === "RECURRING" && !bookingDetail && <RecurringBookingDetail id={`${instanceId}-recurring-detail`}
-          booking={selectedBooking} detail={bookingDetail} status={bookingStatuses[bookingDetail?.status || selectedBooking.status]}
-          statuses={bookingStatuses} isLoading={detailLoadingId === selectedBooking.id} error={selectedSession ? "" : detailError}
-          onRetry={() => openBookingDetail(selectedBooking)} onBack={resetDetails} onViewSession={openSessionDetail}
-          hidden={Boolean(selectedSession)} customerView={customerView}
-          backLabel={customerView ? "Quay lại booking của tôi" : "Quay lại Xem lịch sử"}
-          onCancel={onCancelRecurring ? input => changeBooking(onCancelRecurring, input) : undefined} />}
+    {selectedBooking?.type === "SINGLE" && (
+        <SingleBookingDetail
+            id={`${instanceId}-single-detail`}
+            booking={selectedBooking}
+            detail={bookingDetail}
+            status={bookingStatuses[bookingDetail?.status || selectedBooking.status]}
+            isLoading={detailLoadingId !== null}
+            error={detailError}
+            onRetry={() => openBookingDetail(selectedBooking)}
+            onBack={resetDetails}
+            customerView={customerView}
+            backLabel={customerView ? "Quay lại booking của tôi" : "Quay lại Xem lịch sử"}
+            onCancel={onCancelBooking ? input => changeBooking(onCancelBooking, input) : undefined}
+        />
+    )}
+
+    {selectedSession && (
+        <SingleBookingDetail
+            key={selectedSession.id}
+            booking={selectedSession}
+            detail={sessionDetail}
+            status={bookingStatuses[sessionDetail?.status || selectedSession.status]}
+            isLoading={detailLoadingId !== null}
+            error={detailError}
+            onRetry={() => openSessionDetail(selectedSession)}
+            onBack={backToPackage}
+            customerView={customerView}
+            backLabel={`Quay lại chi tiết lịch cố định ${selectedBooking.code}`}
+            onCancel={onCancelSession && bookingDetail?.status === "ACTIVE" ? input => changeSession(onCancelSession, input) : undefined}
+            onReschedule={onRescheduleSession && bookingDetail?.status === "ACTIVE" ? input => changeSession(onRescheduleSession, input) : undefined}
+        />
+    )}
+
+    {selectedBooking?.type === "RECURRING" && (
+        <RecurringBookingDetail
+            id={`${instanceId}-recurring-detail`}
+            booking={selectedBooking}
+            detail={bookingDetail}
+            status={bookingStatuses[bookingDetail?.status || selectedBooking.status]}
+            statuses={bookingStatuses}
+            isLoading={detailLoadingId === selectedBooking.id}
+            error={selectedSession ? "" : detailError}
+            onRetry={() => openBookingDetail(selectedBooking)}
+            onBack={resetDetails}
+            onViewSession={openSessionDetail}
+            hidden={Boolean(selectedSession)}
+            customerView={customerView}
+            backLabel={customerView ? "Quay lại booking của tôi" : "Quay lại Xem lịch sử"}
+            onCancel={onCancelRecurring ? input => changeBooking(onCancelRecurring, input) : undefined}
+        />
+    )}
 
         <div className="booking-history-shell" hidden={Boolean(selectedBooking)}>
           <div className="booking-history-content">
