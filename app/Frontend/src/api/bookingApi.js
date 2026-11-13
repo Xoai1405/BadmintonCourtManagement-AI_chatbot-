@@ -297,10 +297,6 @@ export const staffRecurringRealApi = {
     try { return (await axiosClient.patch(`/api/v1/staff/recurring-bookings/${id}/cancel`, { reason })).data; }
     catch (err) { throw staffApiError(err, "Không thể hủy gói"); }
   },
-  reschedule: async (id, payload) => {
-    try { return (await axiosClient.patch(`/api/v1/staff/bookings/${id}/reschedule`, payload)).data; }
-    catch (err) { throw staffApiError(err, "Không thể dời lịch booking"); }
-  },
 };
 export const staffBookingRealApi = {
   getBookings: async () => {
@@ -322,6 +318,10 @@ export const staffBookingRealApi = {
   cancel: async (id, reason) => {
     try { return (await axiosClient.patch(`/api/v1/staff/bookings/${id}/cancel`, { reason })).data; }
     catch (err) { throw staffApiError(err, "Không thể hủy booking"); }
+  },
+  reschedule: async (id, payload) => {
+    try { return (await axiosClient.patch(`/api/v1/staff/bookings/${id}/reschedule`, payload)).data; }
+    catch (err) { throw staffApiError(err, "Không thể dời lịch booking"); }
   },
   // Xác nhận thu đủ tiền (kết toán)
   settle: async (id) => {
