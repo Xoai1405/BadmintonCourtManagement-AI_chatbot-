@@ -313,6 +313,9 @@ const renderPackageStatusBadge = (pkg) => {
       </span>
     );
   }
+  if (!pkg.paidByStaffName) {
+    return <span className="inline-block px-3 py-1 bg-amber-50 text-amber-700 font-semibold rounded-full text-[11px]">Chờ nhân viên xác nhận</span>;
+  }
   return <span className="inline-block px-3 py-1 bg-emerald-50 text-emerald-600 font-semibold rounded-full text-[11px]">Đang hoạt động</span>;
 };
 
@@ -351,7 +354,8 @@ const RecurringBookingList = () => {
     <div className="space-y-4">
       {packages.map((pkg) => {
         const isUnpaid = pkg.status === 'ACTIVE' && pkg.paymentStatus !== 'PAID';
-        const isPaid = pkg.paymentStatus === 'PAID';
+        const isAwaitingConfirmation = pkg.status === 'ACTIVE' && pkg.paymentStatus === 'PAID' && !pkg.paidByStaffName;
+        const isPaid = pkg.paymentStatus === 'PAID' && !isAwaitingConfirmation;
         return (
           <div key={pkg.recurringBookingId}
             className="grid grid-cols-1 items-start gap-4 border border-gray-200 rounded-xl p-4 hover:border-[#00C475] hover:shadow-sm transition-all lg:grid-cols-[minmax(190px,1.35fr)_minmax(75px,0.55fr)_minmax(115px,0.8fr)_minmax(175px,1.25fr)_minmax(165px,1.15fr)_minmax(160px,1.1fr)] lg:gap-3">
@@ -404,6 +408,10 @@ const RecurringBookingList = () => {
                   <CreditCard size={14} />
                   Thanh toán
                 </button>
+              </div>
+            ) : isAwaitingConfirmation ? (
+              <div className="flex h-[68px] w-full min-w-0 max-w-[180px] self-center items-center rounded-xl border border-amber-200 bg-amber-50 p-2 text-[11px] font-medium leading-4 text-amber-700">
+                Đã báo thanh toán. Đang chờ nhân viên xác nhận.
               </div>
             ) : isPaid ? (
               <div className="min-w-0">

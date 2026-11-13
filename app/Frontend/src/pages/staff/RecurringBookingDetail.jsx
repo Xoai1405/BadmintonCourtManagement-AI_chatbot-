@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, CircleAlert } from "lucide-react";
 import { Link } from "react-router-dom";
 import BookingMultiSelect from "../../components/booking/BookingMultiSelect.jsx";
-import { bookingStatusLabel, formatBookingDate, formatBookingDays, formatBookingMoney, settlementLabel, settlementStatus, staffBookingStatuses } from "../../api/bookingApi.js";
+import { bookingStatusLabel, bookingWorkflowLabel, bookingWorkflowState, formatBookingDate, formatBookingDays, formatBookingMoney, settlementLabel, settlementStatus, staffBookingStatuses } from "../../api/bookingApi.js";
 
 const sessionFilterOptions = [
   ...staffBookingStatuses.filter((item) => item.value !== "ALL").map((item) => ({ ...item, group: "Trạng thái" })),
@@ -26,10 +26,13 @@ export default function RecurringBookingDetail({ booking, busy, error, notice, o
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const activePage = Math.min(page, pageCount);
   const visible = filtered.slice((activePage - 1) * pageSize, activePage * pageSize);
-  // Tiền sân gói thanh toán trọn gói (BR-11): chưa thanh toán thì xác nhận / hủy được cả gói
+  // Gói chỉ được xác nhận sau khi khách đã báo thanh toán. paidBy chỉ có sau
+  // khi chính nhân viên đã xác nhận, vì vậy không được dùng paymentStatus một mình.
   const packagePaid = booking.paymentStatus === "PAID";
   const remaining = sessions.filter((session) => ["PENDING", "CONFIRMED"].includes(session.status));
-  const canConfirm = booking.status === "ACTIVE" && !packagePaid && sessions.some((session) => session.status === "PENDING");
+  const workflow = bookingWorkflowState(booking);
+  const canConfirm = booking.status === "ACTIVE" && workflow === "AWAITING_CONFIRMATION"
+    && sessions.some((session) => session.status === "PENDING");
   const cancelBlocked = packagePaid;
   const confirmDialogRef = useRef(null);
 
@@ -37,7 +40,7 @@ export default function RecurringBookingDetail({ booking, busy, error, notice, o
     <Link to="/staff/bookings" className="staff-back-link"><ArrowLeft size={15} />Quay lại danh sách</Link>
     <header className="staff-page-heading staff-detail-heading">
       <h1 id="staff-recurring-title">Gói <span className="staff-detail-code">{booking.code}</span></h1>
-      <span className={`staff-badge staff-badge-${booking.status.toLowerCase()}`}>{bookingStatusLabel(booking.status)}</span>
+      <span className={`staff-badge staff-badge-${workflow === "NORMAL" ? booking.status.toLowerCase() : "pending"}`}>{bookingWorkflowLabel(booking)}</span>
     </header>
     <div className="staff-feedback" aria-live="polite">{notice && <p className="staff-alert staff-alert-success" role="status"><Check size={17} />{notice}</p>}{(error || validationError) && <p className="staff-alert staff-alert-error" role="alert"><CircleAlert size={17} />{error || validationError}</p>}</div>
     <div className="staff-detail-grid staff-recurring-grid">
