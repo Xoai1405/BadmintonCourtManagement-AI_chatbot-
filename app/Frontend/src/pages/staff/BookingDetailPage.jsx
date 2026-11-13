@@ -142,15 +142,36 @@ function BookingDetail({ id }) {
             {isSession && booking.status === "PENDING" && <p className="staff-help">Buổi thuộc gói lịch cố định, hãy xác nhận tại trang gói {booking.packageCode}.</p>}
             {booking.status === "CHECKED_IN" && !settled && <p className="staff-help">Bấm “Xác nhận thu đủ tiền” để có thể hoàn thành booking.</p>}
           </div>
-          {booking.status === "CANCELLED" ? <div className="staff-cancelled-note"><h3>Lý do hủy</h3><p>{booking.cancellationReason}</p></div>
-            : canCancel ? <div className="staff-cancel-section">
-              <button type="button" className="staff-button staff-button-danger" disabled={busy} onClick={requestCancel}>Hủy booking</button>
-              <label className="staff-field staff-detail-cancel-field" htmlFor="staff-cancel-reason">Lý do hủy <span>(bắt buộc khi bấm “Hủy booking”)</span>
-                <textarea id="staff-cancel-reason" ref={reasonRef} rows={5} maxLength={500} placeholder="Nhập lý do hủy booking…" value={reason} onChange={(event) => setReason(event.target.value)} disabled={busy} />
-              </label><small className="staff-detail-reason-count">{reason.length}/500 ký tự</small>
-            </div>
-              : isSession && !terminal && !paid ? <p className="staff-help staff-refund-note">Hủy buổi thuộc gói tại trang gói {booking.packageCode}.</p>
-              : paid && !terminal ? <p className="staff-help staff-refund-note">Booking đã thu tiền. Cần xử lý hoàn tiền trước khi hủy.</p> : <p className="staff-help staff-refund-note">Booking đã kết thúc, các thao tác xử lý đã được khóa.</p>}
+          {booking.status === "CANCELLED" ? (
+              <div className="staff-cancelled-note">
+                <h3>Lý do hủy</h3>
+                <p>{booking.cancellationReason}</p>
+              </div>
+          ) : canCancel ? (
+              <div className="staff-cancel-section">
+                <button type="button" className="staff-button staff-button-danger" disabled={busy} onClick={requestCancel}>
+                  Hủy booking
+                </button>
+                <label className="staff-field staff-detail-cancel-field" htmlFor="staff-cancel-reason">
+                  Lý do hủy <span>(bắt buộc khi bấm “Hủy booking”)</span>
+                  <textarea
+                      id="staff-cancel-reason"
+                      ref={reasonRef}
+                      rows={5}
+                      maxLength={500}
+                      placeholder="Nhập lý do hủy booking…"
+                      value={reason}
+                      onChange={(event) => setReason(event.target.value)}
+                      disabled={busy}
+                  />
+                </label>
+                <small className="staff-detail-reason-count">{reason.length}/500 ký tự</small>
+              </div>
+          ) : isSession && !terminal ? (
+              <p className="staff-help staff-refund-note">Hủy buổi thuộc gói tại trang gói {booking.packageCode}.</p>
+          ) : (
+              <p className="staff-help staff-refund-note">Booking đã nhận sân hoặc đã kết thúc, các thao tác xử lý đã được khóa.</p>
+          )}
         </section>
 
         <section className="staff-card staff-services-card staff-detail-card" aria-labelledby="staff-services-title">
