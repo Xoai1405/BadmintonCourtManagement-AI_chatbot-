@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -15,6 +16,7 @@ import com.smashflow.backend.modules.booking.recurring.model.RecurringBooking;
 import com.smashflow.backend.modules.booking.recurring.model.enums.RecurBookingStatus;
 import com.smashflow.backend.modules.booking.recurring.repository.RecurringBookingRepository;
 import com.smashflow.backend.modules.booking.single.dto.request.CreateBookingRequest;
+import com.smashflow.backend.modules.booking.single.dto.request.RescheduleBookingRequest;
 import com.smashflow.backend.modules.booking.single.dto.response.BookingDetailResponse;
 import com.smashflow.backend.modules.booking.single.dto.response.BookingResponse;
 import com.smashflow.backend.modules.booking.single.exception.BookingConflictException;
@@ -287,6 +289,46 @@ public class BookingService {
                 Booking saved = bookingRepo.save(booking);
                 updatePackageCompletion(saved);
                 return toStaffResponse(saved);
+        }
+
+        /** Dời một booking/buổi gói, vẫn giữ sân và thời lượng đã đặt. */
+        @Transactional
+        public StaffBookingResponse rescheduleBookingByStaff(Long bookingId, RescheduleBookingRequest request) {
+                Booking booking = lockBooking(bookingId);
+                if (booking.getBookingStatus() != BookingStatus.PENDING
+                                && booking.getBookingStatus() != BookingStatus.CONFIRMED) {
+                        throw new IllegalStateException("Chỉ có thể dời lịch trước khi booking được check-in");
+                }
+
+                LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+                LocalDateTime originalStart = LocalDateTime.of(booking.getBookingDate(), booking.getStartTime());
+                if (!originalStart.isAfter(now.plusMinutes(60))) {
+                        throw new IllegalStateException("Chỉ có thể dời lịch trước giờ chơi ít nhất 1 giờ");
+                }
+                if (booking.getRecurringBooking() != null
+                                && (request.bookingDate().isBefore(booking.getRecurringBooking().getStartDate())
+                                                || request.bookingDate().isAfter(booking.getRecurringBooking().getEndDate()))) {
+                        throw new IllegalArgumentException("Ngày dời lịch phải nằm trong thời gian áp dụng của gói");
+                }
+                if (!Duration.between(request.startTime(), request.endTime())
+                                .equals(Duration.between(booking.getStartTime(), booking.getEndTime()))) {
+                        throw new IllegalArgumentException("Dời lịch phải giữ nguyên thời lượng buổi");
+                }
+
+                BusinessHourConfig businessConfig = businessHourConfigRepo.findById((short) 1)
+                                .orElseThrow(() -> new ResourceNotFoundException("Chưa có cấu hình giờ hoạt động"));
+                validateBookingRequest(new CreateBookingRequest(booking.getCourt().getId(), request.bookingDate(), request.startTime(), request.endTime()),
+                                LocalDateTime.of(request.bookingDate(), request.startTime()), businessConfig);
+
+                boolean hasConflict = bookingRepo.existsOverlapExcluding(booking.getCourt().getId(), request.bookingDate(),
+                                request.startTime(), request.endTime(), booking.getId(),
+                                List.of(BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN));
+                if (hasConflict) throw new BookingConflictException("Khung giờ mới đã có booking khác");
+
+                booking.setBookingDate(request.bookingDate());
+                booking.setStartTime(request.startTime());
+                booking.setEndTime(request.endTime());
+                return toStaffResponse(bookingRepo.save(booking));
         }
 
         /**

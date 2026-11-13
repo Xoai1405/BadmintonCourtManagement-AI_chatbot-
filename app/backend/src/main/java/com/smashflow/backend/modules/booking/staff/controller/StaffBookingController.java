@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.smashflow.backend.modules.booking.single.service.BookingService;
 import com.smashflow.backend.modules.booking.single.dto.request.CancelBookingRequest;
+import com.smashflow.backend.modules.booking.single.dto.request.RescheduleBookingRequest;
 import com.smashflow.backend.modules.booking.staff.dto.request.StaffCreateBookingRequest;
 import com.smashflow.backend.modules.booking.staff.dto.response.StaffBookingResponse;
 import com.smashflow.backend.modules.identity.security.userdetails.CustomUserDetails;
@@ -62,6 +63,13 @@ public class StaffBookingController {
                         @PathVariable Long bookingId,
                         @Valid @RequestBody CancelBookingRequest request) {
                 return ResponseEntity.ok(bookingService.cancelBookingByStaff(bookingId, request.reason()));
+        }
+
+        @PatchMapping("/{bookingId}/reschedule")
+        public ResponseEntity<StaffBookingResponse> reschedule(
+                        @PathVariable Long bookingId,
+                        @Valid @RequestBody RescheduleBookingRequest request) {
+                return ResponseEntity.ok(bookingService.rescheduleBookingByStaff(bookingId, request));
         }
 
         // Xác nhận thu đủ tiền (kết toán)

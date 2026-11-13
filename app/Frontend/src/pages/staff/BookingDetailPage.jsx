@@ -77,6 +77,24 @@ function BookingDetail({ id }) {
     mutate(operation, payment ? "Đã xác nhận thu đủ tiền, booking đã kết toán." : `Đã cập nhật booking: ${bookingStatusLabel(confirmation.status).toLowerCase()}.`);
     dialogRef.current.close();
   };
+  const reschedule = async (payload) => {
+    if (busyRef.current) return false;
+    busyRef.current = true; setBusy(true); setError(""); setNotice("");
+    try {
+      const updated = await bookingApi.rescheduleStaffBooking(id, payload);
+      if (activeIdRef.current === id) {
+        setBooking(updated);
+        setNotice("Đã dời lịch booking.");
+      }
+      return true;
+    } catch (err) {
+      if (activeIdRef.current === id) setError(err.message);
+      return false;
+    } finally {
+      busyRef.current = false;
+      if (activeIdRef.current === id) setBusy(false);
+    }
+  };
 
   if (loadError?.id === id) return <section className="staff-card staff-error-page" role="alert"><CircleAlert size={32} /><h1>Không thể mở booking</h1><p>{loadError.message}</p><Link className="staff-button" to="/staff/bookings"><ArrowLeft size={16} />Quay lại danh sách</Link></section>;
   if (!booking || String(booking.id) !== id) return <div className="staff-empty staff-card" role="status"><span className="staff-loading-dot" />Đang tải chi tiết booking…</div>;
@@ -208,7 +226,7 @@ function BookingDetail({ id }) {
         </section>
       </div>
 
-      {rescheduleOpen && <RescheduleBookingModal booking={booking} onClose={() => setRescheduleOpen(false)} />}
+      {rescheduleOpen && <RescheduleBookingModal booking={booking} onClose={() => setRescheduleOpen(false)} onConfirm={reschedule} />}
       <dialog ref={dialogRef} className="staff-dialog" aria-labelledby="staff-confirm-title" aria-describedby="staff-confirm-description" onCancel={() => setConfirmation(null)} onClick={(event) => { if (event.target === event.currentTarget) dialogRef.current.close(); }}>
         <div className={`staff-dialog-icon${confirmation?.type === "cancel" ? " is-danger" : ""}`}>{confirmation?.type === "payment" ? <CreditCard size={25} /> : <CircleAlert size={25} />}</div>
         <h2 id="staff-confirm-title">{confirmation?.type === "payment" ? "Xác nhận đã thu đủ tiền?" : confirmation?.type === "cancel" ? "Hủy booking này?" : "Đánh dấu khách không đến?"}</h2>

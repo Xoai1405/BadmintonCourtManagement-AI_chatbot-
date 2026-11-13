@@ -297,6 +297,10 @@ export const staffRecurringRealApi = {
     try { return (await axiosClient.patch(`/api/v1/staff/recurring-bookings/${id}/cancel`, { reason })).data; }
     catch (err) { throw staffApiError(err, "Không thể hủy gói"); }
   },
+  reschedule: async (id, payload) => {
+    try { return (await axiosClient.patch(`/api/v1/staff/bookings/${id}/reschedule`, payload)).data; }
+    catch (err) { throw staffApiError(err, "Không thể dời lịch booking"); }
+  },
 };
 export const staffBookingRealApi = {
   getBookings: async () => {
@@ -396,6 +400,8 @@ export const bookingApi = {
     if (realActions[status]) return realToStaffBooking(await realActions[status](id));
     throw new Error("Chức năng này đang được phát triển.");
   },
+  rescheduleStaffBooking: async (id, payload) =>
+    realToStaffBooking(await staffBookingRealApi.reschedule(id, payload)),
   addStaffBookingService: async (id, serviceId, quantity) => {
     // POST services chỉ trả phần tiền/dịch vụ; đọc lại detail trước khi cập nhật toàn bộ màn hình.
     await bookingContractApi.addService(id, { serviceId: Number(serviceId), quantity: Number(quantity) });

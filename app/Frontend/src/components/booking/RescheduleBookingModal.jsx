@@ -25,11 +25,13 @@ const formatDuration = (minutes) => {
   return `${m} phút`;
 };
 
-export default function RescheduleBookingModal({ booking, onClose }) {
+export default function RescheduleBookingModal({ booking, onClose, onConfirm }) {
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [newStartTime, setNewStartTime] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const currentStart = toMinutes(booking.startTime);
   const currentEnd = toMinutes(booking.endTime);
@@ -205,7 +207,7 @@ export default function RescheduleBookingModal({ booking, onClose }) {
               </div>
             </div>
 
-            {loadError && <p className="text-xs text-red-500 mt-2 mb-0">{loadError}</p>}
+            {(loadError || submitError) && <p className="text-xs text-red-500 mt-2 mb-0">{loadError || submitError}</p>}
           </div>
 
           {/* Lưu ý */}
@@ -231,13 +233,24 @@ export default function RescheduleBookingModal({ booking, onClose }) {
           >
             Hủy
           </button>
-          {/* Chưa có API dời lịch: nút chưa thực hiện thao tác nào */}
           <button
             type="button"
-            disabled={!newStartTime}
-            className={`px-6 py-2 rounded-lg text-[13px] font-bold text-white transition-colors ${!newStartTime ? "bg-[#00C475]/50 cursor-not-allowed" : "bg-[#00C475] hover:bg-[#00B068]"}`}
+            disabled={!newStartTime || submitting}
+            onClick={async () => {
+              setSubmitError("");
+              setSubmitting(true);
+              try {
+                const succeeded = await onConfirm?.({ bookingDate: booking.startDate, startTime: newStartTime, endTime: newEndTime });
+                if (succeeded !== false) onClose();
+              } catch (error) {
+                setSubmitError(error.message || "Không thể dời lịch booking.");
+              } finally {
+                setSubmitting(false);
+              }
+            }}
+            className={`px-6 py-2 rounded-lg text-[13px] font-bold text-white transition-colors ${!newStartTime || submitting ? "bg-[#00C475]/50 cursor-not-allowed" : "bg-[#00C475] hover:bg-[#00B068]"}`}
           >
-            Xác nhận dời lịch
+            {submitting ? "Đang dời lịch..." : "Xác nhận dời lịch"}
           </button>
         </div>
       </div>
