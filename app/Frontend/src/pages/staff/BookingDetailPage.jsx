@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Check, CheckCheck, CircleAlert, CreditCard } from "lucide-react";
+import { ArrowLeft, CalendarClock, Check, CheckCheck, CircleAlert, CreditCard } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { bookingApi, bookingStatusLabel, bookingWorkflowLabel, formatBookingDate, formatBookingMoney, settlementLabel, settlementStatus } from "../../api/bookingApi.js";
 import { useAuth } from "../../hooks/useAuth";
 import RecurringBookingDetail from "./RecurringBookingDetail.jsx";
+import RescheduleBookingModal from "../../components/booking/RescheduleBookingModal.jsx";
+import { canRescheduleBooking, useNow } from "../../utils/bookingTime";
 
 const actions = [
   { status: "CONFIRMED", label: "Xác nhận", from: "PENDING" },
@@ -33,6 +35,8 @@ function BookingDetail({ id }) {
   const reasonRef = useRef(null);
   const activeIdRef = useRef(null);
   const busyRef = useRef(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const now = useNow();
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +96,8 @@ function BookingDetail({ id }) {
   const canEditServices = booking.status === "CHECKED_IN" && !settled && packageActive;
   // Buổi trong gói hủy theo cả gói ở trang gói
   const canCancel = ["PENDING", "CONFIRMED"].includes(booking.status) && !paid && packageActive && !isSession;
+  // Nút "Dời lịch": booking lẻ Chờ xác nhận / Đã xác nhận, tự ẩn khi còn <= 1 tiếng trước giờ chơi
+  const canReschedule = canRescheduleBooking(booking, now);
   // Chỉ thu đủ tiền sau khi khách check-in
   const canCollect = booking.status === "CHECKED_IN" && !settled && packageActive;
   const duration = ((Number(booking.endTime.slice(0, 2)) * 60 + Number(booking.endTime.slice(3)))
@@ -111,7 +117,10 @@ function BookingDetail({ id }) {
           <h2 id="staff-info-title" className="staff-sr-only">{isSession ? "Thông tin buổi đặt" : "Thông tin booking"}</h2>
           <dl className="staff-info-list staff-detail-info-list">
             <div><dt>Khách</dt><dd>{booking.customer.fullName} – {booking.customer.phone}{booking.customer.email && ` – ${booking.customer.email}`}</dd></div>
-            <div><dt>Sân / Giờ</dt><dd>{booking.courtName} – {formatBookingDate(booking.startDate)} – {booking.startTime}–{booking.endTime}</dd></div>
+            <div><dt>Sân / Giờ</dt><dd style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <div>{booking.courtName} – {formatBookingDate(booking.startDate)} – {booking.startTime}–{booking.endTime}</div>
+              {canReschedule && <button type="button" className="staff-button staff-reschedule-button" disabled={busy} onClick={() => setRescheduleOpen(true)}><CalendarClock size={14} />Dời lịch</button>}
+            </dd></div>
             <div><dt>Thanh toán</dt><dd style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
               <span className={`staff-payment-label ${paid ? "is-paid" : ""}`}>{paid ? "Đã thanh toán tiền sân" : "Chưa thanh toán tiền sân"}</span>
               {paid && <span>Phương thức: <strong>{booking.paymentMethod || "–"}</strong></span>}
@@ -133,15 +142,36 @@ function BookingDetail({ id }) {
             {isSession && booking.status === "PENDING" && <p className="staff-help">Buổi thuộc gói lịch cố định, hãy xác nhận tại trang gói {booking.packageCode}.</p>}
             {booking.status === "CHECKED_IN" && !settled && <p className="staff-help">Bấm “Xác nhận thu đủ tiền” để có thể hoàn thành booking.</p>}
           </div>
-          {booking.status === "CANCELLED" ? <div className="staff-cancelled-note"><h3>Lý do hủy</h3><p>{booking.cancellationReason}</p></div>
-            : canCancel ? <div className="staff-cancel-section">
-              <button type="button" className="staff-button staff-button-danger" disabled={busy} onClick={requestCancel}>Hủy booking</button>
-              <label className="staff-field staff-detail-cancel-field" htmlFor="staff-cancel-reason">Lý do hủy <span>(bắt buộc khi bấm “Hủy booking”)</span>
-                <textarea id="staff-cancel-reason" ref={reasonRef} rows={5} maxLength={500} placeholder="Nhập lý do hủy booking…" value={reason} onChange={(event) => setReason(event.target.value)} disabled={busy} />
-              </label><small className="staff-detail-reason-count">{reason.length}/500 ký tự</small>
-            </div>
-              : isSession && !terminal && !paid ? <p className="staff-help staff-refund-note">Hủy buổi thuộc gói tại trang gói {booking.packageCode}.</p>
-              : paid && !terminal ? <p className="staff-help staff-refund-note">Booking đã thu tiền. Cần xử lý hoàn tiền trước khi hủy.</p> : <p className="staff-help staff-refund-note">Booking đã kết thúc, các thao tác xử lý đã được khóa.</p>}
+          {booking.status === "CANCELLED" ? (
+              <div className="staff-cancelled-note">
+                <h3>Lý do hủy</h3>
+                <p>{booking.cancellationReason}</p>
+              </div>
+          ) : canCancel ? (
+              <div className="staff-cancel-section">
+                <button type="button" className="staff-button staff-button-danger" disabled={busy} onClick={requestCancel}>
+                  Hủy booking
+                </button>
+                <label className="staff-field staff-detail-cancel-field" htmlFor="staff-cancel-reason">
+                  Lý do hủy <span>(bắt buộc khi bấm “Hủy booking”)</span>
+                  <textarea
+                      id="staff-cancel-reason"
+                      ref={reasonRef}
+                      rows={5}
+                      maxLength={500}
+                      placeholder="Nhập lý do hủy booking…"
+                      value={reason}
+                      onChange={(event) => setReason(event.target.value)}
+                      disabled={busy}
+                  />
+                </label>
+                <small className="staff-detail-reason-count">{reason.length}/500 ký tự</small>
+              </div>
+          ) : isSession && !terminal ? (
+              <p className="staff-help staff-refund-note">Hủy buổi thuộc gói tại trang gói {booking.packageCode}.</p>
+          ) : (
+              <p className="staff-help staff-refund-note">Booking đã nhận sân hoặc đã kết thúc, các thao tác xử lý đã được khóa.</p>
+          )}
         </section>
 
         <section className="staff-card staff-services-card staff-detail-card" aria-labelledby="staff-services-title">
@@ -177,6 +207,7 @@ function BookingDetail({ id }) {
         </section>
       </div>
 
+      {rescheduleOpen && <RescheduleBookingModal booking={booking} onClose={() => setRescheduleOpen(false)} />}
       <dialog ref={dialogRef} className="staff-dialog" aria-labelledby="staff-confirm-title" aria-describedby="staff-confirm-description" onCancel={() => setConfirmation(null)} onClick={(event) => { if (event.target === event.currentTarget) dialogRef.current.close(); }}>
         <div className={`staff-dialog-icon${confirmation?.type === "cancel" ? " is-danger" : ""}`}>{confirmation?.type === "payment" ? <CreditCard size={25} /> : <CircleAlert size={25} />}</div>
         <h2 id="staff-confirm-title">{confirmation?.type === "payment" ? "Xác nhận đã thu đủ tiền?" : confirmation?.type === "cancel" ? "Hủy booking này?" : "Đánh dấu khách không đến?"}</h2>

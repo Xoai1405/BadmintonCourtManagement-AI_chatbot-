@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { getCourtTypeLabel } from "../utils/CourtUtils";
 import Navbar from "../components/Navbar";
+import RescheduleBookingModal from "../components/booking/RescheduleBookingModal";
+import { canRescheduleBooking, useNow } from "../utils/bookingTime";
 import {
   bookingApi,
   formatBookingDays,
@@ -30,7 +32,6 @@ import {
   X,
   XCircle,
   AlertCircle,
-  Hourglass,
 } from "lucide-react";
 
 // Chuẩn hóa giờ từ LocalTime của Backend: HH:mm:ss -> HH:mm
@@ -84,6 +85,8 @@ const normalizeBookingDetail = (data) => {
     code: data.bookingCode || `BK${data.id}`,
 
     imageUrl: data.courtImageUrl || "",
+
+    courtId: data.courtId,
 
     courtName: data.courtName || "Chưa có thông tin sân",
 
@@ -297,7 +300,7 @@ export default function SingleBookingDetail() {
 
       {/* Modal Dời Lịch */}
       {isRescheduleModalOpen && (
-        <RescheduleModal
+        <RescheduleBookingModal
           booking={booking}
           onClose={() => setIsRescheduleModalOpen(false)}
         />
@@ -305,191 +308,6 @@ export default function SingleBookingDetail() {
     </>
   );
 }
-
-// ================= COMPONENT: MODAL DỜI LỊCH (CHUẨN FIGMA) =================
-const RescheduleModal = ({ booking, onClose }) => {
-  const [newStartTime, setNewStartTime] = useState("");
-
-  // Khung giờ trống giả lập (Sau này API sẽ trả về list này)
-  const availableTimes = ["07:00", "08:00", "14:00", "15:00", "16:00", "18:00"];
-
-  // Tự động tính giờ kết thúc dựa trên thời lượng (Giả sử 2 tiếng)
-  const calculateEndTime = (start) => {
-    if (!start) return "";
-    const [hours, minutes] = start.split(":").map(Number);
-    const endHours = hours + 2;
-    return `${endHours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-[550px] flex flex-col max-h-[90vh] overflow-hidden animate-scaleIn">
-        {/* Header */}
-        <div className="flex justify-between items-start p-6 border-b border-gray-100">
-          <div className="flex items-center gap-4">
-            <div className="w-11 h-11 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center shrink-0">
-              <CalendarClock size={22} strokeWidth={2} />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-800">
-                Dời lịch buổi đặt sân
-              </h2>
-              <p className="text-[13px] text-gray-500">
-                Chọn khung giờ mới trong cùng một ngày
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:bg-gray-100 p-1 rounded-md transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Nội dung scroll */}
-        <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
-          {/* Thông tin booking gốc */}
-          <div>
-            <h3 className="flex items-center gap-2 text-sm font-bold text-gray-800 mb-3">
-              <FileText size={16} className="text-[#00C475]" /> Thông tin
-              booking
-            </h3>
-            <div className="border border-gray-200 rounded-xl p-4 flex gap-4 items-center">
-              {/* Hình và Tên sân */}
-              <div className="flex gap-3 items-center w-[45%] border-r border-gray-100 pr-4">
-                <img
-                  src={booking.imageUrl || booking.img}
-                  alt={booking.courtName}
-                  className="w-[70px] h-[50px] object-cover rounded-md shrink-0"
-                />
-                <div>
-                  <p className="font-bold text-gray-800 text-sm">
-                    {booking.courtName}
-                  </p>
-                  <p className="text-[11px] text-gray-500">
-                    {booking.courtDescription.replace(/[()]/g, "")}
-                  </p>
-                </div>
-              </div>
-              {/* Chi tiết Ngày giờ */}
-              <div className="flex-1 space-y-1.5 text-[12px]">
-                <div className="flex items-center gap-2">
-                  <CalendarDays size={14} className="text-gray-400" />
-                  <span className="text-gray-500 w-20">Ngày chơi</span>
-                  <span className="font-bold text-gray-800">
-                    {booking.startDate}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock size={14} className="text-gray-400" />
-                  <span className="text-gray-500 w-20">Khung giờ</span>
-                  <span className="font-bold text-gray-800">
-                    {booking.startTime} - {booking.endTime}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Hourglass size={14} className="text-gray-400" />
-                  <span className="text-gray-500 w-20">Thời lượng</span>
-                  <span className="font-bold text-gray-800">2 giờ</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Chọn giờ mới */}
-          <div>
-            <div className="mb-3">
-              <h3 className="flex items-center gap-2 text-sm font-bold text-gray-800">
-                <Clock size={16} className="text-[#00C475]" /> Chọn khung giờ
-                mới
-              </h3>
-              <p className="text-[12px] text-gray-500 ml-6 mt-0.5">
-                Chọn giờ bắt đầu mới. Hệ thống sẽ tự động hiển thị giờ kết thúc
-                dựa trên thời lượng
-              </p>
-            </div>
-
-            <div className="bg-emerald-50/50 border border-emerald-100 rounded-lg p-2.5 mb-4 flex items-center gap-2 w-fit">
-              <Hourglass size={14} className="text-[#00C475] shrink-0" />
-              <p className="text-xs text-emerald-700">
-                Thời lượng buổi chơi: <span className="font-bold">2 giờ</span>
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[13px] font-bold text-gray-800 mb-2">
-                  Giờ bắt đầu mới <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={newStartTime}
-                  onChange={(e) => setNewStartTime(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg p-2.5 text-[13px] text-gray-600 outline-none hover:border-[#00C475] focus:border-[#00C475]"
-                >
-                  <option value="" disabled>
-                    --:--
-                  </option>
-                  {availableTimes.map((time) => (
-                    <option key={time} value={time}>
-                      {time}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[13px] font-bold text-gray-800 mb-2">
-                  Giờ kết thúc
-                </label>
-                {/* [UX TỐT] Input chỉ đọc, tự động hiển thị kết quả */}
-                <input
-                  type="text"
-                  value={calculateEndTime(newStartTime)}
-                  readOnly
-                  placeholder="--:--"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-[13px] text-gray-500 outline-none cursor-not-allowed font-medium"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Lưu ý */}
-          <div className="bg-blue-50/60 border border-blue-100 rounded-lg p-4 flex items-start gap-3">
-            <Info size={16} className="text-blue-500 shrink-0 mt-0.5" />
-            <ul className="text-xs text-blue-800/90 leading-relaxed list-disc pl-4 space-y-1">
-              <li>
-                Bạn chỉ có thể dời lịch trong ngày{" "}
-                <strong>{booking.startDate}</strong>.
-              </li>
-              <li>Thời lượng buổi chơi sẽ được giữ nguyên (2 giờ).</li>
-              <li>Chỉ hiển thị các khung giờ còn trống.</li>
-              <li>
-                Sau khi dời lịch, các buổi khác trong gói lịch cố định sẽ không
-                bị ảnh hưởng.
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Footer Buttons */}
-        <div className="p-6 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-[13px] font-bold hover:bg-gray-50 transition-colors"
-          >
-            Hủy
-          </button>
-          <button
-            disabled={!newStartTime}
-            className={`px-6 py-2 rounded-lg text-[13px] font-bold text-white transition-colors ${!newStartTime ? "bg-[#00C475]/50 cursor-not-allowed" : "bg-[#00C475] hover:bg-[#00B068]"}`}
-          >
-            Xác nhận dời lịch
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // ================= COMPONENT: MODAL HỦY BOOKING =================
 const CancelModal = ({ booking, onClose }) => {
@@ -718,6 +536,9 @@ export const CustomerBookingDetailLayout = ({
   embedded = false,
   onBack,
 }) => {
+  // Nút "Dời lịch": booking lẻ Chờ xác nhận / Đã xác nhận, tự ẩn khi còn <= 1 tiếng trước giờ chơi
+  const now = useNow();
+  const canReschedule = !embedded && canRescheduleBooking(booking, now);
   const isConfirmed = booking.status === "CONFIRMED";
   const isCompleted = booking.status === "COMPLETED";
   // Đã thanh toán tiền sân (PAID) hoặc đã kết toán (SETTLED)
@@ -1140,6 +961,14 @@ export const CustomerBookingDetailLayout = ({
                   >
                     <ArrowLeft size={16} /> Quay lại
                   </button>
+                  {canReschedule && (
+                    <button
+                      onClick={onOpenReschedule}
+                      className="px-5 py-2.5 bg-white border border-blue-200 text-blue-500 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-blue-50 transition-colors"
+                    >
+                      <CalendarClock size={16} /> Dời lịch
+                    </button>
+                  )}
                   {!embedded && booking.status === "PENDING" && !isPaid && (
                     <>
                       {/* [THÊM MỚI] Gắn sự kiện Mở Modal Dời lịch */}
@@ -1158,8 +987,7 @@ export const CustomerBookingDetailLayout = ({
                         <Trash2 size={16} /> Hủy booking
                       </button>
                       <span className="text-[11px] text-gray-400 ml-2 hidden lg:inline-block">
-                        (Khách hàng chỉ có thể hủy/dời booking trước thời gian
-                        chơi 2 tiếng)
+                        (Hủy booking trước 2 tiếng, dời lịch trước 1 tiếng)
                       </span>
                     </>
                   )}

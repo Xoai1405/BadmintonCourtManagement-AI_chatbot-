@@ -494,6 +494,9 @@
 .staff-booking-detail .staff-detail-cancel-field textarea::placeholder { color: #a0ad97; }
 .staff-booking-detail .staff-detail-cancel-field textarea:hover { border-color: #a9bda0; }
 .staff-booking-detail .staff-detail-cancel-field textarea:focus-visible { border-color: #4e9573; outline: none; box-shadow: 0 0 0 3px #25866a16; }
+/* Nút "Dời lịch" ở hàng Sân / Giờ */
+.staff-booking-detail .staff-reschedule-button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-color: #bcd2ff; background: #eef5ff; color: #2864ef; font-size: 12px; }
+.staff-booking-detail .staff-reschedule-button:hover:not(:disabled) { border-color: #8fb3ff; background: #e0ecff; }
 .staff-booking-detail .staff-detail-quantity:focus-within { border-color: #4e9573; }
 .staff-booking-detail .staff-detail-quantity input:focus, .staff-booking-detail .staff-detail-quantity input:focus-visible { outline: none; box-shadow: none; }
 .staff-booking-detail .staff-service-table tbody tr:hover { background: #fafcf7; }
