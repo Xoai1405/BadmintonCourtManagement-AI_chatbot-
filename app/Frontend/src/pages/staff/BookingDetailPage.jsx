@@ -89,7 +89,8 @@ function BookingDetail({ id }) {
       return true;
     } catch (err) {
       if (activeIdRef.current === id) setError(err.message);
-      return false;
+      // Modal cần nhận lỗi để hiển thị ngay trong popup, thay vì chỉ hiện ở trang nền.
+      throw err;
     } finally {
       busyRef.current = false;
       if (activeIdRef.current === id) setBusy(false);
