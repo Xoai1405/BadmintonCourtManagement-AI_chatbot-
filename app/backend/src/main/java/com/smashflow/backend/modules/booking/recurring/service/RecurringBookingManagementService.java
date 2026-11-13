@@ -195,16 +195,16 @@ public class RecurringBookingManagementService {
 
                 List<Booking> sessions = recurring.getBookings();
 
-                if (sessions.stream().anyMatch(b -> b.getPaymentStatus() != PaymentStatus.UNPAID)) {
-                        throw new IllegalStateException("Gói đã thanh toán không thể hủy");
-                }
-
                 LocalDateTime now = LocalDateTime.now(VN_ZONE);
 
                 List<Booking> toCancel = sessions.stream()
                                 .filter(b -> b.getBookingStatus() == BookingStatus.PENDING
                                                 || b.getBookingStatus() == BookingStatus.CONFIRMED)
                                 .toList();
+
+                if (toCancel.isEmpty()) {
+                        throw new IllegalStateException("Gói không còn buổi nào có thể hủy trước check-in");
+                }
 
                 for (Booking session : toCancel) {
                         session.setBookingStatus(BookingStatus.CANCELLED);

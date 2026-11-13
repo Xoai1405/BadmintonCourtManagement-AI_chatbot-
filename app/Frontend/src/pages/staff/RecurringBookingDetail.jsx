@@ -33,7 +33,7 @@ export default function RecurringBookingDetail({ booking, busy, error, notice, o
   const workflow = bookingWorkflowState(booking);
   const canConfirm = booking.status === "ACTIVE" && workflow === "AWAITING_CONFIRMATION"
     && sessions.some((session) => session.status === "PENDING");
-  const cancelBlocked = packagePaid;
+  const cancelBlocked = !remaining.length;
   const confirmDialogRef = useRef(null);
 
   return <section className="staff-booking-detail staff-recurring-detail" aria-labelledby="staff-recurring-title">
@@ -63,7 +63,7 @@ export default function RecurringBookingDetail({ booking, busy, error, notice, o
           <p className="staff-help" style={{ margin: 0 }}>Xác nhận sau khi đã kiểm tra nhận đủ {formatBookingMoney(booking.amount)} tiền sân gói.</p>
         </div>}
         {booking.status === "CANCELLED" && <div className="staff-cancelled-note"><h3>Lý do hủy gói</h3><p>{booking.cancellationReason}</p></div>}
-        {booking.status === "ACTIVE" && !packagePaid && remaining.length > 0 && <form className="staff-cancel-section" onSubmit={(event) => {
+        {booking.status === "ACTIVE" && remaining.length > 0 && <form className="staff-cancel-section" onSubmit={(event) => {
           event.preventDefault();
           if (!reason.trim()) { setValidationError("Vui lòng nhập lý do hủy gói."); return; }
           
@@ -74,7 +74,7 @@ export default function RecurringBookingDetail({ booking, busy, error, notice, o
             <textarea id="staff-package-cancel-reason" required maxLength={500} rows={5} value={reason} placeholder="Nhập lý do hủy lịch…" disabled={busy || cancelBlocked} onChange={(event) => setReason(event.target.value)} />
           </label><small className="staff-detail-reason-count">{reason.length}/500 ký tự · {remaining.length} buổi có thể hủy</small>
         </form>}
-        {booking.status === "ACTIVE" && packagePaid && <p className="staff-help staff-refund-note">Gói đã thanh toán tiền sân, không thể hủy (BR-14). Xử lý check-in / thu tiền từng buổi trong Chi tiết.</p>}
+        {booking.status === "ACTIVE" && packagePaid && remaining.length > 0 && <p className="staff-help staff-refund-note">Tiền đã nhận được giữ lại trong lịch sử giao dịch; xử lý hoàn tiền theo quy trình vận hành sau khi hủy.</p>}
       </section>
       <section className="staff-card staff-services-card staff-detail-card" aria-labelledby="staff-recurring-sessions-title">
         <h2 id="staff-recurring-sessions-title" className="staff-detail-card-title">Các buổi trong gói</h2>

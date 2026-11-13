@@ -263,6 +263,33 @@ public class BookingService {
         }
 
         /**
+         * Nhân viên chủ động hủy booking khi sân hư/bảo trì hoặc không thể phục vụ.
+         * Có thể hủy cả booking đã thanh toán, nhưng giữ nguyên paymentStatus để không
+         * làm mất dấu giao dịch và cho phép quy trình hoàn tiền được xử lý riêng.
+         */
+        @Transactional
+        public StaffBookingResponse cancelBookingByStaff(Long bookingId, String reason) {
+                Booking booking = lockBooking(bookingId);
+                String trimmedReason = reason == null ? "" : reason.trim();
+
+                if (trimmedReason.isEmpty()) {
+                        throw new IllegalArgumentException("Vui lòng nhập lý do hủy booking");
+                }
+                if (booking.getBookingStatus() != BookingStatus.PENDING
+                                && booking.getBookingStatus() != BookingStatus.CONFIRMED) {
+                        throw new IllegalStateException("Chỉ có thể hủy booking đang chờ xác nhận hoặc đã xác nhận trước khi check-in");
+                }
+
+                booking.setBookingStatus(BookingStatus.CANCELLED);
+                booking.setCancelReason(trimmedReason);
+                booking.setCancelledAt(LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
+                booking.setExpireAt(null);
+                Booking saved = bookingRepo.save(booking);
+                updatePackageCompletion(saved);
+                return toStaffResponse(saved);
+        }
+
+        /**
          * Xác nhận thu đủ tiền khi khách trả sân (kết toán).
          * Chỉ khi booking đang CHECKED_IN và tiền sân đã thanh toán (PAID).
          * Chỉ đổi trạng thái sang SETTLED; giữ nguyên paidAt / paidByStaff /
@@ -363,7 +390,9 @@ public class BookingService {
                                                 || b.getBookingStatus() == BookingStatus.CANCELLED);
 
                 if (allFinished) {
-                        recurring.setStatus(RecurBookingStatus.COMPLETED);
+                        boolean allCancelled = recurring.getBookings().stream()
+                                        .allMatch(b -> b.getBookingStatus() == BookingStatus.CANCELLED);
+                        recurring.setStatus(allCancelled ? RecurBookingStatus.CANCELLED : RecurBookingStatus.COMPLETED);
                         recurringBookingRepo.save(recurring);
                 }
         }

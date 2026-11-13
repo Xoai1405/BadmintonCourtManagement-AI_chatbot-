@@ -94,8 +94,9 @@ function BookingDetail({ id }) {
   const packageActive = !isSession || booking.packageStatus === "ACTIVE";
   // BR-16: chỉ thêm dịch vụ khi đang chơi và chưa kết toán
   const canEditServices = booking.status === "CHECKED_IN" && !settled && packageActive;
-  // Buổi trong gói hủy theo cả gói ở trang gói
-  const canCancel = ["PENDING", "CONFIRMED"].includes(booking.status) && !paid && packageActive && !isSession;
+  // Nhân viên có thể chủ động hủy booking/buổi chưa check-in (ví dụ sân hư hoặc bảo trì).
+  // Với khoản đã thu, backend giữ lại paymentStatus để xử lý hoàn tiền riêng.
+  const canCancel = ["PENDING", "CONFIRMED"].includes(booking.status) && packageActive;
   // Nút "Dời lịch": booking lẻ Chờ xác nhận / Đã xác nhận, tự ẩn khi còn <= 1 tiếng trước giờ chơi
   const canReschedule = canRescheduleBooking(booking, now);
   // Chỉ thu đủ tiền sau khi khách check-in

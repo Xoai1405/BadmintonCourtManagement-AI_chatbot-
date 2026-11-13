@@ -315,6 +315,10 @@ export const staffBookingRealApi = {
     try { return (await axiosClient.patch(`/api/v1/staff/bookings/${id}/check-in`)).data; }
     catch (err) { throw staffApiError(err, "Không thể check-in booking"); }
   },
+  cancel: async (id, reason) => {
+    try { return (await axiosClient.patch(`/api/v1/staff/bookings/${id}/cancel`, { reason })).data; }
+    catch (err) { throw staffApiError(err, "Không thể hủy booking"); }
+  },
   // Xác nhận thu đủ tiền (kết toán)
   settle: async (id) => {
     try { return (await axiosClient.patch(`/api/v1/staff/bookings/${id}/settle`)).data; }
@@ -382,10 +386,13 @@ export const bookingApi = {
       customers: [...customers.values()],
     };
   },
-  updateStaffBookingStatus: async (id, status) => {
+  updateStaffBookingStatus: async (id, status, input = {}) => {
     // Booking lẻ và buổi trong gói (backend)
     const realActions = { CONFIRMED: staffBookingRealApi.confirm, CHECKED_IN: staffBookingRealApi.checkIn,
       NO_SHOW: staffBookingRealApi.noShow, COMPLETED: staffBookingRealApi.complete };
+    if (status === "CANCELLED") {
+      return realToStaffBooking(await staffBookingRealApi.cancel(id, input.reason));
+    }
     if (realActions[status]) return realToStaffBooking(await realActions[status](id));
     throw new Error("Chức năng này đang được phát triển.");
   },
