@@ -344,7 +344,9 @@ export default function BookingHistory({ ref, bookings = [], loadBookingDetail, 
           backLabel={`Quay lại chi tiết lịch cố định ${selectedBooking.code}`}
           onCancel={onCancelSession && bookingDetail?.status === "ACTIVE" ? input => changeSession(onCancelSession, input) : undefined}
           onReschedule={onRescheduleSession && bookingDetail?.status === "ACTIVE" ? input => changeSession(onRescheduleSession, input) : undefined} />}
-        {selectedBooking?.type === "RECURRING" && bookingDetail && <CustomerRecurringBookingDetailLayout embedded onBack={resetDetails}
+        {/* Khi đang mở một buổi trong gói, chỉ render chi tiết buổi. Nếu vẫn giữ
+            layout gói ở đây, cả hai detail sẽ nằm chồng trong dialog Admin. */}
+        {selectedBooking?.type === "RECURRING" && bookingDetail && !selectedSession && <CustomerRecurringBookingDetailLayout embedded onBack={resetDetails}
           booking={{ ...selectedBooking, ...bookingDetail, imageUrl: bookingDetail.imageUrl || selectedBooking.imageUrl,
             customerName: bookingDetail.customerName || selectedBooking.customer?.fullName || "", amount: Number(bookingDetail.amount ?? bookingDetail.totalAmount ?? selectedBooking.amount ?? 0),
             paymentMethod: bookingDetail.paymentMethod === "BANK_TRANSFER" ? "Chuyển khoản" : bookingDetail.paymentMethod,
@@ -352,7 +354,7 @@ export default function BookingHistory({ ref, bookings = [], loadBookingDetail, 
             discountPercent: Number(bookingDetail.discountPercent ?? selectedBooking.discountPercent ?? 0), settledSessionCount: bookingDetail.settledSessionCount ?? selectedBooking.settledSessionCount ?? 0,
             sessionCount: bookingDetail.sessionCount ?? selectedBooking.sessionCount ?? 0 }} sessions={bookingDetail.sessions || selectedBooking.sessions || []}
           onViewSession={(session) => openSessionDetail(session)} />}
-        {selectedBooking?.type === "RECURRING" && !bookingDetail && <RecurringBookingDetail id={`${instanceId}-recurring-detail`}
+        {selectedBooking?.type === "RECURRING" && !bookingDetail && !selectedSession && <RecurringBookingDetail id={`${instanceId}-recurring-detail`}
           booking={selectedBooking} detail={bookingDetail} status={bookingStatuses[bookingDetail?.status || selectedBooking.status]}
           statuses={bookingStatuses} isLoading={detailLoadingId === selectedBooking.id} error={selectedSession ? "" : detailError}
           onRetry={() => openBookingDetail(selectedBooking)} onBack={resetDetails} onViewSession={openSessionDetail}

@@ -77,6 +77,25 @@ function BookingDetail({ id }) {
     mutate(operation, payment ? "Đã xác nhận thu đủ tiền, booking đã kết toán." : `Đã cập nhật booking: ${bookingStatusLabel(confirmation.status).toLowerCase()}.`);
     dialogRef.current.close();
   };
+  const reschedule = async (payload) => {
+    if (busyRef.current) return false;
+    busyRef.current = true; setBusy(true); setError(""); setNotice("");
+    try {
+      const updated = await bookingApi.rescheduleStaffBooking(id, payload);
+      if (activeIdRef.current === id) {
+        setBooking(updated);
+        setNotice("Đã dời lịch booking.");
+      }
+      return true;
+    } catch (err) {
+      if (activeIdRef.current === id) setError(err.message);
+      // Modal cần nhận lỗi để hiển thị ngay trong popup, thay vì chỉ hiện ở trang nền.
+      throw err;
+    } finally {
+      busyRef.current = false;
+      if (activeIdRef.current === id) setBusy(false);
+    }
+  };
 
   if (loadError?.id === id) return <section className="staff-card staff-error-page" role="alert"><CircleAlert size={32} /><h1>Không thể mở booking</h1><p>{loadError.message}</p><Link className="staff-button" to="/staff/bookings"><ArrowLeft size={16} />Quay lại danh sách</Link></section>;
   if (!booking || String(booking.id) !== id) return <div className="staff-empty staff-card" role="status"><span className="staff-loading-dot" />Đang tải chi tiết booking…</div>;
@@ -94,8 +113,9 @@ function BookingDetail({ id }) {
   const packageActive = !isSession || booking.packageStatus === "ACTIVE";
   // BR-16: chỉ thêm dịch vụ khi đang chơi và chưa kết toán
   const canEditServices = booking.status === "CHECKED_IN" && !settled && packageActive;
-  // Buổi trong gói hủy theo cả gói ở trang gói
-  const canCancel = ["PENDING", "CONFIRMED"].includes(booking.status) && !paid && packageActive && !isSession;
+  // Nhân viên có thể chủ động hủy booking/buổi chưa check-in (ví dụ sân hư hoặc bảo trì).
+  // Với khoản đã thu, backend giữ lại paymentStatus để xử lý hoàn tiền riêng.
+  const canCancel = ["PENDING", "CONFIRMED"].includes(booking.status) && packageActive;
   // Nút "Dời lịch": booking lẻ Chờ xác nhận / Đã xác nhận, tự ẩn khi còn <= 1 tiếng trước giờ chơi
   const canReschedule = canRescheduleBooking(booking, now);
   // Chỉ thu đủ tiền sau khi khách check-in
@@ -207,7 +227,7 @@ function BookingDetail({ id }) {
         </section>
       </div>
 
-      {rescheduleOpen && <RescheduleBookingModal booking={booking} onClose={() => setRescheduleOpen(false)} />}
+      {rescheduleOpen && <RescheduleBookingModal booking={booking} onClose={() => setRescheduleOpen(false)} onConfirm={reschedule} />}
       <dialog ref={dialogRef} className="staff-dialog" aria-labelledby="staff-confirm-title" aria-describedby="staff-confirm-description" onCancel={() => setConfirmation(null)} onClick={(event) => { if (event.target === event.currentTarget) dialogRef.current.close(); }}>
         <div className={`staff-dialog-icon${confirmation?.type === "cancel" ? " is-danger" : ""}`}>{confirmation?.type === "payment" ? <CreditCard size={25} /> : <CircleAlert size={25} />}</div>
         <h2 id="staff-confirm-title">{confirmation?.type === "payment" ? "Xác nhận đã thu đủ tiền?" : confirmation?.type === "cancel" ? "Hủy booking này?" : "Đánh dấu khách không đến?"}</h2>

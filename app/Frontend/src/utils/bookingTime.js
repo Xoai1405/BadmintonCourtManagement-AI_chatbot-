@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 // Quy tắc dời lịch (chỉ hiển thị phía FE):
-// - Chỉ booking lẻ (type SINGLE), trạng thái Chờ xác nhận / Đã xác nhận (đã thanh toán hay chưa đều được)
+// - Booking lẻ hoặc một buổi của gói, trạng thái Chờ xác nhận / Đã xác nhận
 // - Nút biến mất khi chỉ còn <= 1 tiếng trước giờ chơi
 export const RESCHEDULE_MIN_MINUTES_BEFORE = 60;
 const RESCHEDULABLE_STATUSES = ["PENDING", "CONFIRMED"];
@@ -15,7 +15,7 @@ export const toBookingDateTime = (date, time) => {
 };
 
 export const canRescheduleBooking = (booking, now = new Date()) => {
-  if (!booking || booking.type !== "SINGLE") return false;
+  if (!booking || !["SINGLE", "SESSION"].includes(booking.type)) return false;
   if (!RESCHEDULABLE_STATUSES.includes(booking.status)) return false;
   const start = toBookingDateTime(booking.startDate, booking.startTime);
   if (!start) return false;
