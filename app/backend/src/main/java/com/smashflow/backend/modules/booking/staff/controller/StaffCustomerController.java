@@ -1,22 +1,15 @@
 package com.smashflow.backend.modules.booking.staff.controller;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.smashflow.backend.modules.booking.single.model.enums.BookingStatus;
-import com.smashflow.backend.modules.booking.single.repository.BookingRepository;
 import com.smashflow.backend.modules.booking.staff.dto.response.StaffCustomerResponse;
-import com.smashflow.backend.modules.identity.user.model.User;
-import com.smashflow.backend.modules.identity.user.model.enums.Role;
-import com.smashflow.backend.modules.identity.user.repository.UserRepository;
+import com.smashflow.backend.modules.booking.staff.service.StaffCustomerService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -29,12 +22,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class StaffCustomerController {
 
-    // Từ 3 lượt đặt trở lên được xem là khách quen
-    private static final long FREQUENT_CUSTOMER_THRESHOLD = 3;
-    private static final int MAX_RESULTS = 50;
-
-    private final UserRepository userRepo;
-    private final BookingRepository bookingRepo;
+    private final StaffCustomerService staffCustomerService;
 
     /**
      * GET /api/v1/staff/customers?name=&phone=&email=
@@ -45,40 +33,6 @@ public class StaffCustomerController {
             @RequestParam(defaultValue = "") String name,
             @RequestParam(defaultValue = "") String phone,
             @RequestParam(defaultValue = "") String email) {
-
-        List<User> customers = userRepo.searchCustomers(
-                Role.CUSTOMER,
-                name.trim(),
-                // Bỏ ký tự không phải số và đầu số 0 / 84 để "0914..." khớp cả "+84914..."
-                phone.replaceAll("\\D", "").replaceFirst("^(84|0)", ""),
-                email.trim(),
-                PageRequest.of(0, MAX_RESULTS));
-
-        if (customers.isEmpty()) {
-            return ResponseEntity.ok(List.of());
-        }
-
-        // Đếm lượt đặt của tất cả khách trong 1 query (tránh N+1)
-        Map<Long, Long> bookingCounts = new HashMap<>();
-        List<Long> customerIds = customers.stream().map(User::getId).toList();
-        for (Object[] row : bookingRepo.countBookingsByCustomerIds(customerIds, BookingStatus.CANCELLED)) {
-            bookingCounts.put((Long) row[0], ((Number) row[1]).longValue());
-        }
-
-        List<StaffCustomerResponse> response = customers.stream()
-                .map(user -> {
-                    long total = bookingCounts.getOrDefault(user.getId(), 0L);
-                    return new StaffCustomerResponse(
-                            user.getId(),
-                            user.getFullName(),
-                            user.getPhoneNumber(),
-                            user.getEmail(),
-                            user.getStatus() == null ? null : user.getStatus().name(),
-                            total,
-                            total >= FREQUENT_CUSTOMER_THRESHOLD);
-                })
-                .toList();
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(staffCustomerService.searchCustomers(name, phone, email));
     }
 }
