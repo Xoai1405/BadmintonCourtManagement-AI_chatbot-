@@ -12,6 +12,8 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 import com.smashflow.backend.common.exception.ResourceNotFoundException;
+import com.smashflow.backend.modules.booking.addon.dto.BookingServiceResponse;
+import com.smashflow.backend.modules.booking.addon.repository.BookingServiceRepository;
 import com.smashflow.backend.modules.booking.recurring.model.RecurringBooking;
 import com.smashflow.backend.modules.booking.recurring.model.enums.RecurBookingStatus;
 import com.smashflow.backend.modules.booking.recurring.repository.RecurringBookingRepository;
@@ -50,6 +52,7 @@ public class BookingService {
         private final BusinessHourConfigRepository businessHourConfigRepo;
         private final PricingService pricingService;
         private final RecurringBookingRepository recurringBookingRepo;
+        private final BookingServiceRepository bookingServiceRepo;
 
         public List<BookingResponse> getBooking(Long customerId) {
                 userRepo.findById(customerId)
@@ -121,6 +124,8 @@ public class BookingService {
                                 .courtPrice(booking.getCourtPrice())
                                 .servicePrice(booking.getServicePrice())
                                 .totalAmount(booking.getTotalAmount())
+                                .services(bookingServiceRepo.findByBooking_IdOrderByIdAsc(booking.getId()).stream()
+                                                .map(BookingServiceResponse::from).toList())
 
                                 // Trạng thái thanh toán
                                 .paymentStatus(booking.getPaymentStatus())
@@ -476,7 +481,9 @@ public class BookingService {
                                 b.getCreatedAt(),
                                 b.getRecurringBooking() == null ? null : b.getRecurringBooking().getId(),
                                 b.getRecurringBooking() == null ? null : b.getRecurringBooking().getStatus().name(),
-                                b.getRecurringBooking() == null ? null : b.getRecurringBooking().getDiscountRate());
+                                b.getRecurringBooking() == null ? null : b.getRecurringBooking().getDiscountRate(),
+                                bookingServiceRepo.findByBooking_IdOrderByIdAsc(b.getId()).stream()
+                                                .map(BookingServiceResponse::from).toList());
         }
 
         @Transactional
