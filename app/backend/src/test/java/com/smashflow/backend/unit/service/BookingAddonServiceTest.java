@@ -1,4 +1,4 @@
-package com.smashflow.backend.unit;
+package com.smashflow.backend.unit.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import com.smashflow.backend.modules.booking.addon.dto.BookingServiceRequest;
+import com.smashflow.backend.modules.booking.addon.dto.request.BookingServiceRequest;
 import com.smashflow.backend.modules.booking.addon.enums.ServiceStatus;
 import com.smashflow.backend.modules.booking.addon.model.BookingService;
 import com.smashflow.backend.modules.booking.addon.repository.BookingServiceRepository;

@@ -1,4 +1,4 @@
-package com.smashflow.backend.modules.booking.addon.dto;
+package com.smashflow.backend.modules.booking.addon.dto.request;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

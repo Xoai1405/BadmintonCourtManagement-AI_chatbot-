@@ -12,7 +12,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 import com.smashflow.backend.common.exception.ResourceNotFoundException;
-import com.smashflow.backend.modules.booking.addon.dto.BookingServiceResponse;
+import com.smashflow.backend.modules.booking.addon.dto.response.BookingServiceResponse;
 import com.smashflow.backend.modules.booking.addon.repository.BookingServiceRepository;
 import com.smashflow.backend.modules.booking.recurring.model.RecurringBooking;
 import com.smashflow.backend.modules.booking.recurring.model.enums.RecurBookingStatus;

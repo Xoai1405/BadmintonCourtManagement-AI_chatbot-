@@ -1,4 +1,4 @@
-package com.smashflow.backend.unit;
+package com.smashflow.backend.unit.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import com.smashflow.backend.common.exception.ResourceNotFoundException;
-import com.smashflow.backend.modules.booking.addon.dto.ServiceRequest;
+import com.smashflow.backend.modules.booking.addon.dto.request.ServiceRequest;
 import com.smashflow.backend.modules.booking.addon.enums.Category;
 import com.smashflow.backend.modules.booking.addon.enums.ServiceStatus;
 import com.smashflow.backend.modules.booking.addon.repository.ServiceRepository;

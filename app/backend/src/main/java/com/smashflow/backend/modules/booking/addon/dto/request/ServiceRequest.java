@@ -1,4 +1,4 @@
-package com.smashflow.backend.modules.booking.addon.dto;
+package com.smashflow.backend.modules.booking.addon.dto.request;
 
 import java.math.BigDecimal;
 import com.smashflow.backend.modules.booking.addon.enums.Category;

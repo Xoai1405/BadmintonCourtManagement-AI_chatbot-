@@ -7,7 +7,7 @@ import java.time.LocalTime;
 
 import com.smashflow.backend.modules.booking.single.model.enums.BookingStatus;
 import com.smashflow.backend.modules.booking.single.model.enums.PaymentStatus;
-import com.smashflow.backend.modules.booking.addon.dto.BookingServiceResponse;
+import com.smashflow.backend.modules.booking.addon.dto.response.BookingServiceResponse;
 import java.util.List;
 import com.smashflow.backend.modules.court.model.enums.CourtType;
 

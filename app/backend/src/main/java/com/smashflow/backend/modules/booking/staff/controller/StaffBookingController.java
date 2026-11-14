@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.smashflow.backend.modules.booking.single.service.BookingService;
-import com.smashflow.backend.modules.booking.addon.dto.BookingServiceRequest;
+import com.smashflow.backend.modules.booking.addon.dto.request.BookingServiceRequest;
 import com.smashflow.backend.modules.booking.addon.service.BookingAddonService;
 import com.smashflow.backend.modules.booking.single.dto.request.CancelBookingRequest;
 import com.smashflow.backend.modules.booking.single.dto.request.RescheduleBookingRequest;
