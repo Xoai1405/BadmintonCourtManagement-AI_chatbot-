@@ -7,6 +7,8 @@ import java.time.LocalTime;
 
 import com.smashflow.backend.modules.booking.single.model.enums.BookingStatus;
 import com.smashflow.backend.modules.booking.single.model.enums.PaymentStatus;
+import com.smashflow.backend.modules.booking.addon.dto.response.BookingServiceResponse;
+import java.util.List;
 import com.smashflow.backend.modules.court.model.enums.CourtType;
 
 /**
@@ -39,7 +41,8 @@ public record StaffBookingResponse(
                 // Buổi thuộc gói lịch cố định (null nếu là booking lẻ)
                 Long recurringBookingId,
                 String packageStatus,
-                java.math.BigDecimal discountPercent) {
+                java.math.BigDecimal discountPercent,
+                List<BookingServiceResponse> services) {
 
         public record CustomerInfo(
                         Long userId,
