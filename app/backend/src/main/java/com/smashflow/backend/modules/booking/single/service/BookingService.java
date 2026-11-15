@@ -1,6 +1,7 @@
 package com.smashflow.backend.modules.booking.single.service;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -50,6 +51,7 @@ public class BookingService {
         private final BusinessHourConfigRepository businessHourConfigRepo;
         private final PricingService pricingService;
         private final RecurringBookingRepository recurringBookingRepo;
+        private final Clock clock;
 
         public List<BookingResponse> getBooking(Long customerId) {
                 userRepo.findById(customerId)
@@ -97,6 +99,10 @@ public class BookingService {
                                         "Không tìm thấy thông tin booking");
                 }
 
+                return toBookingDetailResponse(booking);
+        }
+
+        private BookingDetailResponse toBookingDetailResponse(Booking booking) {
                 return BookingDetailResponse.builder()
                                 // Thông tin booking
                                 .id(booking.getId())
@@ -291,23 +297,53 @@ public class BookingService {
                 return toStaffResponse(saved);
         }
 
-        /** Dời một booking/buổi gói, vẫn giữ sân và thời lượng đã đặt. */
+        /** Khách chỉ được dời booking hoặc buổi gói thuộc chính mình. */
+        @Transactional
+        public BookingDetailResponse rescheduleBookingByCustomer(Long bookingId, RescheduleBookingRequest request,
+                        Long customerId) {
+                Booking booking = lockBooking(bookingId);
+                if (!booking.getCustomer().getId().equals(customerId)) {
+                        throw new ResourceNotFoundException("Không tìm thấy thông tin booking");
+                }
+                validateReschedule(booking, request);
+                updateRescheduleTime(booking, request);
+                return toBookingDetailResponse(bookingRepo.saveAndFlush(booking));
+        }
+
+        /** Dời một booking/buổi gói, vẫn giữ sân, thời lượng và giá đã đặt. */
         @Transactional
         public StaffBookingResponse rescheduleBookingByStaff(Long bookingId, RescheduleBookingRequest request) {
                 Booking booking = lockBooking(bookingId);
+                validateReschedule(booking, request);
+                updateRescheduleTime(booking, request);
+                return toStaffResponse(bookingRepo.saveAndFlush(booking));
+        }
+
+        private void validateReschedule(Booking booking, RescheduleBookingRequest request) {
                 if (booking.getBookingStatus() != BookingStatus.PENDING
                                 && booking.getBookingStatus() != BookingStatus.CONFIRMED) {
-                        throw new IllegalStateException("Chỉ có thể dời lịch trước khi booking được check-in");
+                        throw new IllegalStateException("Chỉ có thể dời booking đang chờ hoặc đã xác nhận");
                 }
 
-                LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+                RecurringBooking recurring = booking.getRecurringBooking();
+                if (recurring != null && recurring.getStatus() != RecurBookingStatus.ACTIVE) {
+                        throw new IllegalStateException("Gói lịch cố định không còn hoạt động");
+                }
+
+                LocalDateTime now = LocalDateTime.now(clock);
+                LocalDateTime cutoff = now.plusMinutes(60);
                 LocalDateTime originalStart = LocalDateTime.of(booking.getBookingDate(), booking.getStartTime());
-                if (!originalStart.isAfter(now.plusMinutes(60))) {
+                if (originalStart.isBefore(cutoff)) {
                         throw new IllegalStateException("Chỉ có thể dời lịch trước giờ chơi ít nhất 1 giờ");
                 }
-                if (booking.getRecurringBooking() != null
-                                && (request.bookingDate().isBefore(booking.getRecurringBooking().getStartDate())
-                                                || request.bookingDate().isAfter(booking.getRecurringBooking().getEndDate()))) {
+
+                LocalDateTime newStart = LocalDateTime.of(request.bookingDate(), request.startTime());
+                if (newStart.isBefore(cutoff)) {
+                        throw new IllegalStateException("Giờ chơi mới phải cách hiện tại ít nhất 1 giờ");
+                }
+                if (recurring != null
+                                && (request.bookingDate().isBefore(recurring.getStartDate())
+                                                || request.bookingDate().isAfter(recurring.getEndDate()))) {
                         throw new IllegalArgumentException("Ngày dời lịch phải nằm trong thời gian áp dụng của gói");
                 }
                 if (!Duration.between(request.startTime(), request.endTime())
@@ -318,17 +354,18 @@ public class BookingService {
                 BusinessHourConfig businessConfig = businessHourConfigRepo.findById((short) 1)
                                 .orElseThrow(() -> new ResourceNotFoundException("Chưa có cấu hình giờ hoạt động"));
                 validateBookingRequest(new CreateBookingRequest(booking.getCourt().getId(), request.bookingDate(), request.startTime(), request.endTime()),
-                                LocalDateTime.of(request.bookingDate(), request.startTime()), businessConfig);
+                                newStart, businessConfig, now);
 
                 boolean hasConflict = bookingRepo.existsOverlapExcluding(booking.getCourt().getId(), request.bookingDate(),
                                 request.startTime(), request.endTime(), booking.getId(),
                                 List.of(BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN));
                 if (hasConflict) throw new BookingConflictException("Khung giờ mới đã có booking khác");
+        }
 
+        private void updateRescheduleTime(Booking booking, RescheduleBookingRequest request) {
                 booking.setBookingDate(request.bookingDate());
                 booking.setStartTime(request.startTime());
                 booking.setEndTime(request.endTime());
-                return toStaffResponse(bookingRepo.save(booking));
         }
 
         /**
@@ -565,9 +602,16 @@ public class BookingService {
                         CreateBookingRequest request,
                         LocalDateTime bookingStart,
                         BusinessHourConfig businessConfig) {
+                validateBookingRequest(request, bookingStart, businessConfig,
+                                LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")));
+        }
 
-                if (!bookingStart.isAfter(
-                                LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh")))) {
+        private void validateBookingRequest(
+                        CreateBookingRequest request,
+                        LocalDateTime bookingStart,
+                        BusinessHourConfig businessConfig,
+                        LocalDateTime now) {
+                if (!bookingStart.isAfter(now)) {
                         throw new IllegalArgumentException(
                                         "Không thể đặt khung giờ đã qua");
                 }

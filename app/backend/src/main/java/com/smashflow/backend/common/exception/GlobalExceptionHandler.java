@@ -1,7 +1,9 @@
 package com.smashflow.backend.common.exception;
 
 import java.util.Map;
+import java.sql.SQLException;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.AuthenticationException;
@@ -62,6 +64,18 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("message", ex.getMessage()));
+    }
+
+    // PostgreSQL exclusion constraint protects against two concurrent reschedules.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handleOverlapConstraint(DataIntegrityViolationException ex) {
+        for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
+            if (cause instanceof SQLException sql && "23P01".equals(sql.getSQLState())) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(Map.of("message", "Khung giờ mới đã có người đặt trên sân này"));
+            }
+        }
+        throw ex;
     }
 
     @ExceptionHandler(EmailNotVerifiedException.class)

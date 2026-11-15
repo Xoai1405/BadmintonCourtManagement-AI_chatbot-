@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.smashflow.backend.modules.booking.single.dto.request.CreateBookingRequest;
+import com.smashflow.backend.modules.booking.single.dto.request.RescheduleBookingRequest;
 import com.smashflow.backend.modules.booking.single.dto.response.BookingDetailResponse;
 import com.smashflow.backend.modules.booking.single.dto.response.BookingResponse;
 import com.smashflow.backend.modules.booking.single.model.Booking;
@@ -85,6 +86,15 @@ public class BookingController {
                         @PathVariable Long bookingId,
                         @AuthenticationPrincipal CustomUserDetails currentUser) {
                 return ResponseEntity.ok(bookingService.markPaymentSubmitted(bookingId, currentUser.getUserId()));
+        }
+
+        @PatchMapping("/{bookingId}/reschedule")
+        public ResponseEntity<BookingDetailResponse> reschedule(
+                        @PathVariable Long bookingId,
+                        @Valid @RequestBody RescheduleBookingRequest request,
+                        @AuthenticationPrincipal CustomUserDetails currentUser) {
+                return ResponseEntity.ok(bookingService.rescheduleBookingByCustomer(
+                                bookingId, request, currentUser.getUserId()));
         }
 
 }
