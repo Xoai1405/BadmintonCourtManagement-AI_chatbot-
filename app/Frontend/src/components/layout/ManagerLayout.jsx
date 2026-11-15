@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import "./AdminLayout.css";
+import "./ManagerLayout.css";
 import SmashFlowLogo from "../../assets/Logo.png";
 import { courtApi } from "../../api/CourtApi.js";
 import { priceConfigApi } from "../../api/priceConfigApi.js";
@@ -9,17 +9,17 @@ import ChatbotButton from "../ChatbotButton.jsx";
 
 // Mỗi mục có đường dẫn riêng; NavLink tự xác định mục đang mở theo URL.
 const menuItems = [
-  { icon: "🗄️", label: "Danh sách sân", path: "/courts" },
-  { icon: "💸", label: "Bảng giá", path: "/prices" },
-  { icon: "🏷️", label: "Chiết khấu", path: "/discounts" },
-  { icon: "🧃", label: "Quản lý dịch vụ", path: "/services" },
-  { icon: "👨‍💼", label: "Nhân viên", path: "/staff" },
-  { icon: "👥", label: "Khách hàng", path: "/customers" },
-  { icon: "📊", label: "Báo cáo", path: "/reports" },
-  { icon: "🤖", label: "FAQ Chatbot", path: "/faq-chatbot" },
+  { icon: "🗄️", label: "Danh sách sân", path: "/manager/courts" },
+  { icon: "💸", label: "Bảng giá", path: "/manager/prices" },
+  { icon: "🏷️", label: "Chiết khấu", path: "/manager/discounts" },
+  { icon: "🧃", label: "Quản lý dịch vụ", path: "/manager/services" },
+  { icon: "👨‍💼", label: "Nhân viên", path: "/manager/staff" },
+  { icon: "👥", label: "Khách hàng", path: "/manager/customers" },
+  { icon: "📊", label: "Báo cáo", path: "/manager/reports" },
+  { icon: "🤖", label: "FAQ Chatbot", path: "/manager/faq-chatbot" },
 ];
 
-export default function AdminLayout() {
+export default function ManagerLayout() {
   // Layout giữ kết quả mock API để sân và bảng giá dùng chung dữ liệu khi chuyển menu.
   const [courts, setCourts] = useState([]);
   const [priceConfigs, setPriceConfigs] = useState([]);

@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import LoginAndRegisterImage from "../assets/LoginAndRegisterImage.jpg";
-import SmashFlowLogo from "../assets/Logo.png";
+import LoginAndRegisterImage from "../../assets/LoginAndRegisterImage.jpg";
+import SmashFlowLogo from "../../assets/Logo.png";
 import { Link } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from "../../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 export default function LoginPage() {
@@ -94,9 +94,9 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // TODO: Tích hợp API đăng nhập Spring Boot
+      
       await login({
-        emailOrPhoneNumber,
+        emailOrPhoneNumber: identifier,
         password,
       });
 

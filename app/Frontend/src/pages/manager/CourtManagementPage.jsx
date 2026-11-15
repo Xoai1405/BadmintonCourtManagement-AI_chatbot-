@@ -1,7 +1,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import "../../components/layout/AdminLayout.css";
+import "../../components/layout/ManagerLayout.css";
 import { courtApi } from "../../api/CourtApi.js";
 
 const courtTypes = {

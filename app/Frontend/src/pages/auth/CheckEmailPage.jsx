@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { MailCheck } from "lucide-react";
-import { authApi } from "../api/authApi";
+import { authApi } from "../../api/authApi";
 
 export default function CheckEmailPage() {
   const location = useLocation();

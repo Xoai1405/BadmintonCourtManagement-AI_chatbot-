@@ -11,9 +11,8 @@ import {
   MessageCircle,
 } from "lucide-react";
 
-import Navbar from "../components/Navbar";
-import { bookingApi } from "../api/bookingApi";
-import { getCourtTypeLabel } from "../utils/CourtUtils";
+import { bookingApi } from "../../api/bookingApi";
+import { getCourtTypeLabel } from "../../utils/CourtUtils";
 
 export default function BookingConfirm() {
   const { id } = useParams();
@@ -39,7 +38,7 @@ export default function BookingConfirm() {
   const [bookingResult, setBookingResult] = useState(null);
   useEffect(() => {
     if (!hasValidBookingData) {
-      navigate(`/court/${id}`, { replace: true });
+      navigate(`/customer/courts/${id}`, { replace: true });
     }
   }, [hasValidBookingData, id, navigate]);
 
@@ -107,12 +106,11 @@ export default function BookingConfirm() {
 
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20">
-      <Navbar />
 
       <div className="max-w-4xl mx-auto px-4 mt-8">
         <button
           type="button"
-          onClick={() => navigate(`/court/${courtId}`)}
+          onClick={() => navigate(`/customer/courts/${courtId}`)}
           className="flex items-center gap-1 text-[13px] text-[#00C475] font-medium mb-4 hover:underline"
         >
           <ArrowLeft size={14} />
@@ -136,7 +134,7 @@ export default function BookingConfirm() {
 
               <button
                 type="button"
-                onClick={() => navigate(`/court/${courtId}`)}
+                onClick={() => navigate(`/customer/courts/${courtId}`)}
                 className="mt-3 px-4 py-2 bg-white border border-red-200 text-red-600 text-xs font-bold rounded-lg hover:bg-red-50 transition-colors shadow-sm"
               >
                 ← Quay lại chọn khung giờ khác
@@ -229,7 +227,7 @@ export default function BookingConfirm() {
           <div className="flex justify-end gap-3 mt-8">
             <button
               type="button"
-              onClick={() => navigate(`/court/${courtId}`)}
+              onClick={() => navigate(`/customer/courts/${courtId}`)}
               disabled={isSubmitting}
               className="px-8 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
@@ -306,14 +304,14 @@ export default function BookingConfirm() {
 
             <div className="flex flex-col gap-3">
               <Link
-                to="/dashboard"
+                to="/customer/bookings"
                 className="w-full py-3 bg-[#00C475] text-white rounded-lg text-sm font-semibold hover:bg-[#00B068] transition-colors"
               >
-                Xem chi tiết booking
+                Xem booking của tôi
               </Link>
 
               <Link
-                to="/"
+                to="/customer/courts"
                 className="w-full py-3 border border-gray-200 text-gray-600 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors"
               >
                 Về danh sách sân

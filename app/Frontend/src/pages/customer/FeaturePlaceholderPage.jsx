@@ -1,4 +1,4 @@
-import Navbar from "../components/Navbar";
+import Navbar from "../../components/Navbar";
 export default function FeaturePlaceholderPage({ title, description }) {
   return (
     <div className="min-h-screen bg-slate-50">

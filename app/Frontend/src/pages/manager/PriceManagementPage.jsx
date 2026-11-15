@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import "../../components/layout/AdminLayout.css";
+import "../../components/layout/ManagerLayout.css";
 import { priceConfigApi } from "../../api/priceConfigApi.js";
 import { businessHourApi } from "../../api/businessHourApi.js";
 const courtTypes = {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, LockKeyhole } from "lucide-react";
-import { authApi } from "../api/authApi";
+import { authApi } from "../../api/authApi";
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();

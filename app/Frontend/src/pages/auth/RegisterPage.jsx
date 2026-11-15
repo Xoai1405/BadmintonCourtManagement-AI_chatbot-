@@ -1,9 +1,9 @@
 import { Eye, EyeOff } from "lucide-react";
 import { useRef, useState } from "react";
-import LoginAndRegisterImage from "../assets/LoginAndRegisterImage.jpg";
-import SmashFlowLogo from "../assets/Logo.png";
+import LoginAndRegisterImage from "../../assets/LoginAndRegisterImage.jpg";
+import SmashFlowLogo from "../../assets/Logo.png";
 import { Link, useNavigate } from "react-router-dom";
-import { authApi } from "../api/authApi";
+import { authApi } from "../../api/authApi";
 export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");

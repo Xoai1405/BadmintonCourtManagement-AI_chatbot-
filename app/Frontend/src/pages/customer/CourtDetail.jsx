@@ -7,11 +7,10 @@ import {
   FileText,
   Calendar,
 } from "lucide-react";
-import ChatbotButton from "../components/ChatbotButton";
-import { courtApi } from "../api/CourtApi";
-import Navbar from "../components/Navbar";
+import ChatbotButton from "../../components/ChatbotButton";
+import { courtApi } from "../../api/CourtApi";
 //import { getCourtImageById } from "../utils/CourtImageById";
-import { getCourtTypeLabel } from "../utils/CourtUtils";
+import { getCourtTypeLabel } from "../../utils/CourtUtils";
 //Helper trả chuỗi ngày-tháng-năm
 function toDateInputValue(date) {
   const year = date.getFullYear();
@@ -118,14 +117,12 @@ export default function CourtDetail() {
     const lastSlot = selectedSlotDetails[selectedSlotDetails.length - 1];
 
     // Chuyển hướng sang trang Confirm và truyền toàn bộ dữ liệu qua State
-    navigate(`/courts/${id}/confirm`, {
+    navigate(`/customer/courts/${id}/confirm`, {
       state: {
         courtId: Number(id),
         bookingDate: selectedDate,
         startTime: formatTime(firstSlot.startTime),
         endTime: formatTime(lastSlot.endTime),
-
-        // Chỉ dùng hiển thị preview
         court,
         selectedSlots: selectedSlotDetails,
         previewTotalPrice: totalAmount,
@@ -194,12 +191,11 @@ export default function CourtDetail() {
   return (
     <div className="min-h-screen bg-white pb-20">
       {/* 1. THANH MENU DÙNG CHUNG (Tự động lấy Logo và UI từ file Navbar.jsx) */}
-      <Navbar />
 
       {/* 2. NỘI DUNG TRANG CHI TIẾT SÂN */}
       <div className="max-w-6xl mx-auto px-4 mt-6">
         <Link
-          to="/"
+          to="/customer/courts"
           className="inline-flex items-center gap-2 text-[#00C475] font-medium hover:underline mb-6 text-sm"
         >
           <ArrowLeft size={16} /> Quay lại danh sách sân
