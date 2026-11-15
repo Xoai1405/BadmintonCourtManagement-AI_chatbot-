@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react'; //BaoDen Them
-import { courtApi } from '../api/CourtApi'; //BaoDen Them
-import { previewRecurringBookingApi, createRecurringBookingApi } from '../api/bookingApi'; //BaoDen Them
+import { courtApi } from '../../api/CourtApi'; //BaoDen Them
+import { previewRecurringBookingApi, createRecurringBookingApi } from '../../api/bookingApi'; //BaoDen Them
 
 import { Link, useNavigate } from 'react-router-dom';
-import Navbar from '../components/Navbar';
 import { ChevronDown, CalendarDays, Clock, MapPin, Search, Calendar as CalendarIcon, Info, CheckCircle2, AlertCircle, MessageCircle, X, Wallet } from 'lucide-react';
 
 export default function RecurringBooking() {
@@ -183,7 +182,6 @@ export default function RecurringBooking() {
 
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20">
-      <Navbar />
 
       <div className="max-w-[1000px] mx-auto px-4 mt-8">
         
@@ -513,7 +511,7 @@ export default function RecurringBooking() {
             </div>
 
             <div className="flex flex-col gap-3 w-full">
-              <button onClick={() => navigate('/my-bookings')} className="w-full bg-[#00C475] text-white py-3 rounded-xl font-bold hover:bg-[#00B068] transition-colors text-sm">
+              <button onClick={() => navigate('/customer/bookings')} className="w-full bg-[#00C475] text-white py-3 rounded-xl font-bold hover:bg-[#00B068] transition-colors text-sm">
                 Xem chi tiết booking
               </button>
               <button onClick={() => setIsSuccessModalOpen(false)} className="w-full bg-white border border-gray-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-50 transition-colors text-sm">

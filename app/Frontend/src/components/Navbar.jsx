@@ -4,7 +4,6 @@ import { ChevronDown, LockKeyhole, LogOut, UserRound } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import logoImg from "../assets/Logo.png";
 
-
 const roleLabel = {
   CUSTOMER: "Khách hàng",
   STAFF: "Nhân viên",
@@ -31,7 +30,10 @@ export default function Navbar() {
   return (
     <nav className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-5 px-4 sm:px-6 lg:px-8">
-        <Link to="/" className="flex shrink-0 items-center gap-2">
+        <Link
+          to={user?.role === "CUSTOMER" ? "/customer/courts" : "/"}
+          className="flex shrink-0 items-center gap-2"
+        >
           <img
             src={logoImg}
             alt="SmashFlow"
@@ -41,11 +43,13 @@ export default function Navbar() {
             Smash<span className="text-emerald-500">Flow</span>
           </span>
         </Link>
-        {isAuthenticated && (
+        {isAuthenticated && user?.role === "CUSTOMER" && (
           <div className="hidden h-full items-center gap-8 md:flex">
-            <MenuLink to="/" label="Sân" end />
-            <MenuLink to="/recurring-bookings" label="Lịch cố định" />
-            <MenuLink to="/my-bookings" label="Booking của tôi" />
+            <MenuLink to="/customer/courts" label="Sân" end />
+
+            <MenuLink to="/customer/recurring-bookings" label="Lịch cố định" />
+
+            <MenuLink to="/customer/bookings" label="Booking của tôi" />
           </div>
         )}
         {isAuthenticated ? (
@@ -71,7 +75,7 @@ export default function Navbar() {
                   </div>
                 </div>
                 <Link
-                  to="/profile"
+                  to="/customer/profile"
                   onClick={() => setOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50"
                 >
@@ -79,7 +83,7 @@ export default function Navbar() {
                   Thông tin cá nhân
                 </Link>
                 <Link
-                  to="/profile#change-password"
+                  to="/customer/profile#change-password"
                   onClick={() => setOpen(false)}
                   className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50"
                 >
@@ -115,7 +119,6 @@ export default function Navbar() {
           </div>
         )}
       </div>
-      
     </nav>
   );
 }

@@ -1,7 +1,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Navbar from '../components/Navbar';
 import {
   Plus,
   Search,
@@ -12,7 +11,7 @@ import {
   CalendarDays,
   Repeat,
 } from 'lucide-react';
-import { bookingApi, formatBookingDays, toDayNumbers } from '../api/bookingApi';
+import { bookingApi, formatBookingDays, toDayNumbers } from '../../api/bookingApi';
 
 // ==================== FORMAT DATA ====================
 const formatDate = (value) => {
@@ -286,7 +285,7 @@ const RecurringEmptyState = () => {
       </p>
 
       <Link
-        to="/recurring-bookings"
+        to="/customer/recurring-bookings"
         className="mt-5 px-4 py-2.5 rounded-lg bg-purple-50 text-purple-600 text-xs font-semibold hover:bg-purple-100 transition-colors"
       >
         Bạn chưa có gói nào, đặt lịch cố định ngay
@@ -427,7 +426,7 @@ const RecurringBookingList = () => {
                 <p className="text-[11px] text-gray-400 mb-0.5">Tổng tiền gói</p>
                 <p className="font-bold text-gray-800 text-[14px]">{formatMoney(pkg.totalAmount)}</p>
               </div>
-              <Link to={`/my-bookings/recurring-${pkg.recurringBookingId}`}
+              <Link to={`/customer/bookings/recurring-${pkg.recurringBookingId}`}
                 className="shrink-0 self-center px-3 py-2 border border-emerald-200 text-[#00C475] rounded-lg text-xs font-semibold hover:bg-emerald-50 transition-colors whitespace-nowrap">
                 Xem chi tiết
               </Link>
@@ -567,7 +566,6 @@ export default function MyBookings() {
   // ==================== RENDER ====================
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20">
-      <Navbar />
 
       <div className="max-w-[1100px] mx-auto px-4 mt-8">
 
@@ -584,7 +582,7 @@ export default function MyBookings() {
           </div>
 
           <Link
-            to="/"
+            to="/customer/courts"
             className="flex items-center gap-2 bg-[#00C475] text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-[#00B068] transition-colors shadow-sm text-sm"
           >
             <Plus size={18} />
@@ -854,7 +852,7 @@ export default function MyBookings() {
                         <p className="font-bold text-gray-800 text-[14px]">{booking.total}</p>
                       </div>
                       <Link
-                        to={`/my-bookings/${booking.id}`}
+                        to={`/customer/bookings/${booking.id}`}
                         className="shrink-0 self-center px-3 py-2 border border-emerald-200 text-[#00C475] rounded-lg text-xs font-semibold hover:bg-emerald-50 transition-colors whitespace-nowrap"
                       >
                         Xem chi tiết

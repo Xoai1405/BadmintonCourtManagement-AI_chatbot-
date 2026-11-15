@@ -3,7 +3,7 @@ import { CalendarDays, ChevronDown, Clock3, Search } from "lucide-react";
 import DateRangePicker from "./DateRangePicker.jsx";
 import SingleBookingDetail from "./SingleBookingDetail.jsx";
 import RecurringBookingDetail from "./RecurringBookingDetail.jsx";
-import { CustomerBookingDetailLayout, CustomerRecurringBookingDetailLayout } from "../../pages/SingleBookingDetail.jsx";
+import { CustomerBookingDetailLayout, CustomerRecurringBookingDetailLayout } from "../../pages/customer/SingleBookingDetail.jsx";
 import "./booking.css";
 
 const moneyFormatter = new Intl.NumberFormat("vi-VN");
