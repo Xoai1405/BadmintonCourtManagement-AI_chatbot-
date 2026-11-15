@@ -121,6 +121,13 @@ const normalizeBookingDetail = (data) => {
     serviceFee: Number(data.servicePrice ?? 0),
 
     amount: Number(data.totalAmount ?? 0),
+    services: (data.services ?? []).map((service) => ({
+      serviceId: service.serviceId,
+      name: service.name,
+      quantity: Number(service.quantity ?? 0),
+      priceAtBooking: Number(service.priceAtBooking ?? 0),
+      subtotal: Number(service.subtotal ?? 0),
+    })),
 
     paymentMethod:
       { CASH: "Tiền mặt", BANK_TRANSFER: "Chuyển khoản" }[data.paymentMethod] ||
@@ -836,6 +843,25 @@ export const CustomerBookingDetailLayout = ({
                   <CircleDollarSign size={18} className="text-[#00C475]" /> Chi
                   tiết thanh toán
                 </h3>
+                {booking.services?.length > 0 && (
+                  <div className="mb-5 overflow-x-auto rounded-lg border border-gray-100">
+                    <table className="w-full min-w-[460px] text-sm" aria-label="Dịch vụ đi kèm">
+                      <thead className="bg-gray-50 text-gray-500">
+                        <tr><th scope="col" className="px-3 py-2 text-left">Dịch vụ</th><th scope="col" className="px-3 py-2 text-right">SL</th><th scope="col" className="px-3 py-2 text-right">Đơn giá</th><th scope="col" className="px-3 py-2 text-right">Thành tiền</th></tr>
+                      </thead>
+                      <tbody>
+                        {booking.services.map((service) => (
+                          <tr key={service.serviceId} className="border-t border-gray-100">
+                            <td className="px-3 py-2 text-gray-800">{service.name}</td>
+                            <td className="px-3 py-2 text-right">{service.quantity}</td>
+                            <td className="px-3 py-2 text-right">{service.priceAtBooking.toLocaleString("vi-VN")}đ</td>
+                            <td className="px-3 py-2 text-right font-medium">{service.subtotal.toLocaleString("vi-VN")}đ</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
                   <div className="space-y-4">
                     <div className="flex justify-between items-center text-sm">
@@ -857,7 +883,7 @@ export const CustomerBookingDetailLayout = ({
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-500">Dịch vụ phát sinh</span>
                       <span className="font-bold text-gray-800">
-                        {booking.serviceFee}đ
+                        {booking.serviceFee.toLocaleString("vi-VN")}đ
                       </span>
                     </div>
                     <div className="flex justify-between items-center bg-emerald-50/70 px-3 py-2.5 rounded-lg mt-2">
