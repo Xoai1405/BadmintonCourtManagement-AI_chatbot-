@@ -1,11 +1,9 @@
 import { LockKeyhole, UserRound } from "lucide-react";
-import Navbar from "../components/Navbar";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from "../../hooks/useAuth";
 export default function ProfilePage() {
   const { user } = useAuth();
   return (
     <div className="min-h-screen bg-slate-50">
-      <Navbar />
       <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <h1 className="text-3xl font-bold text-slate-800">Hồ sơ của tôi</h1>
         <p className="mt-1 text-slate-500">

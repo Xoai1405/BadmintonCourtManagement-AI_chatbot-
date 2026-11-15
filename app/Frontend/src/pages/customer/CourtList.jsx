@@ -1,9 +1,8 @@
-import Navbar from '../components/Navbar';
-import CourtCard from '../components/CourtCard';
-import { courtApi } from '../api/CourtApi';
+import CourtCard from '../../components/CourtCard';
+import { courtApi } from '../../api/CourtApi';
 import { Calendar, Search } from 'lucide-react';
 import { useState,useEffect } from 'react';
-import ChatbotButton from "../components/ChatbotButton";
+import ChatbotButton from "../../components/ChatbotButton";
 
 export default function CourtList() {
   
@@ -37,7 +36,6 @@ export default function CourtList() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <Navbar />
       
       <div className="max-w-6xl mx-auto px-4 mt-8">
         <h1 className="text-3xl font-bold mb-2 text-gray-800">Danh sách sân</h1>

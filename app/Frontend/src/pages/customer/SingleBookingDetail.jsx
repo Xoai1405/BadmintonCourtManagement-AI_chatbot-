@@ -1,15 +1,14 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { getCourtTypeLabel } from "../utils/CourtUtils";
-import Navbar from "../components/Navbar";
-import RescheduleBookingModal from "../components/booking/RescheduleBookingModal";
-import { canRescheduleBooking, useNow } from "../utils/bookingTime";
+import { getCourtTypeLabel } from "../../utils/CourtUtils";
+import RescheduleBookingModal from "../../components/booking/RescheduleBookingModal";
+import { canRescheduleBooking, useNow } from "../../utils/bookingTime";
 import {
   bookingApi,
   formatBookingDays,
   paymentMethodLabel,
   toDayNumbers,
-} from "../api/bookingApi";
+} from "../../api/bookingApi";
 
 import {
   ArrowLeft,
@@ -200,7 +199,7 @@ export default function SingleBookingDetail() {
       setLoading(true);
       setError("");
 
-      // URL dạng /my-bookings/recurring-{id} là gói lịch cố định
+      // URL dạng /customer/bookings/recurring-{id} là gói lịch cố định
       const recurringId = String(id).match(/^recurring-(\d+)$/)?.[1];
       if (recurringId) {
         const recurring =
@@ -269,7 +268,7 @@ export default function SingleBookingDetail() {
           </button>
 
           <button
-            onClick={() => navigate("/my-bookings")}
+            onClick={() => navigate("/customer/bookings")}
             className="px-4 py-2 rounded-lg border border-gray-200 text-gray-600"
           >
             Quay lại
@@ -631,7 +630,7 @@ export const CustomerBookingDetailLayout = ({
 
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20">
-      {!embedded && <Navbar />}
+
       <div className="max-w-[1100px] mx-auto px-4 mt-8">
         <button
           onClick={
@@ -639,8 +638,8 @@ export const CustomerBookingDetailLayout = ({
             (() =>
               navigate(
                 isSession
-                  ? `/my-bookings/${booking.packageId}`
-                  : "/my-bookings",
+                  ? `//customer/bookings/${booking.packageId}`
+                  : "/customer/bookings",
               ))
           }
           className={`${embedded ? "hidden" : "flex"} items-center gap-1 text-[13px] text-[#00C475] font-medium mb-4 hover:underline w-fit`}
@@ -979,8 +978,8 @@ export const CustomerBookingDetailLayout = ({
                       (() =>
                         navigate(
                           isSession
-                            ? `/my-bookings/${booking.packageId}`
-                            : "/my-bookings",
+                            ? `/customer/bookings/${booking.packageId}`
+                            : "/customer/bookings",
                         ))
                     }
                     className="px-6 py-2.5 bg-white border border-gray-200 text-[#00C475] rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
@@ -1183,10 +1182,10 @@ export const CustomerRecurringBookingDetailLayout = ({
 
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20">
-      {!embedded && <Navbar />}
+
       <div className="max-w-[1100px] mx-auto px-4 mt-8">
         <button
-          onClick={onBack || (() => navigate("/my-bookings"))}
+          onClick={onBack || (() => navigate("/customer/bookings"))}
           className={`${embedded ? "hidden" : "flex"} items-center gap-1 text-[13px] text-[#00C475] font-medium mb-4 hover:underline w-fit`}
         >
           <ArrowLeft size={14} /> Quay lại booking của tôi
@@ -1501,7 +1500,7 @@ export const CustomerRecurringBookingDetailLayout = ({
                                 </button>
                               ) : (
                                 <Link
-                                  to={`/my-bookings/${session.id}`}
+                                  to={`/customer/bookings/${session.id}`}
                                   className="inline-block px-2.5 py-1 border border-emerald-300 rounded text-[12px] text-[#00C475] font-semibold hover:bg-emerald-50"
                                 >
                                   Xem chi tiết
@@ -1582,7 +1581,7 @@ export const CustomerRecurringBookingDetailLayout = ({
 
               <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-6">
                 <button
-                  onClick={onBack || (() => navigate("/my-bookings"))}
+                  onClick={onBack || (() => navigate("/customer/bookings"))}
                   className="px-6 py-2.5 bg-white border border-gray-200 text-[#00C475] rounded-lg text-sm font-semibold flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
                 >
                   <ArrowLeft size={16} /> Quay lại
