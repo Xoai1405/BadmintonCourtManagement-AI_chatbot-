@@ -2323,7 +2323,7 @@
 .service-table th, .service-table td { height: 64px; padding: 14px 18px; }
 .service-table th { color: #75877f; font-size: 15px; font-weight: 650; letter-spacing: 0; text-transform: none; }
 .service-table th:first-child, .service-table td:first-child { padding-left: 18px; }
-.service-table th:last-child, .service-table td:last-child { width: 215px; }
+.service-table th:last-child, .service-table td:last-child { width: 290px; }
 .service-table tbody tr { border-bottom: 1px solid #edf2ef; }
 .service-table tbody tr:hover { background: #fbfdfc; }
 .service-name-cell strong { color: #26463c; vertical-align: middle; }
@@ -2336,8 +2336,11 @@
 .service-status-dot { display: inline-block; width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: #26a36b; }
 .service-status-dot--empty, .service-status--empty .service-status-dot { background: #e39a42; }
 .service-row-actions { display: flex; align-items: center; gap: 7px; }
-.service-edit-button, .service-stock-button { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; gap: 5px; padding: 6px 10px; border: 1px solid var(--service-line); border-radius: 7px; background: #fff; color: #52665d; font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.service-edit-button, .service-delete-button, .service-stock-button { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; gap: 5px; padding: 6px 10px; border: 1px solid var(--service-line); border-radius: 7px; background: #fff; color: #52665d; font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .service-edit-button:hover { border-color: #bbd8ca; background: #f4faf6; color: #17684f; }
+.service-delete-button { border-color: #f0d2d2; color: #a53f3f; }
+.service-delete-button:hover { background: #fff2f2; }
+.service-row-actions button:disabled, .service-form-button:disabled { cursor: not-allowed; opacity: .55; }
 .service-stock-button--empty { border-color: #f0ddc7; background: #fffaf4; color: #9c6425; }
 .service-stock-button--empty:hover { background: #fff1df; }
 .service-stock-button--active { border-color: #cbe6d8; background: #f3faf6; color: #247655; }
@@ -2362,6 +2365,8 @@
 .service-form-button--secondary:hover { background: #f5f8f6; }
 .service-form-button--primary { background: var(--admin-primary); color: #fff; }
 .service-form-button--primary:hover { background: var(--admin-primary-hover); }
+.service-delete-confirm { border-color: #b94b4b; background: #b94b4b; color: #fff; }
+.service-delete-confirm:hover:not(:disabled) { background: #9f3838; }
 .service-page :is(button, select, input):focus-visible { outline: 3px solid rgb(27 125 96 / 24%); outline-offset: 2px; }
 @media (max-width: 700px) {
   .service-summary { gap: 8px; }

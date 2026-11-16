@@ -94,7 +94,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      
+
       await login({
         emailOrPhoneNumber: identifier,
         password,

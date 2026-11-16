@@ -1,5 +1,6 @@
 import axiosClient from "./axiosClient";
-import { mockBookingServices, mockStaffCourts, mockStaffCustomers, mockStaffBookings, mockStaffRecurringBookings, mockStaffRecurringSessions, mockStaffRecurringSessionLinks } from "../mocks/apiContract.js";
+import { serviceApi } from "./serviceApi.js";
+import { mockBookingServices, mockStaffCourts, mockStaffBookings, mockStaffRecurringBookings, mockStaffRecurringSessions, mockStaffRecurringSessionLinks } from "../mocks/apiContract.js";
 
 export const staffBookingStatuses = [
   { value: "ALL", label: "Tất cả" },
@@ -50,7 +51,6 @@ export const formatBookingDays = (days) => days.map((day) => day === 7 ? "CN" : 
 const staffBookingStore = structuredClone([...mockStaffBookings, ...mockStaffRecurringSessions]);
 const staffRecurringStore = structuredClone(mockStaffRecurringBookings);
 const sessionLinks = structuredClone(mockStaffRecurringSessionLinks);
-const staffNames = new Map(staffBookingStore.map((booking) => [booking.bookingId, "Đoàn Thị B"]));
 const staffRequest = (handler) => new Promise((resolve, reject) => {
   setTimeout(() => {
     try { resolve(structuredClone(handler())); }
@@ -200,24 +200,6 @@ export const bookingContractApi = {
   addService: (id, body) => contractData("POST", `/api/v1/bookings/${id}/services`, body),
 };
 
-// Chỉ adapter UI dùng alias id/code/startDate/courtFee. Response API phía trên giữ nguyên DTO contract.
-function toStaffBooking(booking) {
-  const customer = mockStaffCustomers.find((item) => item.userId === booking.customer.userId);
-  const link = sessionLink(booking.bookingId);
-  return {
-    id: booking.bookingId, code: booking.bookingCode, type: link ? "SESSION" : "SINGLE",
-    customer: { id: booking.customer.userId, fullName: booking.customer.fullName, phone: booking.customer.phoneNumber, email: customer?.email ?? "" },
-    courtId: booking.courtId, courtName: booking.courtName, courtType: booking.courtType,
-    startDate: booking.bookingDate, endDate: booking.bookingDate, startTime: booking.startTime, endTime: booking.endTime,
-    status: booking.bookingStatus, paymentStatus: booking.paymentStatus,
-    courtFee: link?.originalCourtPrice ?? booking.courtPrice, serviceFee: booking.servicePrice, amount: booking.totalAmount,
-    services: booking.services.map((service) => ({ ...service, unitPrice: service.priceAtBooking })),
-    cancellationReason: booking.cancelReason, cancelledAt: booking.cancelledAt, expireAt: booking.expireAt, createdAt: booking.createdAt,
-    staffName: staffNames.get(booking.bookingId), paymentMethod: booking.paymentMethod, paidAt: booking.paidAt, paidBy: booking.paidBy,
-    ...(link ? { packageId: `recurring-${link.packageId}`, packageCode: link.packageCode,
-      packageStatus: recurringBooking(link.packageId).status, discountPercent: link.discountPercent, discountAmount: link.discountAmount } : {}),
-  };
-}
 // ===== Booking lẻ thật từ backend (/api/v1/staff/bookings) =====
 const hhmm = (value) => (value ? String(value).slice(0, 5) : "");
 // Mã phương thức thanh toán lưu trong DB -> nhãn tiếng Việt
@@ -243,8 +225,14 @@ function realToStaffBooking(booking) {
     status: booking.bookingStatus, paymentStatus: booking.paymentStatus,
     paymentMethodCode: booking.paymentMethod,
     courtFee: Number(booking.courtPrice ?? 0), serviceFee: Number(booking.servicePrice ?? 0), amount: Number(booking.totalAmount ?? 0),
-    // Dịch vụ đi kèm chưa có API, giữ danh sách rỗng
-    services: [],
+    services: (booking.services ?? []).map((service) => ({
+      serviceId: service.serviceId,
+      name: service.name,
+      quantity: Number(service.quantity ?? 0),
+      unitPrice: Number(service.priceAtBooking ?? 0),
+      priceAtBooking: Number(service.priceAtBooking ?? 0),
+      subtotal: Number(service.subtotal ?? 0),
+    })),
     cancellationReason: booking.cancelReason, cancelledAt: booking.cancelledAt, expireAt: booking.expireAt, createdAt: booking.createdAt,
     staffName: booking.paidBy || booking.createdByStaffName || "–",
     paymentMethod: paymentMethodLabel(booking.paymentMethod), paidAt: booking.paidAt, paidBy: booking.paidBy,
@@ -336,6 +324,14 @@ export const staffBookingRealApi = {
     try { return (await axiosClient.patch(`/api/v1/staff/bookings/${id}/no-show`)).data; }
     catch (err) { throw staffApiError(err, "Không thể đánh dấu bùng lịch"); }
   },
+  addService: async (id, serviceId, quantity) => {
+    try { return (await axiosClient.post(`/api/v1/staff/bookings/${id}/services`, { serviceId: Number(serviceId), quantity: Number(quantity) })).data; }
+    catch (err) { throw staffApiError(err, "Không thể thêm dịch vụ vào booking"); }
+  },
+  removeService: async (id, serviceId) => {
+    try { return (await axiosClient.delete(`/api/v1/staff/bookings/${id}/services/${serviceId}`)).data; }
+    catch (err) { throw staffApiError(err, "Không thể xóa dịch vụ khỏi booking"); }
+  },
 };
 
 // Thêm API xem trước lịch đặt cố định (Preview & Check conflict) //BaoDen Them
@@ -372,11 +368,11 @@ export const bookingApi = {
     return realToStaffBooking(await staffBookingRealApi.getBooking(id));
   },
   getStaffBookingOptions: async () => {
-    // Sân và gợi ý khách lấy từ backend; danh mục dịch vụ chưa có API nên vẫn dùng mock.
+    // Sân, gợi ý khách và danh mục dịch vụ lấy từ backend.
     const [courtsRes, bookings, services] = await Promise.all([
       axiosClient.get("/api/v1/courts").then((res) => res.data).catch(() => []),
       staffBookingRealApi.getBookings().catch(() => []),
-      bookingContractApi.getServices(),
+      serviceApi.getAllServices(),
     ]);
     const customers = new Map();
     bookings.forEach((booking) => {
@@ -386,7 +382,7 @@ export const bookingApi = {
       }
     });
     return { courts: courtsRes.map((court) => ({ ...court, id: court.id })),
-      services: services.map((service) => ({ ...service, id: service.serviceId })),
+      services: services.filter((service) => service.status === "ACTIVE").map((service) => ({ ...service, id: service.serviceId })),
       customers: [...customers.values()],
     };
   },
@@ -402,21 +398,10 @@ export const bookingApi = {
   },
   rescheduleStaffBooking: async (id, payload) =>
     realToStaffBooking(await staffBookingRealApi.reschedule(id, payload)),
-  addStaffBookingService: async (id, serviceId, quantity) => {
-    // POST services chỉ trả phần tiền/dịch vụ; đọc lại detail trước khi cập nhật toàn bộ màn hình.
-    await bookingContractApi.addService(id, { serviceId: Number(serviceId), quantity: Number(quantity) });
-    return toStaffBooking(await bookingContractApi.getBooking(id));
-  },
-
-  // TẠM NGOÀI CONTRACT: bản DOCX chưa có xóa dịch vụ, thu tiền và các API gói cố định.
-  // Các hàm này giữ demo UI đang có, không khai báo chúng là endpoint đã được thống nhất.
-  removeStaffBookingService: (id, serviceId) => staffRequest(() => {
-    const booking = staffBooking(id);
-    requireEditableServices(booking);
-    booking.services = booking.services.filter((item) => item.serviceId !== Number(serviceId));
-    recalculate(booking);
-    return toStaffBooking(booking);
-  }),
+  addStaffBookingService: async (id, serviceId, quantity) =>
+    realToStaffBooking(await staffBookingRealApi.addService(id, serviceId, quantity)),
+  removeStaffBookingService: async (id, serviceId) =>
+    realToStaffBooking(await staffBookingRealApi.removeService(id, serviceId)),
   collectStaffBookingPayment: async (id) => {
     // Kết toán qua backend (booking lẻ và buổi trong gói)
     return realToStaffBooking(await staffBookingRealApi.settle(id));

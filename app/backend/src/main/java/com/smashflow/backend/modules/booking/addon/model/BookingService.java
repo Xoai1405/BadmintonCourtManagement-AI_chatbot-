@@ -45,4 +45,7 @@ public class BookingService {
     @Column(nullable = false)
     private BigDecimal subtotal;
 
+    @Column(name = "service_name_at_booking", nullable = false, length = 100)
+    private String serviceNameAtBooking;
+
 }
