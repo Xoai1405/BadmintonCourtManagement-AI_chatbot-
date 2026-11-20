@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CalendarDays,
   ChartNoAxesColumnIncreasing,
@@ -10,7 +10,7 @@ import {
   Trophy,
   UsersRound,
 } from "lucide-react";
-import { mockReportData } from "../../mocks/apiContract.js";
+import { reportApi } from "../../api/reportApi.js";
 import DateRangePicker from "../../components/booking/DateRangePicker.jsx";
 
 const heatColor = (value) => {
@@ -20,6 +20,35 @@ const heatColor = (value) => {
   if (value >= 20) return "#a8ebc8";
   return "#d9f5e6";
 };
+
+const periods = ["Ngày", "Tuần", "Tháng"];
+const statusMeta = {
+  COMPLETED: { label: "Hoàn thành", color: "#17a86b" },
+  CONFIRMED: { label: "Đã xác nhận", color: "#4a9be8" },
+  PENDING: { label: "Chờ xác nhận", color: "#f2bb3c" },
+  CANCELLED: { label: "Đã hủy", color: "#e66b68" },
+  NO_SHOW: { label: "No-show", color: "#a66ad6" },
+  CHECKED_IN: { label: "Đã check-in", color: "#b7c2bd" },
+};
+const sourceMeta = {
+  COURT: { label: "Tiền thuê sân", color: "#159b61" },
+  SERVICE: { label: "Dịch vụ đi kèm", color: "#83e2ae" },
+};
+const todayInVietnam = () => {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date()).map(({ type, value }) => [type, value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+};
+const initialDateRange = () => {
+  const end = todayInVietnam();
+  const start = new Date(`${end}T00:00:00Z`);
+  start.setUTCDate(start.getUTCDate() - 89);
+  return { start: start.toISOString().slice(0, 10), end };
+};
+const formatMoney = (amount) => `${Number(amount).toLocaleString("vi-VN")} ₫`;
+const formatPercent = (value) => `${Number(value).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%`;
+const changeText = (value) => `${value > 0 ? "↑" : value < 0 ? "↓" : "→"} ${formatPercent(Math.abs(value))}`;
 
 function formatDate(value) {
   if (!value) return "";
@@ -39,12 +68,13 @@ function ReportCard({ icon: Icon, title, className = "", children }) {
   );
 }
 
-function RevenueChart({ period }) {
-  const { labels, values } = mockReportData.revenueByPeriod[period];
-  const maxValue = Math.ceil(Math.max(...values) / 20) * 20;
+function RevenueChart({ period, revenueByPeriod }) {
+  const { labels, values } = revenueByPeriod[period] ?? { labels: [], values: [] };
+  const millions = values.map((value) => Number(value) / 1000000);
+  const maxValue = Math.max(1, Math.ceil(Math.max(0, ...millions) / 4) * 4);
   const points = values.map((value, index) => {
     const x = values.length === 1 ? 540 : 52 + (index * 488) / (values.length - 1);
-    const y = 164 - (value / maxValue) * 132;
+    const y = 164 - (millions[index] / maxValue) * 132;
     return { x, y, value, label: labels[index] };
   });
   const line = points.map(({ x, y }) => `${x},${y}`).join(" ");
@@ -80,14 +110,37 @@ function RevenueChart({ period }) {
 }
 
 export default function ReportsPage() {
-  const { periods, kpis, bookingStatuses, revenueSources, occupancy, topCourts } = mockReportData;
-  const { weekDays, timeSlots, values: heatmap } = mockReportData.heatmap;
+  const [reportData, setReportData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
   const [period, setPeriod] = useState("Tháng");
-  const [startDate, setStartDate] = useState(mockReportData.defaultDateRange.start);
-  const [endDate, setEndDate] = useState(mockReportData.defaultDateRange.end);
+  const [initialRange] = useState(initialDateRange);
+  const [startDate, setStartDate] = useState(initialRange.start);
+  const [endDate, setEndDate] = useState(initialRange.end);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-  const totals = useMemo(() => bookingStatuses.reduce((sum, item) => sum + item.count, 0), []);
-  const bookingGradient = useMemo(() => {
+  useEffect(() => {
+    if (!startDate || !endDate) return;
+    const controller = new AbortController();
+    reportApi.getReport(startDate, endDate, controller.signal)
+      .then((result) => { setReportData(result); setError(""); setLoading(false); })
+      .catch((requestError) => {
+        if (requestError.code === "ERR_CANCELED") return;
+        setError(requestError.message); setLoading(false);
+      });
+    return () => controller.abort();
+  }, [startDate, endDate, retry]);
+  const { kpis, revenueByPeriod, occupancy, topCourts } = reportData ?? {};
+  const { weekDays, timeSlots, values: heatmap } = reportData?.heatmap ?? {};
+  const bookingStatuses = (reportData?.bookingStatuses ?? []).map((item) => ({
+    ...item, ...(statusMeta[item.code] ?? { label: item.code, color: "#b7c2bd" }),
+  }));
+  const revenueSources = (reportData?.revenueSources ?? []).map((item) => ({
+    ...item, ...(sourceMeta[item.code] ?? { label: item.code, color: "#b7c2bd" }),
+  }));
+  const totals = bookingStatuses.reduce((sum, item) => sum + item.count, 0);
+  const bookingGradient = (() => {
+    if (totals === 0) return "#d9f5e6 0% 100%";
     let position = 0;
     return bookingStatuses.map((item) => {
       const next = position + (item.count / totals) * 100;
@@ -95,17 +148,15 @@ export default function ReportsPage() {
       position = next;
       return segment;
     }).join(", ");
-  }, [totals]);
+  })();
   const sourceTotal = revenueSources.reduce((sum, item) => sum + item.amount, 0);
-  const sourceGradient = revenueSources.reduce((segments, item) => {
+  const sourceGradient = sourceTotal === 0 ? "#d9f5e6 0% 100%" : revenueSources.reduce((segments, item) => {
     const start = segments.position;
     const end = start + (item.amount / sourceTotal) * 100;
     segments.parts.push(`${item.color} ${start}% ${end}%`);
     segments.position = end;
     return segments;
   }, { parts: [], position: 0 }).parts.join(", ");
-  const formatMoney = (amount) => `${amount.toLocaleString("vi-VN")} ₫`;
-  const formatPercent = (value) => `${value.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%`;
 
   return (
     <section className="reports-page" aria-labelledby="reports-title">
@@ -125,33 +176,42 @@ export default function ReportsPage() {
             onChange={({ startDate: nextStartDate, endDate: nextEndDate }) => {
               setStartDate(nextStartDate);
               setEndDate(nextEndDate);
+              setReportData(null);
+              setError("");
+              setLoading(Boolean(nextStartDate && nextEndDate));
             }}
           />
         </div>
       </header>
       <div className="reports-date-summary" aria-live="polite">
-        Khoảng thời gian: {formatDate(startDate)} – {formatDate(endDate)}
+        {startDate && endDate ? `Khoảng thời gian: ${formatDate(startDate)} – ${formatDate(endDate)}` : "Hãy chọn khoảng thời gian để xem báo cáo."}
       </div>
+
+      {loading && <div className="report-card" role="status">Đang tải báo cáo…</div>}
+      {error && <div className="report-card" role="alert">{error} <button type="button" onClick={() => {
+        setLoading(true); setError(""); setRetry((value) => value + 1);
+      }}>Thử lại</button></div>}
+      {reportData && <>
 
       <div className="report-kpis" aria-label="Chỉ số tổng quan">
         <article className="report-kpi report-kpi--revenue">
           <span className="report-kpi-icon"><Coins size={22} aria-hidden="true" /></span>
-          <div className="report-kpi-content"><span className="report-kpi-label">Tổng doanh thu</span><strong>{formatMoney(kpis.revenue)}</strong><small><b>↑ {formatPercent(kpis.revenueChangePercent)}</b> so với kỳ trước</small></div>
+          <div className="report-kpi-content"><span className="report-kpi-label">Tổng doanh thu</span><strong>{formatMoney(kpis.revenue)}</strong><small><b>{changeText(kpis.revenueChangePercent)}</b> so với kỳ trước</small></div>
           <svg className="report-sparkline" viewBox="0 0 90 42" aria-hidden="true"><path d="M2 35 17 28 29 31 43 18 56 23 69 9 88 4" /></svg>
         </article>
         <article className="report-kpi report-kpi--bookings">
           <span className="report-kpi-icon"><CalendarDays size={22} aria-hidden="true" /></span>
-          <div className="report-kpi-content"><span className="report-kpi-label">Tổng lượt đặt sân</span><strong>{kpis.bookingCount.toLocaleString("vi-VN")}</strong><small><b>↑ {formatPercent(kpis.bookingChangePercent)}</b> so với kỳ trước</small></div>
+          <div className="report-kpi-content"><span className="report-kpi-label">Tổng lượt đặt sân</span><strong>{kpis.bookingCount.toLocaleString("vi-VN")}</strong><small><b>{changeText(kpis.bookingChangePercent)}</b> so với kỳ trước</small></div>
           <svg className="report-sparkline" viewBox="0 0 90 42" aria-hidden="true"><path d="M2 35 15 26 28 30 40 18 52 23 65 11 77 14 88 4" /></svg>
         </article>
         <article className="report-kpi report-kpi--customers">
           <span className="report-kpi-icon"><UsersRound size={22} aria-hidden="true" /></span>
-          <div className="report-kpi-content"><span className="report-kpi-label">Khách hàng mới</span><strong>{kpis.newCustomerCount.toLocaleString("vi-VN")}</strong><small><b>↑ {formatPercent(kpis.newCustomerChangePercent)}</b> so với kỳ trước</small></div>
+          <div className="report-kpi-content"><span className="report-kpi-label">Khách hàng mới</span><strong>{kpis.newCustomerCount.toLocaleString("vi-VN")}</strong><small><b>{changeText(kpis.newCustomerChangePercent)}</b> so với kỳ trước</small></div>
           <svg className="report-sparkline" viewBox="0 0 90 42" aria-hidden="true"><path d="M2 35 15 29 27 31 40 17 53 22 67 9 77 13 88 4" /></svg>
         </article>
         <article className="report-kpi report-kpi--occupancy">
           <span className="report-kpi-icon"><ChartNoAxesColumnIncreasing size={22} aria-hidden="true" /></span>
-          <div className="report-kpi-content"><span className="report-kpi-label">Tỷ lệ lấp đầy sân</span><strong>{formatPercent(kpis.occupancyPercent)}</strong><small><b>↑ {formatPercent(kpis.occupancyChangePercent)}</b> so với kỳ trước</small></div>
+          <div className="report-kpi-content"><span className="report-kpi-label">Tỷ lệ lấp đầy sân</span><strong>{formatPercent(kpis.occupancyPercent)}</strong><small><b>{changeText(kpis.occupancyChangePercent)}</b> so với kỳ trước</small></div>
           <svg className="report-sparkline" viewBox="0 0 90 42" aria-hidden="true"><path d="M2 35 15 30 28 25 41 29 54 16 68 19 78 8 88 4" /></svg>
         </article>
       </div>
@@ -161,16 +221,16 @@ export default function ReportsPage() {
           <div className="report-card-toolbar" role="group" aria-label="Khoảng tổng hợp doanh thu">
             {periods.map((item) => <button key={item} type="button" aria-pressed={period === item} className={period === item ? "is-selected" : ""} onClick={() => setPeriod(item)}>{item}</button>)}
           </div>
-          <RevenueChart period={period} />
+          <RevenueChart period={period} revenueByPeriod={revenueByPeriod} />
         </ReportCard>
 
         <ReportCard icon={PieChart} title="Lượt đặt sân theo trạng thái" className="report-status-card">
           <div className="report-donut-layout">
-            <div className="report-donut" style={{ "--donut-gradient": `conic-gradient(${bookingGradient})` }} role="img" aria-label={`${kpis.bookingCount.toLocaleString("vi-VN")} lượt đặt sân theo trạng thái`}>
-              <div><strong>{kpis.bookingCount.toLocaleString("vi-VN")}</strong><span>Booking</span></div>
+            <div className="report-donut" style={{ "--donut-gradient": `conic-gradient(${bookingGradient})` }} role="img" aria-label={`${totals.toLocaleString("vi-VN")} lượt đặt sân theo trạng thái`}>
+              <div><strong>{totals.toLocaleString("vi-VN")}</strong><span>Booking</span></div>
             </div>
             <ul className="report-legend">
-              {bookingStatuses.map((item) => <li key={item.label}><span className="report-legend-swatch" style={{ backgroundColor: item.color }} /><span className="report-legend-name">{item.label}</span><strong>{item.count.toLocaleString("vi-VN")} <small>({(item.count / totals * 100).toFixed(1).replace(".", ",")}%)</small></strong></li>)}
+              {bookingStatuses.map((item) => <li key={item.code}><span className="report-legend-swatch" style={{ backgroundColor: item.color }} /><span className="report-legend-name">{item.label}</span><strong>{item.count.toLocaleString("vi-VN")} <small>({(totals ? item.count / totals * 100 : 0).toFixed(1).replace(".", ",")}%)</small></strong></li>)}
             </ul>
           </div>
         </ReportCard>
@@ -181,7 +241,7 @@ export default function ReportsPage() {
               <div><strong>{(kpis.revenue / 1000000).toLocaleString("vi-VN")}M</strong><span>Tổng doanh thu</span></div>
             </div>
             <ul className="report-legend report-source-legend">
-              {revenueSources.map((source) => <li key={source.label}><span className="report-legend-swatch" style={{ backgroundColor: source.color }} /><span className="report-legend-name">{source.label}<strong>{formatMoney(source.amount)} <small>({formatPercent(source.amount / sourceTotal * 100)})</small></strong></span></li>)}
+              {revenueSources.map((source) => <li key={source.code}><span className="report-legend-swatch" style={{ backgroundColor: source.color }} /><span className="report-legend-name">{source.label}<strong>{formatMoney(source.amount)} <small>({formatPercent(sourceTotal ? source.amount / sourceTotal * 100 : 0)})</small></strong></span></li>)}
             </ul>
           </div>
         </ReportCard>
@@ -204,7 +264,7 @@ export default function ReportsPage() {
           <div className="report-table-scroll">
             <table className="report-ranking-table">
               <thead><tr><th scope="col">#</th><th scope="col">Sân</th><th scope="col">Lượt đặt</th><th scope="col">Thời gian sử dụng</th><th scope="col">Tỷ lệ lấp đầy</th></tr></thead>
-              <tbody>{topCourts.map((court, index) => <tr key={court.name}><td>{index + 1}</td><td><strong>{court.name}</strong></td><td>{court.bookings}</td><td>{court.hours} giờ</td><td><div className="report-rank-fill"><span>{court.fillPercent}%</span><i><b style={{ width: `${court.fillPercent}%` }} /></i></div></td></tr>)}</tbody>
+              <tbody>{topCourts.length ? topCourts.map((court, index) => <tr key={court.courtId}><td>{index + 1}</td><td><strong>{court.name}</strong></td><td>{court.bookings}</td><td>{court.hours} giờ</td><td><div className="report-rank-fill"><span>{court.fillPercent}%</span><i><b style={{ width: `${court.fillPercent}%` }} /></i></div></td></tr>) : <tr><td colSpan="5">Chưa có sân đang hoạt động.</td></tr>}</tbody>
             </table>
           </div>
         </ReportCard>
@@ -228,6 +288,7 @@ export default function ReportsPage() {
         </div>
         <p className="report-heatmap-note"><Info size={14} aria-hidden="true" /> Màu sắc thể hiện tỷ lệ thời gian đã đặt trên tổng thời gian khai thác.</p>
       </ReportCard>
+      </>}
     </section>
   );
 }
