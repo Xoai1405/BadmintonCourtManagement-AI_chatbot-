@@ -271,3 +271,67 @@ export const mockStaffRecurringSessionLinks = mockRecurringSessions.map((session
   bookingId: 1001 + index, packageId: session.packageId, packageCode: session.packageCode,
   originalCourtPrice: session.courtFee, discountPercent: session.discountPercent, discountAmount: session.discountAmount,
 }));
+
+// Dữ liệu minh họa cho trang báo cáo manager; giữ riêng cấu trúc dữ liệu để
+// có thể thay bằng response API mà không sửa phần trình bày của trang.
+export const mockReportData = {
+  defaultDateRange: { start: "2026-09-01", end: "2026-11-30" },
+  periods: ["Ngày", "Tuần", "Tháng"],
+  kpis: {
+    revenue: 125500000,
+    revenueChangePercent: 12.5,
+    bookingCount: 1248,
+    bookingChangePercent: 8.2,
+    newCustomerCount: 86,
+    newCustomerChangePercent: 6.1,
+    occupancyPercent: 78.5,
+    occupancyChangePercent: 5.3,
+  },
+  revenueByPeriod: {
+    Ngày: {
+      labels: ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"],
+      values: [8, 18, 13, 25, 31, 47, 39],
+    },
+    Tuần: {
+      labels: ["T2", "T3", "T4", "T5", "T6", "T7", "CN"],
+      values: [42, 56, 49, 68, 82, 106, 94],
+    },
+    Tháng: {
+      labels: ["T9/2026", "T10/2026", "T11/2026"],
+      values: [61, 82, 125.5],
+    },
+  },
+  bookingStatuses: [
+    { label: "Hoàn thành", count: 650, color: "#17a86b" },
+    { label: "Đã xác nhận", count: 180, color: "#4a9be8" },
+    { label: "Chờ thanh toán", count: 120, color: "#f2bb3c" },
+    { label: "Đã hủy", count: 120, color: "#e66b68" },
+    { label: "No-show", count: 45, color: "#a66ad6" },
+    { label: "Khác", count: 133, color: "#b7c2bd" },
+  ],
+  revenueSources: [
+    { label: "Tiền thuê sân", amount: 110000000, color: "#159b61" },
+    { label: "Dịch vụ đi kèm", amount: 15500000, color: "#83e2ae" },
+  ],
+  occupancy: { bookedHours: 1885, availableHours: 2400 },
+  topCourts: [
+    { name: "Sân 1", bookings: 320, hours: 640, fillPercent: 85 },
+    { name: "Sân 2", bookings: 280, hours: 560, fillPercent: 75 },
+    { name: "Sân 3", bookings: 245, hours: 490, fillPercent: 68 },
+    { name: "Sân 4", bookings: 210, hours: 420, fillPercent: 58 },
+    { name: "Sân 5", bookings: 193, hours: 386, fillPercent: 53 },
+  ],
+  heatmap: {
+    weekDays: ["T2", "T3", "T4", "T5", "T6", "T7", "CN"],
+    timeSlots: ["6–8h", "8–10h", "10–12h", "12–14h", "14–16h", "16–18h", "18–20h", "20–22h"],
+    values: [
+      [18, 24, 22, 31, 43, 68, 83, 73],
+      [14, 19, 24, 28, 39, 64, 81, 69],
+      [20, 23, 31, 26, 44, 63, 85, 72],
+      [27, 34, 46, 32, 41, 56, 77, 65],
+      [31, 37, 51, 39, 48, 72, 91, 83],
+      [65, 72, 62, 67, 74, 88, 97, 93],
+      [74, 68, 48, 51, 76, 91, 98, 95],
+    ],
+  },
+};
