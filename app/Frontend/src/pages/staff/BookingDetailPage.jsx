@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Check, CheckCheck, CircleAlert, CreditCard } from "lucide-react";
+import { ArrowLeft, CalendarClock, Check, CheckCheck, CircleAlert, CreditCard } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { bookingApi, bookingStatusLabel, bookingWorkflowLabel, formatBookingDate, formatBookingMoney, settlementLabel, settlementStatus } from "../../api/bookingApi.js";
 import { useAuth } from "../../hooks/useAuth";
 import RecurringBookingDetail from "./RecurringBookingDetail.jsx";
+import RescheduleBookingModal from "../../components/booking/RescheduleBookingModal.jsx";
+import { canRescheduleBooking, useNow } from "../../utils/bookingTime";
 
 const actions = [
   { status: "CONFIRMED", label: "Xác nhận", from: "PENDING" },
@@ -33,6 +35,8 @@ function BookingDetail({ id }) {
   const reasonRef = useRef(null);
   const activeIdRef = useRef(null);
   const busyRef = useRef(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const now = useNow();
 
   useEffect(() => {
     let cancelled = false;
@@ -73,6 +77,25 @@ function BookingDetail({ id }) {
     mutate(operation, payment ? "Đã xác nhận thu đủ tiền, booking đã kết toán." : `Đã cập nhật booking: ${bookingStatusLabel(confirmation.status).toLowerCase()}.`);
     dialogRef.current.close();
   };
+  const reschedule = async (payload) => {
+    if (busyRef.current) return false;
+    busyRef.current = true; setBusy(true); setError(""); setNotice("");
+    try {
+      const updated = await bookingApi.rescheduleStaffBooking(id, payload);
+      if (activeIdRef.current === id) {
+        setBooking(updated);
+        setNotice("Đã dời lịch booking.");
+      }
+      return true;
+    } catch (err) {
+      if (activeIdRef.current === id) setError(err.message);
+      // Modal cần nhận lỗi để hiển thị ngay trong popup, thay vì chỉ hiện ở trang nền.
+      throw err;
+    } finally {
+      busyRef.current = false;
+      if (activeIdRef.current === id) setBusy(false);
+    }
+  };
 
   if (loadError?.id === id) return <section className="staff-card staff-error-page" role="alert"><CircleAlert size={32} /><h1>Không thể mở booking</h1><p>{loadError.message}</p><Link className="staff-button" to="/staff/bookings"><ArrowLeft size={16} />Quay lại danh sách</Link></section>;
   if (!booking || String(booking.id) !== id) return <div className="staff-empty staff-card" role="status"><span className="staff-loading-dot" />Đang tải chi tiết booking…</div>;
@@ -90,8 +113,11 @@ function BookingDetail({ id }) {
   const packageActive = !isSession || booking.packageStatus === "ACTIVE";
   // BR-16: chỉ thêm dịch vụ khi đang chơi và chưa kết toán
   const canEditServices = booking.status === "CHECKED_IN" && !settled && packageActive;
-  // Buổi trong gói hủy theo cả gói ở trang gói
-  const canCancel = ["PENDING", "CONFIRMED"].includes(booking.status) && packageActive && !isSession;
+  // Nhân viên có thể chủ động hủy booking/buổi chưa check-in (ví dụ sân hư hoặc bảo trì).
+  // Với khoản đã thu, backend giữ lại paymentStatus để xử lý hoàn tiền riêng.
+  const canCancel = ["PENDING", "CONFIRMED"].includes(booking.status) && packageActive;
+  // Nút "Dời lịch": booking lẻ Chờ xác nhận / Đã xác nhận, tự ẩn khi còn <= 1 tiếng trước giờ chơi
+  const canReschedule = canRescheduleBooking(booking, now);
   // Chỉ thu đủ tiền sau khi khách check-in
   const canCollect = booking.status === "CHECKED_IN" && !settled && packageActive;
   const duration = ((Number(booking.endTime.slice(0, 2)) * 60 + Number(booking.endTime.slice(3)))
@@ -111,7 +137,10 @@ function BookingDetail({ id }) {
           <h2 id="staff-info-title" className="staff-sr-only">{isSession ? "Thông tin buổi đặt" : "Thông tin booking"}</h2>
           <dl className="staff-info-list staff-detail-info-list">
             <div><dt>Khách</dt><dd>{booking.customer.fullName} – {booking.customer.phone}{booking.customer.email && ` – ${booking.customer.email}`}</dd></div>
-            <div><dt>Sân / Giờ</dt><dd>{booking.courtName} – {formatBookingDate(booking.startDate)} – {booking.startTime}–{booking.endTime}</dd></div>
+            <div><dt>Sân / Giờ</dt><dd style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <div>{booking.courtName} – {formatBookingDate(booking.startDate)} – {booking.startTime}–{booking.endTime}</div>
+              {canReschedule && <button type="button" className="staff-button staff-reschedule-button" disabled={busy} onClick={() => setRescheduleOpen(true)}><CalendarClock size={14} />Dời lịch</button>}
+            </dd></div>
             <div><dt>Thanh toán</dt><dd style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
               <span className={`staff-payment-label ${paid ? "is-paid" : ""}`}>{paid ? "Đã thanh toán tiền sân" : "Chưa thanh toán tiền sân"}</span>
               {paid && <span>Phương thức: <strong>{booking.paymentMethod || "–"}</strong></span>}
@@ -198,6 +227,7 @@ function BookingDetail({ id }) {
         </section>
       </div>
 
+      {rescheduleOpen && <RescheduleBookingModal booking={booking} onClose={() => setRescheduleOpen(false)} onConfirm={reschedule} />}
       <dialog ref={dialogRef} className="staff-dialog" aria-labelledby="staff-confirm-title" aria-describedby="staff-confirm-description" onCancel={() => setConfirmation(null)} onClick={(event) => { if (event.target === event.currentTarget) dialogRef.current.close(); }}>
         <div className={`staff-dialog-icon${confirmation?.type === "cancel" ? " is-danger" : ""}`}>{confirmation?.type === "payment" ? <CreditCard size={25} /> : <CircleAlert size={25} />}</div>
         <h2 id="staff-confirm-title">{confirmation?.type === "payment" ? "Xác nhận đã thu đủ tiền?" : confirmation?.type === "cancel" ? "Hủy booking này?" : "Đánh dấu khách không đến?"}</h2>

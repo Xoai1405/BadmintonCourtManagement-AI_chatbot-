@@ -35,7 +35,14 @@ public class CustomUserDetails extends User {
             LocalDateTime createdAt,
             LocalDateTime passwordChangedAt) {
 
-        super(email, password, List.of(new SimpleGrantedAuthority("ROLE_" + role.name())));
+        super(
+                email,
+                password,
+                status == UserStatus.ACTIVE,
+                true,
+                true,
+                status == UserStatus.ACTIVE,
+                List.of(new SimpleGrantedAuthority("ROLE_" + role.name())));
 
         this.userId = userId;
         this.fullName = fullName;

@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,6 +15,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.smashflow.backend.modules.booking.single.service.BookingService;
+import com.smashflow.backend.modules.booking.addon.dto.request.BookingServiceRequest;
+import com.smashflow.backend.modules.booking.addon.service.BookingAddonService;
+import com.smashflow.backend.modules.booking.single.dto.request.CancelBookingRequest;
+import com.smashflow.backend.modules.booking.single.dto.request.RescheduleBookingRequest;
 import com.smashflow.backend.modules.booking.staff.dto.request.StaffCreateBookingRequest;
 import com.smashflow.backend.modules.booking.staff.dto.response.StaffBookingResponse;
 import com.smashflow.backend.modules.identity.security.userdetails.CustomUserDetails;
@@ -31,6 +36,20 @@ import lombok.RequiredArgsConstructor;
 public class StaffBookingController {
 
         private final BookingService bookingService;
+        private final BookingAddonService addonService;
+
+        @PostMapping("/{bookingId}/services")
+        public ResponseEntity<StaffBookingResponse> addService(@PathVariable Long bookingId,
+                        @Valid @RequestBody BookingServiceRequest request) {
+                addonService.add(bookingId, request);
+                return ResponseEntity.status(HttpStatus.CREATED).body(bookingService.getStaffBookingDetail(bookingId));
+        }
+
+        @DeleteMapping("/{bookingId}/services/{serviceId}")
+        public StaffBookingResponse removeService(@PathVariable Long bookingId, @PathVariable Long serviceId) {
+                addonService.remove(bookingId, serviceId);
+                return bookingService.getStaffBookingDetail(bookingId);
+        }
 
         @GetMapping
         public ResponseEntity<List<StaffBookingResponse>> getBookings() {
@@ -54,6 +73,20 @@ public class StaffBookingController {
         @PatchMapping("/{bookingId}/check-in")
         public ResponseEntity<StaffBookingResponse> checkIn(@PathVariable Long bookingId) {
                 return ResponseEntity.ok(bookingService.checkInBooking(bookingId));
+        }
+
+        @PatchMapping("/{bookingId}/cancel")
+        public ResponseEntity<StaffBookingResponse> cancel(
+                        @PathVariable Long bookingId,
+                        @Valid @RequestBody CancelBookingRequest request) {
+                return ResponseEntity.ok(bookingService.cancelBookingByStaff(bookingId, request.reason()));
+        }
+
+        @PatchMapping("/{bookingId}/reschedule")
+        public ResponseEntity<StaffBookingResponse> reschedule(
+                        @PathVariable Long bookingId,
+                        @Valid @RequestBody RescheduleBookingRequest request) {
+                return ResponseEntity.ok(bookingService.rescheduleBookingByStaff(bookingId, request));
         }
 
         // Xác nhận thu đủ tiền (kết toán)

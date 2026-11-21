@@ -1,6 +1,7 @@
 package com.smashflow.backend.modules.booking.addon.model;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 import com.smashflow.backend.modules.booking.addon.enums.Category;
 import com.smashflow.backend.modules.booking.addon.enums.ServiceStatus;
@@ -42,4 +43,7 @@ public class Service {
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     ServiceStatus status;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 }

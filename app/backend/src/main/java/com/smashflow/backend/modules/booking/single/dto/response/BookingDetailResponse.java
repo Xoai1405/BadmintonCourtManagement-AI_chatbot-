@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import com.smashflow.backend.modules.booking.single.model.enums.PaymentStatus;
+import com.smashflow.backend.modules.booking.addon.dto.response.BookingServiceResponse;
+import java.util.List;
 import com.smashflow.backend.modules.court.model.enums.CourtType;
 
 @Data
@@ -40,6 +42,7 @@ public class BookingDetailResponse {
     private BigDecimal courtPrice;
     private BigDecimal servicePrice;
     private BigDecimal totalAmount;
+    private List<BookingServiceResponse> services;
 
     // ===== Trạng thái booking =====
     private String bookingStatus;
