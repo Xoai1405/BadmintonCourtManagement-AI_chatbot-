@@ -25,7 +25,9 @@ import com.smashflow.backend.modules.booking.recurring.dto.response.RecurringBoo
 import com.smashflow.backend.modules.booking.recurring.model.RecurringBooking;
 import com.smashflow.backend.modules.booking.recurring.repository.RecurringBookingRepository;
 import com.smashflow.backend.modules.booking.recurring.service.RecurringBookingService;
+import com.smashflow.backend.modules.booking.single.exception.BookingConflictException;
 import com.smashflow.backend.modules.booking.single.repository.BookingRepository;
+import com.smashflow.backend.modules.booking.staff.dto.request.StaffCreateRecurringBookingRequest;
 import com.smashflow.backend.modules.court.model.BusinessHourConfig;
 import com.smashflow.backend.modules.court.model.Court;
 import com.smashflow.backend.modules.court.model.DayOfWeek;
@@ -72,6 +74,7 @@ class RecurringBookingTest {
     private Court sampleCourt;
     private BusinessHourConfig businessHourConfig;
     private User sampleCustomer;
+    private User sampleStaff;
 
     @BeforeEach
     void setUp() {
@@ -90,6 +93,12 @@ class RecurringBookingTest {
         sampleCustomer.setFullName("Nguyễn Văn Khách");
         sampleCustomer.setRole(Role.CUSTOMER);
         sampleCustomer.setStatus(UserStatus.ACTIVE);
+
+        sampleStaff = new User();
+        sampleStaff.setId(20L);
+        sampleStaff.setFullName("Đoàn Thị Nhân Viên");
+        sampleStaff.setRole(Role.STAFF);
+        sampleStaff.setStatus(UserStatus.ACTIVE);
     }
 
     @Test
@@ -115,7 +124,6 @@ class RecurringBookingTest {
         assertEquals(new BigDecimal("10.0"), response.discountPercent());
         assertTrue(response.totalSessions() > 0);
 
-        // Kiểm tra tiền: rawTotal = totalSessions * 150.000; totalPrice = rawTotal * 0.90
         BigDecimal expectedRaw = new BigDecimal("150000").multiply(BigDecimal.valueOf(response.totalSessions()));
         BigDecimal expectedTotal = expectedRaw.multiply(new BigDecimal("0.90")).setScale(0, RoundingMode.HALF_UP);
         assertEquals(expectedTotal, response.totalPrice());
@@ -135,7 +143,6 @@ class RecurringBookingTest {
         when(businessHourConfigRepository.findById((short) 1)).thenReturn(Optional.of(businessHourConfig));
         when(pricingService.calculateCourtPrice(any(), any(), any())).thenReturn(new BigDecimal("100000"));
         when(discountConfigRepository.findApplicableDiscount(eq(DiscountStatus.ACTIVE), anyInt())).thenReturn(Optional.empty());
-        // Giả lập ngày đầu tiên bị trùng
         when(bookingRepository.existsOverlap(anyLong(), any(), any(), any(), any())).thenReturn(true);
 
         RecurringBookingPreviewResponse response = recurringBookingService.previewRecurringBooking(request);
@@ -170,7 +177,82 @@ class RecurringBookingTest {
 
         assertNotNull(response);
         assertEquals(99L, response.recurringBookingId());
-        // Kiểm tra đã gọi lưu danh sách các buổi con
         verify(bookingRepository, times(1)).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("Cố định 4 (Biên): Chặn đặt khi chu kỳ không có ngày nào khớp với thứ được chọn")
+    void testPreview_NoSessionsMatched_ShouldThrowException() {
+        LocalDate start = LocalDate.of(2027, 1, 4); // Thứ 2
+        LocalDate end = LocalDate.of(2027, 1, 5);   // Thứ 3
+
+        RecurringBookingPreviewRequest request = new RecurringBookingPreviewRequest(
+                1L, LocalTime.of(8, 0), LocalTime.of(10, 0),
+                List.of(DayOfWeek.THU), start, end); // Yêu cầu Thứ 5
+
+        when(courtRepository.findById(1L)).thenReturn(Optional.of(sampleCourt));
+        when(businessHourConfigRepository.findById((short) 1)).thenReturn(Optional.of(businessHourConfig));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                recurringBookingService.previewRecurringBooking(request)
+        );
+
+        assertTrue(ex.getMessage().contains("Không có buổi chơi nào phù hợp"));
+    }
+
+    @Test
+    @DisplayName("Cố định 5 (Biên): Nhân viên tạo gói cố định tại quầy -> Các buổi con CONFIRMED và PAID")
+    void testCreateRecurringBookingByStaff_Success() {
+        LocalDate start = LocalDate.now().plusDays(1);
+        LocalDate end = start.plusMonths(1);
+
+        StaffCreateRecurringBookingRequest request = new StaffCreateRecurringBookingRequest(
+                10L, 1L, LocalTime.of(8, 0), LocalTime.of(10, 0),
+                List.of(DayOfWeek.MON), start, end, "CASH");
+
+        when(userRepository.findById(20L)).thenReturn(Optional.of(sampleStaff));
+        when(userRepository.findById(10L)).thenReturn(Optional.of(sampleCustomer));
+        when(courtRepository.findById(1L)).thenReturn(Optional.of(sampleCourt));
+        when(businessHourConfigRepository.findById((short) 1)).thenReturn(Optional.of(businessHourConfig));
+        when(pricingService.calculateCourtPrice(any(), any(), any())).thenReturn(new BigDecimal("100000"));
+        when(discountConfigRepository.findApplicableDiscount(eq(DiscountStatus.ACTIVE), anyInt())).thenReturn(Optional.empty());
+        when(bookingRepository.existsOverlap(anyLong(), any(), any(), any(), any())).thenReturn(false);
+
+        when(recurringBookingRepository.save(any(RecurringBooking.class))).thenAnswer(inv -> {
+            RecurringBooking rb = inv.getArgument(0);
+            rb.setId(101L);
+            return rb;
+        });
+
+        RecurringBookingResponse response = recurringBookingService.createRecurringBookingByStaff(request, 20L);
+
+        assertNotNull(response);
+        assertEquals(101L, response.recurringBookingId());
+        verify(bookingRepository, times(1)).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("Cố định 6 (Biên): Nhân viên tạo gói bị trùng lịch -> Ném BookingConflictException")
+    void testCreateRecurringBookingByStaff_WithConflict_ShouldThrowException() {
+        LocalDate start = LocalDate.now().plusDays(1);
+        LocalDate end = start.plusMonths(1);
+
+        StaffCreateRecurringBookingRequest request = new StaffCreateRecurringBookingRequest(
+                10L, 1L, LocalTime.of(8, 0), LocalTime.of(10, 0),
+                List.of(DayOfWeek.MON), start, end, "CASH");
+
+        when(userRepository.findById(20L)).thenReturn(Optional.of(sampleStaff));
+        when(userRepository.findById(10L)).thenReturn(Optional.of(sampleCustomer));
+        when(courtRepository.findById(1L)).thenReturn(Optional.of(sampleCourt));
+        when(businessHourConfigRepository.findById((short) 1)).thenReturn(Optional.of(businessHourConfig));
+        when(pricingService.calculateCourtPrice(any(), any(), any())).thenReturn(new BigDecimal("100000"));
+        when(discountConfigRepository.findApplicableDiscount(eq(DiscountStatus.ACTIVE), anyInt())).thenReturn(Optional.empty());
+        when(bookingRepository.existsOverlap(anyLong(), any(), any(), any(), any())).thenReturn(true);
+
+        assertThrows(BookingConflictException.class, () ->
+                recurringBookingService.createRecurringBookingByStaff(request, 20L)
+        );
+
+        verify(recurringBookingRepository, never()).save(any());
     }
 }

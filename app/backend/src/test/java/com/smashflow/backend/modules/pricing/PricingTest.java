@@ -40,14 +40,12 @@ class PricingTest {
 
     @BeforeEach
     void setUp() {
-        // Cấu hình giờ mở cửa: 05:00 - 23:00, giờ cao điểm: 17:00 - 20:00
         businessConfig = new BusinessHourConfig();
         businessConfig.setOpeningTime(LocalTime.of(5, 0));
         businessConfig.setClosingTime(LocalTime.of(23, 0));
         businessConfig.setPeakStartTime(LocalTime.of(17, 0));
         businessConfig.setPeakEndTime(LocalTime.of(20, 0));
 
-        // Bảng giá: Giờ thường 100.000đ/h, Giờ cao điểm 160.000đ/h
         priceConfig = new PriceConfig();
         priceConfig.setCourtType(CourtType.STANDARD_INDOOR);
         priceConfig.setPriceNormalHour(new BigDecimal("100000"));
@@ -87,7 +85,6 @@ class PricingTest {
         BigDecimal price = pricingService.calculateCourtPrice(
                 CourtType.STANDARD_INDOOR, LocalTime.of(16, 30), LocalTime.of(18, 0));
 
-        // 16:30 - 17:00 (30p thường = 50.000đ) + 17:00 - 18:00 (1h cao điểm = 160.000đ) = 210.000đ
         assertEquals(new BigDecimal("210000"), price);
     }
 
@@ -96,8 +93,21 @@ class PricingTest {
     void testCalculateCourtPrice_PriceConfigNotFound_ShouldThrowException() {
         when(priceConfigRepo.findByCourtType(CourtType.STANDARD_INDOOR)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> {
-            pricingService.calculateCourtPrice(CourtType.STANDARD_INDOOR, LocalTime.of(8, 0), LocalTime.of(10, 0));
-        });
+        assertThrows(ResourceNotFoundException.class, () ->
+                pricingService.calculateCourtPrice(CourtType.STANDARD_INDOOR, LocalTime.of(8, 0), LocalTime.of(10, 0))
+        );
+    }
+
+    @Test
+    @DisplayName("Giá 5 (Biên): Báo lỗi khi thiếu cấu hình giờ hoạt động hệ thống")
+    void testCalculateCourtPrice_BusinessHourNotFound_ShouldThrowException() {
+        when(priceConfigRepo.findByCourtType(CourtType.STANDARD_INDOOR)).thenReturn(Optional.of(priceConfig));
+        when(businessHourConfigRepo.findById((short) 1)).thenReturn(Optional.empty());
+
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class, () ->
+                pricingService.calculateCourtPrice(CourtType.STANDARD_INDOOR, LocalTime.of(8, 0), LocalTime.of(10, 0))
+        );
+
+        assertTrue(ex.getMessage().contains("giờ hoạt động"));
     }
 }

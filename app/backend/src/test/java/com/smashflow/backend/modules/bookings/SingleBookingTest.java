@@ -144,7 +144,64 @@ class SingleBookingTest {
     }
 
     @Test
-    @DisplayName("Sân lẻ 4: Nhân viên đặt tại quầy -> Trạng thái CONFIRMED và PAID ngay")
+    @DisplayName("Sân lẻ 4: Giờ kết thúc trước giờ bắt đầu -> Ném IllegalArgumentException")
+    void testCreateBooking_InvalidTime_ShouldThrowException() {
+        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        CreateBookingRequest request = new CreateBookingRequest(1L, tomorrow, LocalTime.of(10, 0), LocalTime.of(8, 0));
+
+        when(userRepo.findById(10L)).thenReturn(Optional.of(sampleCustomer));
+        when(courtRepo.findById(1L)).thenReturn(Optional.of(sampleCourt));
+        when(businessHourConfigRepo.findById((short) 1)).thenReturn(Optional.of(businessConfig));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> bookingService.createBooking(request, 10L));
+        assertTrue(ex.getMessage().contains("Giờ kết thúc phải sau giờ bắt đầu"));
+    }
+
+    @Test
+    @DisplayName("Sân lẻ 5 (Biên): Chặn đặt khi tài khoản khách bị khóa (LOCKED)")
+    void testCreateBooking_CustomerLocked_ShouldThrowException() {
+        sampleCustomer.setStatus(UserStatus.LOCKED);
+        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        CreateBookingRequest request = new CreateBookingRequest(1L, tomorrow, LocalTime.of(8, 0), LocalTime.of(10, 0));
+
+        when(userRepo.findById(10L)).thenReturn(Optional.of(sampleCustomer));
+        when(courtRepo.findById(1L)).thenReturn(Optional.of(sampleCourt));
+        when(businessHourConfigRepo.findById((short) 1)).thenReturn(Optional.of(businessConfig));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> bookingService.createBooking(request, 10L));
+        assertTrue(ex.getMessage().contains("Tài khoản hiện không thể đặt sân"));
+    }
+
+    @Test
+    @DisplayName("Sân lẻ 6 (Biên): Chặn đặt giờ lẻ không đúng mốc 30 phút (08:15)")
+    void testCreateBooking_NotHalfHourSlot_ShouldThrowException() {
+        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        CreateBookingRequest request = new CreateBookingRequest(1L, tomorrow, LocalTime.of(8, 15), LocalTime.of(9, 15));
+
+        when(userRepo.findById(10L)).thenReturn(Optional.of(sampleCustomer));
+        when(courtRepo.findById(1L)).thenReturn(Optional.of(sampleCourt));
+        when(businessHourConfigRepo.findById((short) 1)).thenReturn(Optional.of(businessConfig));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> bookingService.createBooking(request, 10L));
+        assertTrue(ex.getMessage().contains("mốc 30 phút"));
+    }
+
+    @Test
+    @DisplayName("Sân lẻ 7 (Biên): Chặn đặt giờ ngoài giờ hoạt động (04:00 sáng)")
+    void testCreateBooking_OutsideBusinessHours_ShouldThrowException() {
+        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        CreateBookingRequest request = new CreateBookingRequest(1L, tomorrow, LocalTime.of(4, 0), LocalTime.of(6, 0));
+
+        when(userRepo.findById(10L)).thenReturn(Optional.of(sampleCustomer));
+        when(courtRepo.findById(1L)).thenReturn(Optional.of(sampleCourt));
+        when(businessHourConfigRepo.findById((short) 1)).thenReturn(Optional.of(businessConfig));
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> bookingService.createBooking(request, 10L));
+        assertTrue(ex.getMessage().contains("Sân chỉ hoạt động"));
+    }
+
+    @Test
+    @DisplayName("Sân lẻ 8: Nhân viên đặt tại quầy -> Trạng thái CONFIRMED và PAID ngay")
     void testCreateBookingByStaff_Success() {
         LocalDate tomorrow = LocalDate.now().plusDays(1);
         StaffCreateBookingRequest request = new StaffCreateBookingRequest(
